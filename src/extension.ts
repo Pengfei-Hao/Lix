@@ -13,6 +13,8 @@ import {
 } from 'vscode-languageclient/node';
 
 import * as lix from './lix';
+import { uriToFilePath } from 'vscode-languageserver/lib/node/files';
+import { TextEncoder } from 'util';
 
 
 let client: LanguageClient;
@@ -77,6 +79,43 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.showPdf', async () => {
+			showPdf();
+		})
+	);
+}
+
+async function showPdf() {
+	var document = vscode.window.activeTextEditor?.document;
+	if(typeof document !== "undefined") {
+		lix.initParser(document.getText());
+		lix.parse();
+
+		var latex = lix.exportLatex();
+
+		var encoder = new TextEncoder();
+		
+		var uri = vscode.window.activeTextEditor?.document.uri;
+		if(typeof uri !== "undefined") {
+			
+			var pat = uri.path;
+			var tem = pat.split("/").at(-1);
+			console.log(tem);
+			uri = vscode.Uri.joinPath(uri, "../lix_temp");
+	
+			await vscode.workspace.fs.createDirectory(uri);
+			uri = vscode.Uri.joinPath(uri, tem + ".tex");
+			await vscode.workspace.fs.writeFile(uri, encoder.encode(latex));
+			//vscode.workspace.fs.writeFile(vscode.Uri.file('./temp.tex'), encoder.encode(latex));
+
+			var terminal = vscode.window.createTerminal("Latex Compiler");
+			terminal.sendText("cd " + vscode.Uri.joinPath(uri, "../").fsPath);
+			terminal.sendText("xelatex -synctex=1 -interaction=nonstopmode " + uri.fsPath);
+		}
+		
+	}
 }
 
 function parseLix() {

@@ -20,6 +20,10 @@
       {
         "command": "lix.showLatex",
         "title": "Show Latex"
+      },
+      {
+        "command": "lix.showPdf",
+        "title": "Show PDF"
       }
     ],
     "languages": [
@@ -43,6 +47,11 @@
       "editor/title": [
         {
           "command": "lix.showLatex",
+          "group": "navigation",
+          "when": "editorLangId == lix"
+        },
+        {
+          "command": "lix.showPdf",
           "group": "navigation",
           "when": "editorLangId == lix"
         }

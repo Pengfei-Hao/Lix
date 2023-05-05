@@ -1,22 +1,47 @@
+/**
+ * Parser: analyise the document, generate the nodes
+ */
 
 var text: string = "";
-var formattedText: string = "";
-
-var introduction: string = "";
-var document: string = "";
-
-var index: number = 0;
 
 export function initParser(source: string) {
     text = source;
-    formattedText = "";
-    introduction = "";
-    document = "";
+    rootNode = new Node("document", []);
 }
 
-export function exportLatex(): string {
-    return `\\documentclass{article}\n${introduction}\n\\begin{document}\n${document}\n\\end{document}`;
+
+// parse and 'match' series function
+
+enum NodeType {
+    text,
+    label
 }
+
+class Node {
+    public type: NodeType;
+
+    public text: string;
+
+    public children: Node[];
+
+    constructor(text: string);
+    constructor(text: string, children: Node[]);
+    constructor(text: string, children?: Node[]) {
+        if(children === undefined) {
+            this.type = NodeType.text;
+            this.text = text;
+            this.children = [];
+        }
+        else {
+            this.type = NodeType.label;
+            this.text = text;
+            this.children = children;
+        }
+    }
+
+}
+
+var rootNode = new Node("document", []);
 
 export function parse() {
     //initParser("line1 .// a中文bc \nline2 ... /* aaa \nline3*  / xxx */\n\nline4 // abc\nlint5/* aa中文 */");
@@ -25,124 +50,410 @@ export function parse() {
 
     //initParser("#paper:a4\n [title LiX Document]\n\n[author Mateo Hao]\n\n [date 2023.4.22]\n\n[section Introduction]\n\n This is a short Introduction to LiX.\n");
 
-    
     // 统一行尾
-    text = text.replace(/\n\r/g, "\n");
+    text = text.replace(/\r\n/g, "\n");
     text = text.replace(/\r/g, "\n");
 
     // 去除注释
     text = text.replace(/\/\/.*\n/g, "\n").replace(/\/\*[^]*?\*\//g, " ");
 
-    // 获取setting
-
-    var setting = text.match(/\s*#\s*([a-zA-z0-9-]+)\s*:\s*.*\n/g);
-    text = text.replace(/\s*#\s*([a-zA-z0-9-]+)\s*:\s*.*\n/g, "\n");
-
-    // 压缩空白
-    /* while(index < text.length) {
-        var curChar = text[index];
-        if(isBlankChar()) {
-            while(nextIsBlankChar()) {
-
-            }
-        }
-    } */
-    text = text.replace(/[\t \v\f]+/g," ");
-    text = text.replace(/ ?(\n ?)+\n ?/g,"[newline]");
-    text = text.replace(/ ?\n ?/g," ");
-    text = text.replace(/\[newline\]/g, "\n");
-
     // parse
     index = 0;
-    var res = content();
-    res;
-}
-
-function content(onlyRead: boolean = false): [boolean, string] {
-    var res: string = "";
-    while(index < text.length) {
-        if(is("[")) {
-            index++;
-            skipBlank();
-            var name = labelName();
-            if(name[0] === false) {
-                console.log("Error");
-                return [false, res];
+    skipBlank();
+    while(notEnd()) {
+        var res1 = matchSetting();
+        if(!res1[0]) {
+            var res2 = matchParagraph();
+            if(!res2[0]) {
+                // fail
+                rootNode.children.push(new Node("[[[Parse Failed!!!]]]"));
+                return;
             }
             else {
-                skipBlank();
-
-                processLabel(name[1], onlyRead);
-                
+                rootNode.children.push(res2[1]);
             }
-        }
-        else if(is("]")) {
-            index++;
-            return [true, res];
         }
         else {
-            res += text[index];
-            if(!onlyRead) {
-                document+= text[index];
-            }
-            
-            index++;
+            rootNode.children.push(res1[1]);
         }
     }
-    return [true, res];
+    // success
+    
 }
 
-function labelName(): [boolean, string] {
-    if(isName()) {
-        var name = text[index];
-        while(next(isName)) {
-            index++;
-            name += text[index];
+function matchSetting(): [boolean, Node] {
+    var preIndex = index;
+    var tNode = new Node("");
+
+    if(notEnd() && is("#")) {
+        moveForward();
+        skipBlank();
+        var tName = matchName();
+        if(tName[0]) {
+            skipBlank();
+            tNode.text = "#"+tName[1];
+            if(notEnd() && is(":")) {
+                moveForward();
+                var command = "";
+                while(notEnd() && !is("\n")) {
+                    command += curChar();
+                    moveForward();
+                }
+                //addIntrodunctionLine("#" + tName[1] + ":" + command);
+                skipBlank();
+                tNode.text += ":";
+                tNode.text += command;
+                return [true, tNode];
+            }
+            else {
+                index = preIndex;
+                return [false, tNode];
+            }
         }
-        index++;
-        return [true, name];
+        else {
+            index = preIndex;
+            return [false, tNode];
+        }
     }
     else {
+        index = preIndex;
+        return [false, tNode];
+    }
+}
+
+function matchParagraph(): [boolean, Node] {
+    var preIndex = index;
+    var text = "";
+    var tNode = new Node("paragraph", []);
+    if(notEnd() && !is(blank)) {
+        while(notEnd()) {
+            if(is(blank)) {
+                var count = 0;
+                do {
+                    if(is(newline)) {
+                        count++;
+                    }
+                    moveForward();
+                }while(notEnd() && is(blank));
+                
+                
+                if(count >= 2) {
+                    text += "\n\n";
+                    break;
+                }
+                else {
+                    text += " ";
+                }
+            }
+            else if(is("[")) {
+                tNode.children.push(new Node(text));
+                text = "";
+                var tRes = matchLabel();
+                if (!tRes[0]) {
+                    index = preIndex;
+                    return [false, tNode];
+                }
+                else {
+                    tNode.children.push(tRes[1]);
+                }
+            }
+            else {
+                text += curChar();
+                moveForward();
+            }
+        }
+        tNode.children.push(new Node(text));
+        return [true, tNode];
+    }
+    else {
+        index = preIndex;
+        return [false, tNode];
+    }
+   
+}
+
+function matchParagraphInsideLabel(): [boolean, Node] {
+    var preIndex = index;
+    var text = "";
+    var tNode = new Node("paragraph", []);
+    while (notEnd()) {
+        if (is(blank)) {
+            var count = 0;
+            do {
+                if (is(newline)) {
+                    count++;
+                }
+                moveForward();
+            } while (notEnd() && is(blank));
+
+            if(count >= 2) {
+                text += "\n\n";
+                break;
+            }
+            else {
+                text += " ";
+            }
+        }
+        else if (is("[")) {
+            tNode.children.push(new Node(text));
+            text = "";
+            var tRes = matchLabel();
+            if (!tRes[0]) {
+                index = preIndex;
+                return [false, tNode];
+            }
+            else {
+                tNode.children.push(tRes[1]);
+            }
+        }
+        else if (is("]")) {
+            moveForward();
+            tNode.children.push(new Node(text));
+            return [true, tNode];
+
+        }
+        else {
+            text += curChar();
+            moveForward();
+        }
+    }
+
+    tNode.children.push(new Node(text));
+    index = preIndex;
+    return [false, tNode];
+
+
+}
+
+function matchLabel(): [boolean, Node] {
+    var preIndex = index;
+    var tNode = new Node("", []);
+    moveForward();
+    skipBlank();
+    var tName = matchName();
+    if (tName[0]) {
+        tNode.text = tName[1];
+        skipBlank();
+        
+        var tRes = matchParagraphInsideLabel();
+        if (!tRes) {
+            index = preIndex;
+            return [false, tNode];
+        }
+        tNode.children = tRes[1].children;
+        return [true, tNode];
+    }
+    else {
+        index = preIndex;
+        return [false, tNode];
+    }
+}
+
+function matchName(): [boolean, string] {
+    var preIndex = index;
+    if(!notEnd()) {
+        return [false, ""];
+    }
+    if(is(name)) {
+        var temp = curChar();
+        while(nextIs(name)) {
+            moveForward();
+            temp += curChar();
+        }
+        moveForward();
+        return [true, temp];
+    }
+    else {
+        index = preIndex;
         return [false, ""];
     }
 }
 
-function isBlankChar(): boolean {
-    var reg = /^[\t \v\f]$/g;
-    return reg.exec(text[index]) !== null;
-}
-
 function skipBlank() {
-    if(isBlankChar()) {
-        while(next(isBlankChar)) {
-            index++;
+    if(is(blank)) {
+        while(nextIs(blank)) {
+            moveForward();
         }
-        index++;
+        moveForward();
     }
 }
 
-function next(func: () => boolean) {
-    if(index + 1 < text.length) {
-        index ++;
-        var res = func();
-        index--;
+// current char
+
+function curChar(): string {
+    return text[index];
+}
+
+// 'is' series functions
+
+var name = /[A-Za-z0-9-]/;
+var blank = /[\t \v\f\r\n]/;
+var newline = /[\r\n]/;
+
+function is(char: string): boolean;
+function is(exp: RegExp): boolean;
+function is(condition: string | RegExp): boolean;
+function is(condition: string | RegExp): boolean {
+    if(typeof(condition) === "string") {
+        return text[index] === condition;
+    }
+    else {
+        return condition.exec(text[index]) !== null;
+    }
+    
+}
+
+function nextIs(char: string): boolean;
+function nextIs(exp: RegExp): boolean;
+function nextIs(condition: string | RegExp) {
+    moveForward();
+    if(notEnd()) {
+        var res = is(condition);
+        moveBackward();
         return res;
     }
     else {
+        moveBackward();
         return false;
     }
 }
 
-function is(char: string): boolean {
-    return text[index] === char;
+// index control
+
+var index: number = 0;
+
+function notEnd(): boolean {
+    return index < text.length;
 }
 
-function isName(): boolean {
-    var reg = /[a-zA-Z0-9-]/g;
-    return reg.exec(text[index]) !== null;
+function moveTo(pos: number) {
+    index = pos;
 }
 
-function processLabel(name: string, onlyRead : boolean = false): [boolean, string] {
+function move(length: number) {
+    index += length;
+}
+
+function moveForward() {
+    move(1);
+}
+
+function moveBackward() {
+    move(-1);
+}
+
+/**
+ * Latex generator: convert nodes to latex source
+ */
+
+// latex generate
+
+export function exportLatex(): string {
+    introduction = "";
+    document = "";
+    hasMakedTitle = false;
+
+    addIntrodunction(line(command("usepackage", "xeCJK")));
+    addContent(documentLabel(rootNode));
+
+    return `\\documentclass{article}\n${introduction}\n\\begin{document}\n${document}\n\\end{document}`;
+}
+
+function convertLabel(node: Node): string {
+    if(node.type === NodeType.text) {
+        return node.text;
+    }
+    else {
+        var func = labels.get(node.text);
+        if(func !== undefined) {
+            return func(node);
+        }
+        else {
+            // todo
+            return "[[[failure]]]";
+        }
+    }
+}
+
+function convertAllChildLabel(node: Node): string {
+    var res = "";
+    for(var n of node.children) {
+        res += convertLabel(n);
+    }
+    return res;
+}
+
+// label manager
+
+var labels: Map<string, (node: Node) => string> = new Map([
+    ["document", documentLabel],
+    ["paragraph", paragraphLabel],
+    ["title", titleAuthorDateLabel],
+    ["author", titleAuthorDateLabel],
+    ["date", titleAuthorDateLabel],
+    ["section", sectionSubsectionLabel],
+    ["subsection", sectionSubsectionLabel]
+]);
+
+
+
+function documentLabel(node: Node): string {
+    var res = "";
+    for(var n of node.children) {
+        if(n.text[0] === "#") {
+
+        }
+        else {
+            res += paragraphLabel(n);
+        }
+    }
+    return res;
+}
+
+function paragraphLabel(node: Node): string {
+    return convertAllChildLabel(node);
+}
+
+var hasMakedTitle = false;
+
+function titleAuthorDateLabel(node: Node): string {
+    var t = convertAllChildLabel(node);
+    var res = "";
+    if(!hasMakedTitle) {
+        res = line(command("maketitle"));
+        hasMakedTitle = !hasMakedTitle;
+    }
+    addIntrodunction(line(command(node.text, t)));
+    return res;
+}
+
+function sectionSubsectionLabel(node: Node): string {
+    
+    return line(command(node.text, convertAllChildLabel(node)));
+}
+
+
+// introduction and document of latex source
+
+var introduction: string = "";
+var document: string = "";
+
+function addIntrodunction(intr: string) {
+    introduction += intr;
+}
+
+function line(text: string) {
+    return text + "\n";
+}
+function command(name: string, content: string = "") {
+    return `\\${name}{${content}}`;
+}
+
+function addContent(text: string) {
+    document += text;
+}
+
+/* function processLabel(name: string, onlyRead : boolean = false): [boolean, string] {
     var res = "";
     switch (name) {
         case "section":
@@ -195,4 +506,4 @@ function processLabel(name: string, onlyRead : boolean = false): [boolean, strin
     }
 
     return [true, res];
-}
+} */
