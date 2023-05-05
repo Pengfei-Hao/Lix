@@ -1,0 +1,92 @@
+{
+    "name": "Lix Latex",
+    "scopeName": "source.lix",
+    "patterns": [
+        {
+            "include": "#comment"
+        },
+        {
+            "include": "#setting"
+        },
+        {
+            "include": "#content"
+        }
+    ],
+
+    "repository": {
+        "comment": {
+            "patterns": [
+                {
+                    "include": "#line-comment"
+                },
+                {
+                    "include": "#multiline-comment"
+                }
+            ]
+        },
+        "line-comment": {
+            "match": "\\/\\/.*",
+            "name": "comment.line.double-slash.lix"
+        },
+        "multiline-comment": {
+            "begin": "\\/\\*",
+            "end": "\\*\\/",
+            "name": "comment.block.lix"
+        },
+
+        "setting": {
+            "match": "^\\s*(#)\\s*([a-zA-Z0-9-]+)\\s*:.*$",
+            "captures": {
+                "0": {
+                    "name": "entity.name.setting.lix"
+                },
+                "1": {
+                    "name": "punctuation.defination.setting.lix"
+                },
+                "2": {
+                    "name": "keyword.setting.lix"
+                }
+            }
+        },
+
+        "content": {
+            "patterns": [
+                {
+                    "include": "#label"
+                },
+                {
+                    "include": "#text"
+                }
+            ]
+        },
+        "label": {
+            "begin": "(\\[)\\s*([a-zA-Z0-9-]+)\\s*",
+            "end": "\\]",
+            "name": "entity.name.label.lix",
+            "beginCaptures": {
+                
+                "1": {
+                    "name": "punctuation.defination.label.lix"
+                },
+                "2": {
+                    "name": "keyword.label.lix"
+                }
+            },
+            "endCaptures": {
+                "1": {
+                    "name": "punctuation.defination.label.lix"
+                }
+            },
+            "patterns": [
+                {
+                    "include": "#content"
+                }
+            ]
+        },
+
+        "text": {
+            "match": "[^\\[\\]]*",
+            "name": "markup.lix"
+        }
+    }
+}

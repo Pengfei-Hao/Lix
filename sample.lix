@@ -1,0 +1,555 @@
+
+#default-font-size: 12pt
+#page-set: left=1in,right=0.75in,top=1in,bottom=1in
+
+\definecolor{grey}{rgb}{0.8,0.8,0.8}
+\definecolor{darkgreen}{rgb}{0,0.3,0}
+\definecolor{darkblue}{rgb}{0,0,0.3}
+
+
+#def: [just] = [textbf 理由]
+
+#def: [assu] = [textbf 假设]
+
+// \renewcommand{\algorithmcfname}{算法}
+// \newcommand{\mycite}[1]{\textsuperscript{\cite{#1}}}
+// \newtheorem{modelrule}{规则}
+
+//\setCJKfamily{F}{PingFang.ttc}
+
+[title 植物物种多样性对植物种群抗旱能力的影响]
+
+[author
+郝鹏飞 202111998147
+
+丁天健 202111130013
+
+尚{\CJKfontspec{宋体-简}洺}石 202111998032
+]
+
+[date 2023年3月19日]
+
+[summary 摘要]
+
+不同种类的植物对干旱具有不同的反应，大量观察表明植物物种的数量在一个种群面对干旱周期的过程中起着重要作用。本文首先分析了需要解决的问题，随后根据科学知识提出了有关植物种群的假设并给出建模中需使用的符号。为研究长期、较大范围的干旱与物种多样性对植物种群的影响，建立了元胞自动机模型模拟在周期性干旱的条件下种群中各物种数量的变化，最后以图表方式呈现结果。
+
+[keyword 关键词：植物种群;元胞自动机;物种多样性;干旱]
+
+
+[section 问题分析]
+
+问题的目标为验证植物多样性在保水抗旱方面的重要意义，具体而言，需要解决以下问题：
+
+[enumerate
+* 建立模型来描述多个物种在面对干旱时种群数量的变化以及群落多样性；
+* 确定使植物种群在面对干旱时因物种多样性而受益的物种数量;
+* 研究当物种数量不同时植物面对干旱时反应的变化趋势.
+]
+
+对于第一个问题，考虑植物群落在短期内物种种群数量的变化。在植物群落中，温度、水量[cit1] [cit2]对植物的生长以及繁殖有影响。同时，植物种群之间的竞争会对植物种群的增长产生消极影响。我们以[math Logistic]方程[cit3]
+[equation[aligned
+& y^{\prime}=ry(1-\frac{y}{M})
+]]
+为基础，其中$y$为种群数量，$r$为该种群的增长率，$M$为环境容纳量.建立考虑以上几个因素的的种群数量微分方程模型。
+
+同时，在查阅相关文献后，我们提出了描述群落稳定性的指标[cit4]，即以各个物种的种群数量的方差的加权平均值为基础来刻画群落在面对干旱条件时的群落稳定性。
+
+对于第二、三个问题，对生物群落而言，各个物种之间也有合作关系，即一个物种的繁荣能够为另一个物种的生存和繁荣提供基础，并且在面对干旱等灾害时，物种之间的合作能够增加他们度过危机的机会[cit5]；同时，如果考虑植物群落在更长时间内的变化，植物群落将会遭受到更多的灾害和经历更多的环境变化；而且各个物种之间存在进化的过程，低级植物为高级植物提供了生长的基本条件；植物的繁殖存在有性繁殖和无性繁殖两种，他们与物种死亡率共同决定了物种的增长率。由于长时间环境变化的复杂性以及随机因素，我们考虑将时间、空间离散化，并通过元胞自动机来展示植物群落与环境的长期作用。
+
+[section 假设与符号]
+
+[subsection 假设与理由]
+
+[enumerate
+
+[item 1.] [assu] 土地是平坦的，土壤的营养和水分分布是均匀的，阳光和光照的分布也是均匀的； \label{as3}
+
+[just] 为了简化模型，自然条件下土壤和光条件的分布非常复杂，我们认为土壤和光条件基本上是均匀的;
+
+[item 2.] [assu] 植物在空间中的分布是均匀的，即任意植物与其临近植物间的距离基本相同;\label{as4}
+
+[just] 在自然条件下，树木的生长通常会占据一定的体积，例如冠和根通常占据树干周围的某些空间。 草本植物、灌木等植物通常在一小块区域生长，其中植物的生长状态大致相同，我们可以将小区域简化成一个植物进行研究。 因此，我们认为社区中的所有植物均匀分布;
+
+[item 3.] [assu] 植物的生长需要一定程度的水和一定的温度，并且不同物种生长所需的水和温度不同。
+
+[just] 植物生长受许多因素的影响，例如光，温度，风，土壤等。本文的模型中主要考虑水和温度的影响，而其他因素则处于合适的状态。
+
+[item 4.] [assu] 当环境资源不足时，物种之间将发生竞争，这将降低物种的生长速度。 \label{as2}
+
+[just] 在自然环境中，自然资源总是有限的，植物的数量不能无限增加，因此植物之间不可避免地发生竞争，导致个体死亡和增长率降低。
+
+[item 5.] [assu] 物种通过无性繁殖和有性繁殖而生长，土壤中有植物种子。
+
+[just] 在自然环境中，物种的扩散主要包括无性繁殖和有性繁殖，并且通过有性繁殖产生的种子可以存在于土壤中，并且在环境合适时发芽。无性繁殖的植物通过产生气根插入土壤繁殖新植物。
+
+[item 6.] [assu] 物种具有从低级到高级的不同等级。只有在种子周围存在更低级或相同等级的种子时，该种子才能发芽。
+
+[just] 由于存在从简单到复杂的演化过程，例如从藻类到灌木到树木，更先进的植物对自然资源有更高的要求，而低级植物的存在可以改善自然环境，为高级植物的生存提供必要基础。因此只有在高级植物种子周围有低级或相同等级种子时，种子才能发芽。
+
+]
+
+[subsection 符号]
+
+[center[tabular
+
+{ccc}
+\toprule
+符号 & 含义 & 单位\\
+\midrule
+$r$ & 种群的增长率 & \\
+$M_0$ & 环境容量 & \\
+$n$ & 植物种类数量 & \\
+$S_i$ & 植物种类 ($i=1,2,\ldots,n$,其余记号同理)  & \\
+$y_i$ & 第i类植物的数量 & \\
+$y_{i0}$ & 第i类植物的初始数量 & \\
+$C_i$ &  不同植物种类的需水量 & \\
+$H$ & 环境中水的量 & \\
+$H_0$ & 参考环境中水的量 & \\
+$T$ & 温度 & \textcelsius\\
+$T_0$ & 参考温服 & \textcelsius\\
+$T_m$ & 环境中的最低温度 & \textcelsius\\
+$(i,j)$ & 网格坐标 & \textcelsius\\
+$t_n$ &  时间序列  & \\
+$A(i,j,n)$ &  位于 (i,j) 处植物在$t_n$时刻的年龄 & \\
+$A_k$ & 种类 $S_k$的最大寿命 & \\
+$G_k$ & 有性繁殖的生存率 & \\
+$P_k$ & 无性繁殖的生存率 & \\
+$\rho_k(n)$ & 种类 $S_k$ 在$t_n$时刻的数量 & \\
+$D(Si)$ & 物种i数量关于时间的方差 & \\
+$W_n$ & 植物种类数量为n时群落的稳定性 & \\
+$\delta$ & 微小扰动 & \\
+\bottomrule
+]]
+
+[section 短期内种群数量变化微分方程模型]
+
+我们首先考虑将方程(1)拓展到多个物种。我们设在该地域共存在$n$个\textbf{物种}，分别记为$S_1,S_2,\cdots,S_n$，并用$y_i$代表物种$S_i$的\textbf{种群数量}.根据假设我们知道，多个物种之间的竞争会抑制种群数量的增加，因此我们考虑将方程(1)中的因子$(1-\frac{y}{M})$修改为
+[center [equation (1-\frac{\sum_{j=1}^n y_j}{M})]
+]
+我们还知道，不同植物生长需要的水量不同，我们将各个物种对水的需求量分别记为$C_1,C_2,\cdots,C_n$，称为\textbf{需水量}。同时我们用因子
+\[\frac{\sum_{j=1}^nC_j y_j}{M_0}\]
+来刻画所有物种生长需要的水量占环境可以提供的总资源的比值，并且设$M_0$为环境可以提供的总资源，称为\textbf{环境容纳量}。将$n$个物种的方程全部列出，我们得到
+
+%由生物学知识，当一个群落中种群数量逐渐上升时，种群数量会抑制增长率，使增长率下降，两种物种也会彼此进行抑制，进行土地资源等生存条件的争夺。其次，我们强调干旱对植物群落的影响，在考虑干旱对植物群落的影响时，我们注意到物种的需水量和吸水能力均会对建模的过程产生影响。为了提高在后续整合多个物种模型时的准确性，我们在此忽略吸水能力在物种资源竞争中所造成的影响，故在原有$Logistic$规律的基础上，我们用多种物种的种群数量与各自需水量的乘积之和$\sum_{j=1}^n\alpha_jy_j$来替代$y$,(此处的需水量是相对于需水量为$1$的物种的绝对需水量)
+\begin{equation}
+\left\{
+\begin{aligned}
+%\nonumber
+& y_1^{\prime}=r_1y_1(1-\frac{\sum_{j=1}^nC_jy_j}{M})\\
+& y_2^{\prime}=r_2y_2(1-\frac{\sum_{j=1}^nC_jy_j}{M})\\
+& \cdots \\
+& y_n^{\prime}=r_ny_n(1-\frac{\sum_{j=1}^nC_jy_j}{M})
+\end{aligned}
+\right.
+\end{equation}
+
+接下来我们确定方程中的系数$r_1,\ldots,r_n$. 为了着重考虑干旱对植物群落的影响，我们可以发现，一个物种的需水量$C_k$越小，那么其生长所需资源越少，增长率越快，抗旱能力越强；反之亦然。进而我们可以用$\frac{1}{C_k}$来体现增长率的高低
+\begin{equation*}
+\begin{aligned}
+& r\propto\frac{1}{C_k}
+\end{aligned}
+\end{equation*}
+
+%再依次考虑温度和湿度对种群数量增长的影响，并控制两个参量的变化速度，我们设定初值$H_0$,$T_0$分别为初始湿度和温度，此时对应的环境容纳量设为$M_0$.并以此时为基准，即令上述方程组中的$M=M_0$.
+%令$H$代表湿度。
+接着我们考虑环境中的水量对方程的影响。我们设环境中的\textbf{水量}为$H$。水量不但会影响植物最终的数量，还会影响植物增长的速度。因此水量的影响应该作用在$M_0$上。我们注意到对大多数的植物来说，当环境中的水量低于某个值$H_0$时，其增长率会迅速衰减；而高于$H_0$时，其增长率不会出现太大变化，因此我们采用对数函数来描述这种变化。进而我们将$M_0$替换为
+\[
+M_0(1+\ln\frac{H}{H_0})
+\]
+
+%表示湿度大小对物种数量的影响程度，进而影响在稳定环境中，种群数量最终稳定时所达到的平衡值，且当$H=H_0$时,湿度对种群的增长率没有较大影响，即相对于对初始环境容纳量$M_0$既无促进作用也无抑制作用。
+
+最后确定\textbf{温度}$T$对方程的影响。仿照前例，并考虑到温度的影响较为平缓，采用线性函数来描述温度的影响。同时为了使函数保持恒正，引入$T_m$代表\textbf{环境的最低温度}。进而将$M_0$替换为
+
+\[
+M_0(1+ln\frac{H}{H_0})\frac{T-T_m}{T_0-T_m}
+\]
+
+%表示温度大小对物种数量的影响程度。同样的，上述函数将会影响在稳定环境中，种群数量最终稳定时所达到的阈值，且当$T=T_0$时没有较大影响，即在此温度下最终稳定时所到达的阈值为$M_0$。
+
+最终得到如下方程组
+\begin{equation} \label{eq:x}
+\left\{
+\begin{aligned}
+%\nonumber
+& y_1^{\prime}=\frac{1}{C_1}(1-\frac{\sum_{j=1}^nC_jy_j}{M_0\left(1+\ln \frac{H}{H_0}\right)\frac{T-T_m}{T_0-T_m}})y_1\\
+& y_2^{\prime}=\frac{1}{C_2}(1-\frac{\sum_{j=1}^nC_jy_j}{M_0\left(1+\ln \frac{H}{H_0}\right)\frac{T-T_m}{T_0-T_m}})y_2\\
+& \cdots \\
+& y_n^{\prime}=\frac{1}{C_n}(1-\frac{\sum_{j=1}^nC_jy_j}{M_0\left(1+\ln \frac{H}{H_0}\right)\frac{T-T_m}{T_0-T_m}})y_n
+\end{aligned}
+\right.
+\end{equation}
+
+
+%其中$y_i$代表物种的种群数量,$M$代表该环境的环境容纳量,且$y_i,M,H,T$均为时间$t$的函数。
+
+
+接着考虑方程(3)的平衡点。我们令每个方程等号右边等于零，由于种群数量$y_i>0$，这样便可以得到
+\begin{equation}
+\begin{aligned}
+\sum_{j=1}^nC_jy_j=M_0\left(1+\ln \frac{H}{H_0}\right)\frac{T-T_m}{T_0-T_m}
+\end{aligned}
+\end{equation}
+记右式等于$M$，由此可以知道各个种群所需资源的和会稳定于$M$，而$M$与温度和水量均有关，与实际较为符合。
+
+\section{多个物种与环境长期相互作用模型}
+
+在上一个模型中研究了生物群落在一个天气周期内物种种群数量的变化。我们仅在上一个模型中考虑了水资源不充足时，各个物种之间的竞争对生物群落的影响。但对生物群落而言，物种之间存在合作关系，从而帮助其更好地面对干旱等自然灾害。为研究物种间的相互作用通过元胞自动机来展示植物群落与环境的长期作用。
+
+\subsection{模型构建}
+
+在现实世界中一个地域的土壤和气候条件是十分复杂的，根据假设(\ref{as3})(\ref{as4})，我们我们将研究的地域切分成一个$100\times100$的正方形网格，并分别记这些格子为$(i,j), \quad 1\leqslant i,j\leqslant100$.并且认为群落中的每一株植物都占据一个格子，在一个格子中最多可以容纳一株植物，即每个格子可以包含$S_1,S_2,\cdots,S_n$中的一种植物或者不含任何植物。我们设在该地域共存在$n$个物种，分别记为$S_1,S_2,\cdots,S_n$. 由于各个物种对水的需求量是不同的，我们分别记为$C_1,C_2,\cdots,C_n$.由于研究的是一段连续的时间，我们将时间区间切分成一个序列$\{t_n\},\quad t_{i-1}<t_i,i>=1$.
+
+我们首先考虑植物的年龄。在一个种群中，每一个个体都会经历从出生到死亡的过程，因此，每一个地域中的每一株植物都有确定的年龄，在$t_n$时刻位于$(i,j)$的植物的年龄记为$A(i,j,n)$. 而且，不同物种的个体的平均寿命一般是不同的。因此，我们定义物种$S_k$的最大年龄为$A_k$，而当某个植物个体的年龄$A(i,j,n)$大于其物种的最大年龄$A_k$时，该植物便会死亡。我们定义如下规则：
+\begin{modelrule}
+设在格子$(i,j)$中的存在植物，并且记该植物的物种为$S_k$.如果在$t_n$时刻有$A(i,j,n)< A_k$，那么该植物的年龄会增加，即在$A(i,j,n+1)=A(i,j,n)+1$;如果在$t_n$时刻有$A(i,j,n)\geqslant A_k$，那么该植物便会死亡，即在$t_{n+1}$时刻，格子$(i,j)$中不存在植物。
+\end{modelrule}
+
+
+接着考虑各个物种种群的繁殖。根据假设(\ref{as5})，物种的繁殖共有两种方式：无性繁殖和有性繁殖。这两种繁殖方式的共同点是从一个植物开始，向周围扩张，长出新的植物。因此我们给出如下规则：
+\begin{modelrule}
+设在格子$(i,j)$中的存在植物，并且记该植物的物种为$S_k$.则该植物可以在其周围相邻的八个格子$(i+\delta_1,j+\delta_2),\quad \delta_1,\delta_2 = -1,0,1,\textsc{and} (\delta_1,\delta_2)\neq(0,0)$中以概率$P_k$独立地产生一个年龄为$1$的$S_k$物种的植物。
+\end{modelrule}
+根据假设，除去无性繁殖之外，植物还可以进行有性繁殖。植物可以产生种子，其种子可以通过空气、水流或者动物传播到其他地域。同时植物的种子还可以存在于土壤中，当环境条件适宜时就可以长成新的植株。我们将其他地域传播过来的种子和存在于土壤中的种子作为同一种因素进行研究。我们认为在每个时刻$t_k$上述种子的数量服从正态分布$N(\mu,\sigma^2)$，并且每个种子在该地域的分布都是均匀的。
+
+种子并不一定可以长成植株。种子的发芽与物种、环境条件均有关。对于不同的物种来说，其种子的成活率并不相同，我们将物种$S_k$的种子的成活率记为$G_k, 0\leqslant G_k \leqslant 1$，即在环境条件适宜时，种子以概率$G_k$长成植株。
+种子所在的环境也会影响种子能否成活。如果种子所在的位置已经存在植物，由于原有植物的会与其竞争自然资源，种子无法成活；除此之外，根据假设(\ref{as6})只有当高等级的植物种子周围存在低一等级或相同等级的植物时，该种子才能成活。我们不妨设植物的等级是递增的。我们给出如下规则：
+\begin{modelrule}
+$S_1,S_2,\cdots,S_n$物种的植物的等级是依次递增的。
+\end{modelrule}
+\begin{modelrule}[演化假设]
+在$t_n$时刻，设随机变量$N\sim N(\mu,\sigma^2)$,在该地域中随机地取均匀的$N$个格子$(i_1,j_1),\cdots,(i_N,j_N)$,格子$(i_s,j_s)$中种子的物种为$S_k$,若该格子中不存在植物，且在该格子周围相邻的八个格子$(i+\delta_1,j+\delta_2),\quad \delta_1,\delta_2 = -1,0,1,\textsc{且} (\delta_1,\delta_2)\neq(0,0)$中存在一个格子，在这个格子中的植物的物种为$S_k$或$S_{k-1}$，则在$t_n$时刻格子$(i_s,j_s)$中可以以概率$G_k$产生一个年龄为$1$的$S_k$物种的植物。
+\end{modelrule}
+
+\begin{figure}[htbp]
+
+\centering
+\includegraphics[width = \linewidth]{pic.jpg}
+
+\caption{流程图}
+\label{fig:b}
+\end{figure}
+
+\begin{algorithm}[!htbp]
+%\SetAlgoNoLine
+\SetKwInOut{KIN}{输入}
+\SetKwInOut{KOUT}{输出}
+%\BlankLine  %空一行
+    \caption{多物种相互作用模型 }
+    \label{DE_algo} %
+    \KIN{物种数量 $Type$; 温度$T$; 环境湿度$H$; 各个物种的最大年龄$Age_i$; 各个物种的需水量$C_i$; 模拟的最大时间$allt$  }
+    \KOUT{群落的稳定性$W$; 各个物种在各个时刻的数量$\rho_i(t)$; 群落的空间分布$Map_{ij}$}
+
+    $Map\leftarrow m\times n\times 2$维零矩阵
+    
+    \For{$time=1$ to $ allt $    }
+    {
+    	\For{$(i,j)$ 使 $1\leqslant i\leqslant m$ 且$1\leqslant j\leqslant n$}
+    	{
+			    \If {$Map_{ij1} \neq 0$}
+			    {
+			    	$Map_{ij1} \leftarrow Map_{ij1}+1$
+			    	
+			    	\If {$Map_{ij2} \geqslant Age_{Map_{ij1}}$}
+			   		 {
+			    		$Map_{ij1} \leftarrow0$
+			    		
+			    		$ Map_{ij2}\leftarrow 0$
+			    	}
+			    	
+			    	\For{$(x,y)$使$(x,y)$与$(i,j)$相邻}
+			    	{
+			    		\If{$Map_{xy1} = 0$ 并且 $rand(0,1)>p$}
+			    		{
+			    			$Map_{xy1} \leftarrow Map_{ij1}$
+			    			
+			    			$Map_{xy2} \leftarrow 1$
+			    		
+			    		}
+
+			    	}
+			    }
+			    
+    			
+    	}
+    	
+    	\For{$i=1$ to $randN(1,100)$}
+    	{
+    		\For{$(i,j)$ 使 $1\leqslant i\leqslant m$ 且$1\leqslant j\leqslant n$}
+    		{
+			
+			    \If {$Map_{ij1} = 0$ 并且 $rand(0,1)> p$}
+			    {
+			 
+			    	\For{$(x,y)$使$(x,y)$与$(i,j)$相邻}
+			    	{
+			    		\If{$Map_{xy1} = Map_{ij1}$ 或 $Map_{xy1} = Map_{ij1}-1$}
+			    		{
+			    			$flag \leftarrow true$
+			    		
+			    		}
+
+			    	}
+			    	
+			    	\If{$flag = true$} {
+			    		$Map_{xy1} \leftarrow rand(1,Type)$
+			    			
+			    			$Map_{xy2} \leftarrow 1$
+			    	
+			    	}
+			    }
+			    
+    		
+    	}
+    	}
+    	绘制$Map$的图像
+    	
+    	$cur_{ij} \leftarrow i$时刻$j$物种的数量
+    }
+	
+	$W \leftarrow \log\frac{\Sum_{i=1}{Type} C_i\times Var(cur_{\cdot i})}{Type} $
+    
+    $\rho_i(t) = cur_{ti}$
+    
+    \Return $W$; $\rho_i(t)$;
+\end{algorithm}
+
+\subsection{参数的选取}
+我们以一个月为周期研究群落的变化，即$t_i-t_{i-1}$为一个月。在现实中一株植物所占空间大小可以近似为$1m\times 1m$，我们将研究的范围取为$100m\times 100m$，并且近似认为一个格子的大小为$1m\times 1m$.
+
+首先考虑植物的需水量$C_i$。$C_i$指的是植物生长需水量的多少，一般来说，植物生长需水量并不容易测定，为了便于使用，我们根据植物的生物量来近似得出需水量数据。根据数据中提供的各个植物的生物量，我们估算出了如下几种植物的生物量数据：
+\begin{align*}
+\begin{pmatrix}
+C_1 & C_2 & C_3 & C_4 & C_5 & C_6 & C_7
+\end{pmatrix}
+&=
+\begin{pmatrix}
+1 & 2 & 4 & 10 & 12 & 15 & 20
+\end{pmatrix}
+\end{align*}
+接着确定每个物种的最大年龄$A_i$。根据自然规律，更高等级的植物寿命通常更长，如一些乔木的寿命可达数百年，但草类的寿命却只有几个月。为了模型演算方便，使得各个物种的植物之间寿命跨度不至于太长，我们估算出了以下数据：
+
+\begin{align*}
+\begin{pmatrix}
+A_1 & A_2 & A_3 & A_4 & A_5 & A_6 & A_7
+\end{pmatrix}
+&=
+\begin{pmatrix}
+2 & 5 & 8 & 20 & 25 & 37 & 50
+\end{pmatrix}
+\end{align*}
+
+将上述数据写在表格中，在接下来的研究中，我们以主要研究表\ref{table:1}中的各个物种.
+
+\begin{table}[h]
+
+\begin{center}
+\begin{tabular}{cccccccc}
+
+\toprule  
+$n$ & 1 & 2 & 3 & 4 & 5 & 6 & 7 \\
+\midrule
+$C_n$ & 1 & 2 & 4 & 10 & 12 & 15 & 20 \\
+\midrule 
+$A_n$ & 2 & 5 & 8 & 20 & 25 & 37 & 50 \\
+\bottomrule
+\end{tabular}
+\caption{物种的年龄及需水量}
+\label{table:1}
+\end{center}
+\end{table}
+
+接着考虑无性繁殖的概率$P_k$和有性繁殖中种子的存活率$G_k$。在无性繁殖时，物种$S_k$的植物将以$P_k$的概率在周围八个格子中产生新的植株，若设该物种在$t_n$时刻的数量为$\rho_k(n)$，进一步假设该物种在平面上的分布是均匀的，即每个植物周围平均有$4$个植物与其相邻，我们对无性生殖增长率的期望$E_1$有以下估计：
+\[
+E_1 =4P_k
+\]
+在有性生殖时，设$N\sim N(\mu,\sigma^2)$,并且设物种的数量为$n$，则有性生殖增长率的期望$E_2$可以有估计：
+\[
+E_2 = \frac{\mu G_k}{n}
+\]
+再估计死亡率。只有当物种$S_k$的植物年龄达到其最大年龄$A_k$时，植物才会死亡，我们认为一个种群的年龄分布是均匀的。则死亡率的期望有以下估计：
+\[
+E_3=\frac{1}{A_k}
+\]
+因此，某个物种$S_k$的增长率
+\[
+E_k = E_1+E_2-E_3
+\]
+为了使种群的增长符合上一个模型，我们使$E$等于微分方程中的变化率，即
+\[
+E_k = \frac{1}{C_k}\left(1-\frac{\sum_{i=1}^{n}C_i\rho_k(n)}{M\left(1+\ln\frac{H}{H_0}\right)\frac{T-T_m}{T_0-T_m}}\right)
+\]
+我们再令$G_k=P_k$，得到
+\[
+G_k=P_k=\frac{n}{4n+\mu}\left(E_k+\frac{1}{A_k}\right)
+\]
+
+
+
+\subsection{多少物种可以使群落受益}
+
+
+为了探索群落中物种数目对群落受益的影响，我们以参数
+\[
+M_0=3000,H=2000,T=30
+\]
+分别计算了$n=1,\ldots,7$时的群落随时间变化的过程，$n=k$是指这个群落中含有物种$S_1,\ldots,S_k$。定义群落中物种数量为$n$时群落的稳定性\[
+W_n=\log(\frac{\sum_{i=1}^nD(Si)C_i}n)\]
+
+其中$D(Si)$ 为物种$i$的数量关于时间的方差，由定义知$W_n$衡量了植物群落中每种植物数量的变化程度，从而可以较为全面地刻画群落的稳定性。易知$W_n$的值越小，即各个物种种群数量越稳定，群落稳定性越高。
+
+对于每个$n$，分别重复运行了五次，得到了如表\ref{tab:result}中$1,\cdots5$的结果，并分别计算其平均值和方差如表。并且得到了如图\ref{fig:b}结果,左图表示群落的空间分布，右图表示各个种群的数量变化。下面仅展示$n=1,4,7$情形下植物种群分布的图像。
+
+
+\begin{table}[htbp]
+\caption{结果}  
+\label{tab:result}
+\centering
+\begin{tabular}{cccccccc}
+
+\toprule
+$n$ & 1 & 2 & 3 & 4 & 5 & 平均值 & 方差 \\
+\midrule
+1 & 6.8523 & 6.8447 & 6.8229 & 6.8197 & 6.8382 & 6.83556 & 0.000195638\\
+2 & 6.2520 & 6.2580 & 6.2692 & 6.2902 & 6.2491 & 6.2637 & 0.00027876\\
+3 & 6.0154 & 6.0003 & 6.0536 & 6.0335 & 5.9879 & 6.01814 & 0.000683393\\
+4 & 5.9699 & 5.9483 & 5.9529 & 5.9921 & 5.9542 & 5.96348 & 0.000322202\\
+5 & 5.8185 & 5.9186 & 5.7865 & 5.8719 & 5.8368 & 5.84646 & 0.002580413\\
+6 & 5.8501 & 5.8484 & 5.7163 & 5.7589 & 5.7372 & 5.78218 & 0.003975887\\
+7 & 5.7551 & 5.7055 & 5.7106 & 5.7675 & 5.7811 & 5.74396 & 0.001162418\\
+\bottomrule
+
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+
+\centering
+\subfigure[$n=1$]{\includegraphics[width=0.45\linewidth]{1.1.jpg}}
+\subfigure[$n=1$]{\includegraphics[width=0.45\linewidth]{1.2.jpg}}
+\subfigure[$n=4$]{\includegraphics[width=0.45\linewidth]{4.1.jpg}}
+\subfigure[$n=4$]{\includegraphics[width=0.45\linewidth]{4.2.jpg}}
+\subfigure[$n=7$]{\includegraphics[width=0.45\linewidth]{7.1.jpg}}
+\subfigure[$n=7$]{\includegraphics[width=0.45\linewidth]{7.2.jpg}}
+
+\caption{模型计算结果}
+\label{fig:b}
+\end{figure}
+
+
+
+对比图\ref{fig:b}(a)(b)我们可以看出，当只有一种物种时，群落非常不稳定，始终无法达到稳定的平衡状态，物种消亡和再生非常不均匀、不规律，因此我们认定此时群落稳定性较差。
+
+%观察图\ref{fig:b}(c)(d)当物种增加到第二种和第三种时，群落达到稳定状态的速度增快，能较快平衡，虽然仍有消亡和再生不均匀的现象，但是程度逐渐减弱，开始出现稳定且固定的种群聚集区域，以区域为中心不断繁殖再生逐渐扩大到稳定状态。我们可以认为随着物种数的增长，植物群落的稳定性逐渐增强。
+
+图\ref{fig:b}(c)(d)说明当物种数增加到四种时，群落已经能够以较快的速度达到稳定，迅速形成种群生长的固定聚集区域，并随着时间的增长，逐渐生成较为高级的植物，并衍生成为新的种群的固定聚集区域，消亡和再生的不均匀现象已经基本消失。
+
+图\ref{fig:b}(e)(f)说明物种数目继续增加至七种时，随着时间增长以及高级物种的出现，高级生物年龄长且需要更多资源，剥夺了低等级生物生存所需资源，该区域会出现一些较大的空白，这不利于植物群落的稳定。故当物种过于多时，会降低低等级物种的生存率，进而影响群落的稳定性。
+
+而表\ref{tab:result}的结果也证实了上述观点：当$n=1$时，五次运行程序得到$W_n$结果的平均值显著高于$n\ge 2$的情形且方差较小，代表此时植物群落的稳定性普遍较差；当$n$取3或4时，$W_n$的平均值出现较为明显的下降，此时群落稳定性由于高级植物的生长逐渐提高；而$n$进一步增加时，虽然群落的稳定性降低，但此时高级植物对资源的竞争导致每种植物的数量快速下降，不利于群落的健康发展。
+
+我们认为，当物种数来到第四种时，植物群落较为稳定；而物种数更多或者更低时，都会使群落稳定性降低，影响群落的受益。
+
+
+\newpage
+\begin{thebibliography}{5}
+
+
+\bibitem{cit1} 史浩伯,师庆东,李孟泽等.沙漠腹地绿洲植物群落物种与系统发育多样性分布格局及驱动因子[J].新疆大学学报(自然科学版)(中英文),2022,39(04):385-392.DOI:10.13568/j.cnki.651094.651316.2022.04.14.0002.
+
+\bibitem{cit2} 冯超,甘雨晨,贺晓等.草原矿区苔藓植物多样性及其与土壤理化性质的关系[J].华东师范大学学报(自然科学版),2022,No.221(01):76-84.
+
+\bibitem{cit3} 龚军辉.Logistic方程的推导及其生物学意义[J].高等函授学报(自然科学版),2008,No.166(01):48-50.
+
+
+\bibitem{cit4} 刘春生,章艺,刘鹏等.九龙山自然保护区黄山木兰群落结构特征及其优势种群结构[J].浙江林业科技,2010,30(01):1-7.
+
+\bibitem{cit5} 陈亚宁,李卫红,陈亚鹏等.科技支撑新疆塔里木河流域生态修复及可持续管理[J].干旱区地理,2018,41(05):901-907.DOI:10.13826/j.cnki.cn65-1103/x.2018.05.001.
+
+
+\end{thebibliography}
+
+
+
+
+\newpage
+
+\section*{附录}
+\appendix
+\subsection{程序代码}
+%\def\lstbasicfont{\fontfamily{pcr}\selectfont}
+%\def\lstbasicfont{\ttfamily\footnotesize}
+%\def\lstbasicfont{\fontfamily{lmtt}{\selectfont}}
+\lstset{%
+numbers=left,
+numberstyle=\small,%
+showstringspaces=false,
+showspaces=false,%
+tabsize=4,%
+frame=lines,%
+basicstyle={\footnotesize\lstbasicfont},%
+keywordstyle=\color{darkblue}\bfseries,%
+identifierstyle=,%
+commentstyle=\color{darkgreen},%\itshape,%
+stringstyle=\color{black}%
+}
+\lstloadlanguages{Matlab}
+
+\lstinputlisting[language=Matlab]{CommunityVariation.m}
+   
+\subsection{更多结果}
+
+\begin{figure}[htbp]
+\centering
+\subfigure[$n=1$]{\includegraphics[width=0.45\linewidth]{1.1.jpg}}
+\subfigure[$n=1$]{\includegraphics[width=0.45\linewidth]{1.2.jpg}}
+\subfigure[$n=2$]{\includegraphics[width=0.45\linewidth]{2.1.jpg}}
+\subfigure[$n=2$]{\includegraphics[width=0.45\linewidth]{2.2.jpg}}
+\subfigure[$n=3$]{\includegraphics[width=0.45\linewidth]{3.1.jpg}}
+\subfigure[$n=3$]{\includegraphics[width=0.45\linewidth]{3.2.jpg}}
+\caption{结果}
+
+%\includegraphics[width=0.3]{1.2.jpg}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\subfigure[$n=4$]{\includegraphics[width=0.45\linewidth]{4.1.jpg}}
+\subfigure[$n=4$]{\includegraphics[width=0.45\linewidth]{4.2.jpg}}
+\subfigure[$n=5$]{\includegraphics[width=0.45\linewidth]{5.1.jpg}}
+\subfigure[$n=5$]{\includegraphics[width=0.45\linewidth]{5.2.jpg}}
+\subfigure[$n=6$]{\includegraphics[width=0.45\linewidth]{6.1.jpg}}
+\subfigure[$n=6$]{\includegraphics[width=0.45\linewidth]{6.2.jpg}}
+\caption{结果}
+
+%\includegraphics[width=0.3]{1.2.jpg}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\subfigure[$n=7$]{\includegraphics[width=0.45\linewidth]{7.1.jpg}}
+\subfigure[$n=7$]{\includegraphics[width=0.45\linewidth]{7.2.jpg}}
+
+\caption{结果}
+%\includegraphics[width=0.3]{1.2.jpg}
+\end{figure}
+
+\begin{table}[htbp]
+\caption{结果}  
+\centering
+\begin{tabular}{cccccccc}
+
+\toprule
+$n$ & 1 & 2 & 3 & 4 & 5 & 平均值 & 方差 \\
+\midrule
+1 & 6.8523 & 6.8447 & 6.8229 & 6.8197 & 6.8382 & 6.83556 & 0.000195638\\
+2 & 6.2520 & 6.2580 & 6.2692 & 6.2902 & 6.2491 & 6.2637 & 0.00027876\\
+3 & 6.0154 & 6.0003 & 6.0536 & 6.0335 & 5.9879 & 6.01814 & 0.000683393\\
+4 & 5.9699 & 5.9483 & 5.9529 & 5.9921 & 5.9542 & 5.96348 & 0.000322202\\
+5 & 5.8185 & 5.9186 & 5.7865 & 5.8719 & 5.8368 & 5.84646 & 0.002580413\\
+6 & 5.8501 & 5.8484 & 5.7163 & 5.7589 & 5.7372 & 5.78218 & 0.003975887\\
+7 & 5.7551 & 5.7055 & 5.7106 & 5.7675 & 5.7811 & 5.74396 & 0.001162418\\
+\bottomrule
+
+\end{tabular}
+\end{table}
+\end{document}
