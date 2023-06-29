@@ -106,13 +106,16 @@ async function showPdf() {
 			uri = vscode.Uri.joinPath(uri, "../lix_temp");
 	
 			await vscode.workspace.fs.createDirectory(uri);
+			var turi = uri;
 			uri = vscode.Uri.joinPath(uri, tem + ".tex");
 			await vscode.workspace.fs.writeFile(uri, encoder.encode(latex));
 			//vscode.workspace.fs.writeFile(vscode.Uri.file('./temp.tex'), encoder.encode(latex));
 
 			var terminal = vscode.window.createTerminal("Latex Compiler");
 			terminal.sendText("cd " + vscode.Uri.joinPath(uri, "../").fsPath);
-			terminal.sendText("xelatex -synctex=1 -interaction=nonstopmode " + uri.fsPath);
+			terminal.sendText("xelatex -synctex=1 -interaction=nonstopmode \"" + uri.fsPath + "\"");
+			turi = vscode.Uri.joinPath(turi, tem + ".pdf");
+			terminal.sendText("start msedge \"" + turi.fsPath + "\"");
 		}
 		
 	}

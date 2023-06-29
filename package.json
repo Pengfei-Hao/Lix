@@ -33,7 +33,7 @@
         "extensions": [
           ".lix"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language/language-configuration.json"
       }
     ],
     "grammars": [
