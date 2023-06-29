@@ -14,7 +14,8 @@ export function initParser(source: string) {
 
 enum NodeType {
     text,
-    label
+    label,
+    setting
 }
 
 class Node {
@@ -84,14 +85,15 @@ export function parse() {
 function matchSetting(): [boolean, Node] {
     var preIndex = index;
     var tNode = new Node("");
+    tNode.type = NodeType.setting;
 
     if(notEnd() && is("#")) {
         moveForward();
         skipBlank();
         var tName = matchName();
         if(tName[0]) {
+            tNode.text = tName[1];
             skipBlank();
-            tNode.text = "#"+tName[1];
             if(notEnd() && is(":")) {
                 moveForward();
                 var command = "";
@@ -101,8 +103,7 @@ function matchSetting(): [boolean, Node] {
                 }
                 //addIntrodunctionLine("#" + tName[1] + ":" + command);
                 skipBlank();
-                tNode.text += ":";
-                tNode.text += command;
+                tNode.children.push(new Node(command));
                 return [true, tNode];
             }
             else {
@@ -145,8 +146,39 @@ function matchParagraph(): [boolean, Node] {
                     text += " ";
                 }
             }
+            else if(is("\\")) {
+                moveForward();
+                if(notEnd()) {
+                    switch (curChar()) {
+                        case "\"": case "\\": case "[": case "]": case "{": case "}": case "'":
+                            text += curChar();
+                            break;
+
+                        case "t":
+                            text += "\t";
+                            break;
+                        case "n":
+                            text += "\n";
+                            break;
+                        case "r":
+                            text += "\r";
+                            break;
+                        default:
+                            text += "\\";
+                            text += curChar();
+
+                    }
+                    moveForward();
+                }
+                else {
+                    text += "\\";
+                }
+            }
             else if(is("[")) {
-                tNode.children.push(new Node(text));
+                if(text !== "") {
+                    tNode.children.push(new Node(text));
+                }
+                
                 text = "";
                 var tRes = matchLabel();
                 if (!tRes[0]) {
@@ -162,7 +194,9 @@ function matchParagraph(): [boolean, Node] {
                 moveForward();
             }
         }
-        tNode.children.push(new Node(text));
+        if(text !== "") {
+            tNode.children.push(new Node(text));
+        }
         return [true, tNode];
     }
     else {
@@ -194,8 +228,38 @@ function matchParagraphInsideLabel(): [boolean, Node] {
                 text += " ";
             }
         }
+        else if(is("\\")) {
+            moveForward();
+            if(notEnd()) {
+                switch (curChar()) {
+                    case "\"": case "\\": case "[": case "]": case "{": case "}": case "'":
+                        text += curChar();
+                        break;
+
+                    case "t":
+                        text += "\t";
+                        break;
+                    case "n":
+                        text += "\n";
+                        break;
+                    case "r":
+                        text += "\r";
+                        break;
+                    default:
+                        text += "\\";
+                        text += curChar();
+
+                }
+                moveForward();
+            }
+            else {
+                text += "\\";
+            }
+        }
         else if (is("[")) {
-            tNode.children.push(new Node(text));
+            if(text !== "") {
+                tNode.children.push(new Node(text));
+            }
             text = "";
             var tRes = matchLabel();
             if (!tRes[0]) {
@@ -208,7 +272,9 @@ function matchParagraphInsideLabel(): [boolean, Node] {
         }
         else if (is("]")) {
             moveForward();
-            tNode.children.push(new Node(text));
+            if(text !== "") {
+                tNode.children.push(new Node(text));
+            }
             return [true, tNode];
 
         }
@@ -218,7 +284,9 @@ function matchParagraphInsideLabel(): [boolean, Node] {
         }
     }
 
-    tNode.children.push(new Node(text));
+    if(text !== "") {
+        tNode.children.push(new Node(text));
+    }
     index = preIndex;
     return [false, tNode];
 
@@ -235,8 +303,105 @@ function matchLabel(): [boolean, Node] {
         tNode.text = tName[1];
         skipBlank();
         
-        var tRes = matchParagraphInsideLabel();
-        if (!tRes) {
+        var tRes;
+        if(tName[1] === "equation") {
+            tRes = matchEquation();
+        }
+        else {
+            tRes = matchParagraphInsideLabel();
+        }
+
+        if (!tRes[0]) {
+            index = preIndex;
+            return [false, tNode];
+        }
+        tNode.children = tRes[1].children;
+        return [true, tNode];
+    }
+    else {
+        index = preIndex;
+        return [false, tNode];
+    }
+}
+
+function matchEquation(): [boolean, Node] {
+    var preIndex = index;
+
+    var text = "";
+    var tNode = new Node("equation", []);
+    while (notEnd()) {
+        if (is(blank)) {
+
+            if(text !== "") {
+                tNode.children.push(new Node(text));
+            }
+            text = "";
+            var count = 0;
+            do {
+                if (is(newline)) {
+                    count++;
+                }
+                moveForward();
+            } while (notEnd() && is(blank));
+
+            // if(count >= 2) {
+            //     text += "\n\n";
+            //     break;
+            // }
+            // else {
+            //     text += " ";
+            // }
+        }
+        
+        else if (is("[")) {
+            if(text !== "") {
+                tNode.children.push(new Node(text));
+            }
+            text = "";
+            var tRes = matchMathLabel();
+            if (!tRes[0]) {
+                index = preIndex;
+                return [false, tNode];
+            }
+            else {
+                tNode.children.push(tRes[1]);
+            }
+        }
+        else if (is("]")) {
+            moveForward();
+            if(text !== "") {
+                tNode.children.push(new Node(text));
+            }
+            return [true, tNode];
+
+        }
+        else {
+                text += curChar();
+                moveForward();
+            
+        }
+    }
+
+    if(text !== "") {
+        tNode.children.push(new Node(text));
+    }
+    index = preIndex;
+    return [false, tNode];
+}
+
+function matchMathLabel(): [boolean, Node] {
+    var preIndex = index;
+    var tNode = new Node("", []);
+    moveForward();
+    skipBlank();
+    var tName = matchName();
+    if (tName[0]) {
+        tNode.text = tName[1];
+        skipBlank();
+        
+        var tRes = matchEquation();
+
+        if (!tRes[0]) {
             index = preIndex;
             return [false, tNode];
         }
@@ -354,6 +519,8 @@ export function exportLatex(): string {
     hasMakedTitle = false;
 
     addIntrodunction(line(command("usepackage", "xeCJK")));
+    addIntrodunction(line(command("usepackage", "geometry")));
+    addIntrodunction(line(command("usepackage", "amsmath")));
     addContent(documentLabel(rootNode));
 
     return `\\documentclass{article}\n${introduction}\n\\begin{document}\n${document}\n\\end{document}`;
@@ -383,6 +550,14 @@ function convertAllChildLabel(node: Node): string {
     return res;
 }
 
+function convertSetting(node: Node): string {
+    var func = settings.get(node.text);
+    if(func !== undefined) {
+        func(node.children[0].text);
+    }
+    return "";
+}
+
 // label manager
 
 var labels: Map<string, (node: Node) => string> = new Map([
@@ -392,16 +567,15 @@ var labels: Map<string, (node: Node) => string> = new Map([
     ["author", titleAuthorDateLabel],
     ["date", titleAuthorDateLabel],
     ["section", sectionSubsectionLabel],
-    ["subsection", sectionSubsectionLabel]
+    ["subsection", sectionSubsectionLabel],
+    ["equation", equationLabel]
 ]);
-
-
 
 function documentLabel(node: Node): string {
     var res = "";
     for(var n of node.children) {
-        if(n.text[0] === "#") {
-
+        if(n.type === NodeType.setting) {
+            convertSetting(n);
         }
         else {
             res += paragraphLabel(n);
@@ -409,6 +583,7 @@ function documentLabel(node: Node): string {
     }
     return res;
 }
+
 
 function paragraphLabel(node: Node): string {
     return convertAllChildLabel(node);
@@ -430,6 +605,100 @@ function titleAuthorDateLabel(node: Node): string {
 function sectionSubsectionLabel(node: Node): string {
     
     return line(command(node.text, convertAllChildLabel(node)));
+}
+
+// math label manager
+
+var mathLabels: Map<string, (node: Node) => string> = new Map([
+    ["frac", fracLabel],
+    ["matrix", matrixLabel]
+]);
+
+var mathSymbols: Map<string, string> = new Map([
+    ["x", "\\cdot{}"],
+    ["x1", "x_{1}"],
+    ["x2", "x_{2}"],
+    ["x3", "x_{3}"],
+    ["y1", "y_{1}"],
+    ["y2", "y_{2}"],
+    ["y3", "y_{3}"]
+]);
+
+function fracLabel(node: Node): string {
+    var a = "", b = ""; // a/b
+    for(var n of node.children) {
+        if(n.type === NodeType.text && n.text === "/") {
+            a = b;
+            b = "";
+        }
+        else {
+            b += convertMathLabel(n);
+        }
+    }
+
+    return `\\frac{${a}}{${b}}`;
+}
+
+function matrixLabel(node: Node): string {
+    return `\\begin{matrix}${convertAllChildMathLabel(node)}\\end{matrix}`;
+}
+
+function equationLabel(node: Node): string {
+    var res = "\\[";
+
+    res += convertAllChildMathLabel(node);
+
+    res += "\\]";
+    return res;
+}
+
+function convertMathLabel(node: Node): string {
+    if(node.type === NodeType.text) {
+        return convertMathSymbol(node.text);
+    }
+    else {
+        var func = mathLabels.get(node.text);
+        if(func !== undefined) {
+            return func(node);
+        }
+        else {
+            return "[[[failure]]]";
+        }
+    }
+}
+
+function convertAllChildMathLabel(node: Node): string {
+    var res = "";
+    for(var n of node.children) {
+        res += convertMathLabel(n);
+    }
+    return res;
+}
+
+function convertMathSymbol(symbol: string): string {
+    var res = mathSymbols.get(symbol);
+    if(res !== undefined) {
+        return res;
+    }
+    else {
+        return symbol;
+    }
+}
+
+// settings manager
+
+var settings: Map<string, (parameter: string)=> string> = new Map([
+    ["paper", paperSetting]
+]);
+
+function paperSetting(parameter: string): string {
+    if(parameter === "a4") {
+        addIntrodunction(line(command("geometry", "a4paper")));
+    }
+    else if(parameter === "b5") {
+        addIntrodunction(line(command("geometry", "b5paper")));
+    }
+    return "";
 }
 
 
