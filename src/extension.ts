@@ -12,8 +12,9 @@ import {
   TransportKind
 } from 'vscode-languageclient/node';
 
-import * as lix from './lix';
-import { uriToFilePath } from 'vscode-languageserver/lib/node/files';
+import * as lixParser from './parser/parser';
+import * as lixGenerator from './generator/latexGenerator';
+
 import { TextEncoder } from 'util';
 
 
@@ -23,77 +24,88 @@ let client: LanguageClient;
 // Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
 
-	let serverModule = context.asAbsolutePath(path.join( 'out', 'server.js'));
+	// Start the language cilent
+
+	let serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
 
 	let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
 
 	let serverOptions: ServerOptions = {
 		run: { module: serverModule, transport: TransportKind.ipc },
 		debug: {
-		  module: serverModule,
-		  transport: TransportKind.ipc,
-		  options: debugOptions
+			module: serverModule,
+			transport: TransportKind.ipc,
+			options: debugOptions
 		}
-	  };
-	
-	  let clientOptions: LanguageClientOptions = {
+	};
+
+	let clientOptions: LanguageClientOptions = {
 		// Register the server for plain text documents
 		documentSelector: [{ scheme: 'file', language: 'lix' }],
 		synchronize: {
-		  // Notify the server about file changes to '.clientrc files contained in the workspace
-		  fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
+			// Notify the server about file changes to '.clientrc files contained in the workspace
+			fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
 		}
-	  };
-	
-	  // Create the language client and start the client.
-	  client = new LanguageClient(
+	};
+
+	// Create the language client and start the client.
+	client = new LanguageClient(
 		'languageServerExample',
 		'Language Server Example',
 		serverOptions,
 		clientOptions
-	  );
-	
-	  // Start the client. This will also launch the server
-	  client.start();
+	);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "lix" is now active!');
+	// Start the client. This will also launch the server
+	client.start();
 
 	vscode.workspace.registerTextDocumentContentProvider("lix", myLatexProvider);
 
+
+	// Register the Commands
+
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.showLatex', async () => {
-		  parseLix();
+			showLatex();
 		})
-	  );
+	);
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	
-	  let disposable = vscode.commands.registerCommand('lix.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from LiX!');
-	});
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.helloWorld', async () => {
+			// The code you place here will be executed every time your command is executed
+			// Display a message box to the user
+			vscode.window.showInformationMessage('Hello World from LiX!');
+		})
+	);
 
-	context.subscriptions.push(disposable);
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.parse', async () => {
+			parse();
+		})
+	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.showPdf', async () => {
 			showPdf();
 		})
 	);
+
+	// Successfully init
+
+	// Use the console to output diagnostic information (console.log) and errors (console.error)
+	// This line of code will only be executed once when your extension is activated
+	console.log('Congratulations, your extension "lix" is now active!');
 }
 
 async function showPdf() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		lix.initParser(document.getText());
-		lix.parse();
+		
+		lixParser.init(document.getText());
+		lixParser.parse();
 
-		var latex = lix.exportLatex();
+		lixGenerator.init(lixParser.getAST());
+		var latex = lixGenerator.getLatex();
 
 		var encoder = new TextEncoder();
 		
@@ -121,14 +133,30 @@ async function showPdf() {
 	}
 }
 
-function parseLix() {
+async function showLatex() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		lix.initParser(document.getText());
-		lix.parse();
+		lixParser.init(document.getText());
+		lixParser.parse();
 
-		var latex = lix.exportLatex();
+		lixGenerator.init(lixParser.getAST());
+		var latex = lixGenerator.getLatex();
+
 		var uri = myLatexProvider.addContent(latex);
+		vscode.window.showTextDocument(uri);
+	}
+	
+	
+}
+
+async function parse() {
+	var document = vscode.window.activeTextEditor?.document;
+	if(typeof document !== "undefined") {
+		lixParser.init(document.getText());
+		lixParser.parse();
+
+		let nodeTree = lixParser.getAST();
+		let uri = myLatexProvider.addContent(lixParser.toString(nodeTree));
 		vscode.window.showTextDocument(uri);
 	}
 	

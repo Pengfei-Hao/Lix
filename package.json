@@ -1,7 +1,7 @@
 {
   "name": "lix",
   "displayName": "LiX",
-  "description": "Lix is a Light Latex",
+  "description": "Lix is a Light Latex.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.77.0"
@@ -24,6 +24,10 @@
       {
         "command": "lix.showPdf",
         "title": "Show PDF"
+      },
+      {
+        "command": "lix.parse",
+        "title": "Parse"
       }
     ],
     "languages": [
@@ -52,6 +56,11 @@
         },
         {
           "command": "lix.showPdf",
+          "group": "navigation",
+          "when": "editorLangId == lix"
+        },
+        {
+          "command": "lix.parse",
           "group": "navigation",
           "when": "editorLangId == lix"
         }
