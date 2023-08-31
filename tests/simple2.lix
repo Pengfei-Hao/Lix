@@ -5,7 +5,7 @@
 [author Mateo Hao]
 [section 这是一个标题]
 
-[equation 
+[formula
 'lix => x y z'
 'sigmoid => f ( x ) = [x /  1 + x]'
 'mat => [x x y ; z z x ; x y]'

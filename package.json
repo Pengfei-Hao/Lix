@@ -28,6 +28,10 @@
       {
         "command": "lix.parse",
         "title": "Parse"
+      },
+      {
+        "command": "lix.test",
+        "title": "Test Lix"
       }
     ],
     "languages": [
@@ -63,6 +67,14 @@
           "command": "lix.parse",
           "group": "navigation",
           "when": "editorLangId == lix"
+        }
+      ]
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "LixNavigator",
+          "name": "Lix Navigator"
         }
       ]
     }

@@ -1,4 +1,16 @@
-import { integer } from "vscode-languageclient";
+import { TypeTable } from "./type-table";
+
+export class Type {
+    name: string;
+    table: TypeTable;
+
+    constructor(name: string, table: TypeTable) {
+        this.name = name;
+        this.table = table;
+    }
+}
+
+/*
 
 export class Type {
     public id: integer;
@@ -30,9 +42,11 @@ let idToType: Type[] = [];
 let count = 0;
 
 export function init() {
-    if(count > 0) {
-        return;
-    }
+    idToName = [];
+    nameToId = new Map();
+    idToType = [];
+    count = 0;
+
     Type.document = addType("document")!;
     Type.paragraph = addType("paragraph")!;
     Type.text = addType("text")!;
@@ -108,18 +122,4 @@ export function addType(name: string): Type | undefined {
     return temp;
 }
 
-export class Node {
-    public type: Type;
-
-    public content: string;
-
-    public children: Node[];
-
-    
-    constructor(type: Type, content: string = "", children: Node[] = []) {
-            this.type = type;
-            this.content = content;
-            this.children = children;
-    }
-
-}
+*/

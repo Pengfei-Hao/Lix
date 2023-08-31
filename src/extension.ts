@@ -12,10 +12,10 @@ import {
   TransportKind
 } from 'vscode-languageclient/node';
 
-import * as lixParser from './parser/parser';
-import * as lixGenerator from './generator/latexGenerator';
-
 import { TextEncoder } from 'util';
+import { Parser } from './parser/parser';
+import { Generator } from './generator/generator';
+import { LatexGenerator } from './generator/latexGenerator';
 
 
 let client: LanguageClient;
@@ -90,22 +90,38 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.test', async () => {
+			let msg = "";
+			if(workspace.name) {
+				msg=msg.concat(workspace.name,":");
+			}
+			else {
+				msg=msg.concat("None:");
+			}
+			for(let doc of workspace.textDocuments) {
+				msg=msg.concat(doc.fileName, ";");
+			}
+			vscode.window.showInformationMessage(msg);
+
+		})
+	);
 	// Successfully init
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "lix" is now active!');
+	vscode.window.showInformationMessage(`extensionPath:${context.extensionPath};globalStorage:${context.globalStorageUri.fsPath};Storage:${context.storageUri?.path};logPath:${context.logUri.fsPath}`);
 }
 
 async function showPdf() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		
-		lixParser.init(document.getText());
-		lixParser.parse();
+		let parser = new Parser(document.getText());
+		parser.parse();
 
-		lixGenerator.init(lixParser.getAST());
-		var latex = lixGenerator.getLatex();
+		let generator = new LatexGenerator(parser);
+		var latex = generator.generate();
 
 		var encoder = new TextEncoder();
 		
@@ -136,11 +152,11 @@ async function showPdf() {
 async function showLatex() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		lixParser.init(document.getText());
-		lixParser.parse();
+		let parser = new Parser(document.getText());
+		parser.parse();
 
-		lixGenerator.init(lixParser.getAST());
-		var latex = lixGenerator.getLatex();
+		let generator = new LatexGenerator(parser);
+		var latex = generator.generate();
 
 		var uri = myLatexProvider.addContent(latex);
 		vscode.window.showTextDocument(uri);
@@ -152,11 +168,11 @@ async function showLatex() {
 async function parse() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		lixParser.init(document.getText());
-		lixParser.parse();
+		let parser = new Parser(document.getText());
+		parser.parse();
 
-		let nodeTree = lixParser.getAST();
-		let uri = myLatexProvider.addContent(lixParser.toString(nodeTree));
+		let nodeTree = parser.syntaxTree;
+		let uri = myLatexProvider.addContent(nodeTree.toString());
 		vscode.window.showTextDocument(uri);
 	}
 	
