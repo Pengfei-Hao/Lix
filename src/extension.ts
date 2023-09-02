@@ -15,14 +15,17 @@ import {
 import { TextEncoder } from 'util';
 import { Parser } from './parser/parser';
 import { Generator } from './generator/generator';
-import { LatexGenerator } from './generator/latexGenerator';
+import { LatexGenerator } from './generator/latex-generator';
+import { Config } from './config';
 
 
 let client: LanguageClient;
 
+let config: Config;
+
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
 	// Start the language cilent
 
@@ -74,7 +77,8 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('lix.helloWorld', async () => {
 			// The code you place here will be executed every time your command is executed
 			// Display a message box to the user
-			vscode.window.showInformationMessage('Hello World from LiX!');
+			//vscode.window.showInformationMessage('Hello World from LiX!');
+			helloWorld();
 		})
 	);
 
@@ -111,13 +115,22 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "lix" is now active!');
-	vscode.window.showInformationMessage(`extensionPath:${context.extensionPath};globalStorage:${context.globalStorageUri.fsPath};Storage:${context.storageUri?.path};logPath:${context.logUri.fsPath}`);
+	//vscode.window.showInformationMessage(`extensionPath:${context.extensionPath};globalStorage:${context.globalStorageUri.fsPath};Storage:${context.storageUri?.path};logPath:${context.logUri.fsPath}`);
+
+	config = new Config(context.extensionUri);
+	let success = await config.readAll();
+	console.log(`Configs loading success: ${success}`);
+	//console.log(`math.json: ${config.get("math")}`);
+
+	//config.set("label", '{"labels": ["paragraph", "title"]}');
+
+	//await config.saveAll();
 }
 
 async function showPdf() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		let parser = new Parser(document.getText());
+		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
 		let generator = new LatexGenerator(parser);
@@ -152,7 +165,7 @@ async function showPdf() {
 async function showLatex() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		let parser = new Parser(document.getText());
+		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
 		let generator = new LatexGenerator(parser);
@@ -168,7 +181,7 @@ async function showLatex() {
 async function parse() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
-		let parser = new Parser(document.getText());
+		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
 		let nodeTree = parser.syntaxTree;
@@ -179,12 +192,40 @@ async function parse() {
 	
 }
 
+function helloWorld() {
+	test1();
+	console.log("first follow");
+}
+
+function test1(): Thenable<number> {
+
+	return new Promise((resolve) => {
+		sleep(1000).then(() => {
+			console.log("1");
+		console.log("2");
+		console.log("3");
+		console.log("4");
+		console.log("5");
+		console.log("6");
+		resolve(7);
+		})
+	})
+	
+}
+
+function sleep(time: number) {
+	return new Promise((resolve, reject) => {
+		setTimeout(resolve, time);
+	})	
+}
+
 // This method is called when your extension is deactivated
-export function deactivate(): Thenable<void> | undefined {
+export async function deactivate(): Promise<void> {
+	
 	if (!client) {
-		return undefined;
-	  }
-	  return client.stop();
+		return;
+	}
+	await client.stop();
 }
 
 

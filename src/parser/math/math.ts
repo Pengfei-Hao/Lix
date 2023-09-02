@@ -1,46 +1,64 @@
+
+import exp = require("constants");
 import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { MatchResult, Parser, Result } from "../parser";
-import { BlockHandlerTable } from "./block-handler-table";
+import { SymbolTable } from "./symbol-table";
 
 
 export class Math extends Module {
 
-    blockHandlerTable: BlockHandlerTable;
+    blockHandlerTable: SymbolTable;
 
-    equationType: Type;
+    // types of syntax tree node
+    formulaType: Type;
     symbolType: Type;
     definationType: Type;
     fractionType: Type;
     matrixType: Type;
+    sqrtType: Type;
+    sumType: Type;
+    limitType: Type;
+    integralType: Type;
+    scriptType: Type;
+    bracketsType: Type;
 
     constructor(parser: Parser) {
         super(parser);
 
-        this.equationType = this.parser.typeTable.add("equation")!;
-        this.symbolType = this.parser.typeTable.add("symbol")!;
-        this.definationType = this.parser.typeTable.add("defination")!;
-        //this.fractionType = this.parser.typeTable.add("fraction")!;
-        //this.matrixType = this.parser.typeTable.add("matrix")!;
-
+        // Init label handle function
         this.parser.labelHandlerTable.add("formula", this.matchFormula, this);
         this.parser.labelHandlerTable.add("$", this.matchFormula, this);
 
-        this.blockHandlerTable = new BlockHandlerTable(parser);
-        this.fractionType = this.blockHandlerTable.addBlock("frac", this.frac, this)!;
+        // Init syntax tree node type
+        this.formulaType = this.parser.typeTable.add("formula")!;
+        this.symbolType = this.parser.typeTable.add("symbol")!;
+        this.definationType = this.parser.typeTable.add("defination")!;
+
+        // Init math block handle function and init syntax tree node
+        this.blockHandlerTable = new SymbolTable(parser);
+        this.fractionType = this.blockHandlerTable.addBlock("fraction", this.frac, this)!;
+        this.sqrtType = this.blockHandlerTable.addBlock("sqrt", this.sqrt, this)!;
+        this.sumType = this.blockHandlerTable.addBlock("sum", this.sum, this)!;
+        this.limitType = this.blockHandlerTable.addBlock("limit", this.limit, this)!;
+        this.integralType = this.blockHandlerTable.addBlock("integral", this.integral, this)!;
+        this.scriptType = this.blockHandlerTable.addBlock("script", this.script, this)!;
+        this.bracketsType = this.blockHandlerTable.addBlock("brackets", this.brackets, this)!;
         this.matrixType = this.blockHandlerTable.addBlock("matrix", this.matrix, this)!;
-        
-        let symbols = ["x", "y", "z", "f", "1", "2", "+", "-", "(", ")", "="];
-        for(let symbol of symbols) {
+
+        // Init math symbols from math.json
+        let json = parser.configs.get("math");
+        let config: { symbols: string[] } = JSON.parse(json);
+        for(let symbol of config.symbols) {
             this.blockHandlerTable.addSymbol(symbol);
+
         }
-        //[["x", "#x"], ["y", "#y"], ["z", "#z"], ["f", "#f"],
-        //["1", "#1"], ["2", "#2"], ["+", "#+"], ["-", "#-"], ["(", "#("], [")", "#)"], ["=", "#="]]
+        
     }
 
     matchFormula(): MatchResult {
-        let result = this.myMatchEquation();
+        let result = this.myMatchFormula();
 
         if (!result.success) {
             return result;
@@ -52,12 +70,12 @@ export class Math extends Module {
     }
 
 // Part 1: scan the text and construct the syntax tree. This part will use types of node as follows:
-// 1. type: equation, content: [unused], children: (contents symbol nodes and equation nodes 1. & 2.)
+// 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
 // 2. type: symbol, content: (name of this symbol), children: [unused]
-// 3. type: defination, content: [unused], children: (contents symbol nodes and equation nodes 1. & 2.)
+// 3. type: defination, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
 
-private myMatchEquation(): MatchResult {
-    var node = new Node(this.equationType);
+private myMatchFormula(): MatchResult {
+    var node = new Node(this.formulaType);
 
     var text = "";
     while (this.parser.notEnd()) {
@@ -188,7 +206,7 @@ private matchDefination(): MatchResult {
 
 private matchSymbols(): MatchResult {
     let text = "";
-    let node = new Node(this.equationType);
+    let node = new Node(this.formulaType);
     while (this.parser.notEnd()) {
         if (this.parser.is(Parser.blank)) {
             if (text !== "") {
@@ -247,8 +265,8 @@ private matchSymbols(): MatchResult {
     return new Result(false, node);
 }
 
-// Part 2: analyse the syntax tree that constructed in Part 1, replace defination nodes with its content, and find out the correct math label function to handle the equation nodes. This part will use types of node as follows:
-// 1. type: equation, content: [unused], children: (contents symbol nodes and equation nodes 1. & 2.)
+// Part 2: analyse the syntax tree that constructed in Part 1, replace defination nodes with its content, and find out the correct math label function to handle the formula nodes. This part will use types of node as follows:
+// 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
 // 2. type: symbol, content: "${name of symbol}", children: [unused]
 // 3. type: fraction, content: [unused], children: (firstNode 1. secondNode 1.)
 // 4. type: matrix, content: [unused], children: (nodes 1.)
@@ -256,7 +274,7 @@ private matchSymbols(): MatchResult {
 
 analyse(node: Node): boolean {
 
-    // filter the defination part, i.e. the symbols surrounded by the ' '.
+    // filter the defination, i.e. the symbols surrounded by the ' '.
     for (let subnode of node.children) {
         if (subnode.type === this.definationType) {
             if (subnode.children.length < 2) {
@@ -269,7 +287,7 @@ analyse(node: Node): boolean {
                 return false;
             }
 
-            let newNode = new Node(this.equationType);
+            let newNode = new Node(this.formulaType);
             for (let i = 2; i < subnode.children.length; i++) {
                 newNode.children.push(Node.clone(subnode.children[i]));
             }
@@ -285,13 +303,26 @@ analyse(node: Node): boolean {
         }
     }
 
-    // analyse labels
+    // analyse symbols
 
-    return this.equation(node);
+    return this.formula(node);
 }
 
+find(node: Node): boolean {
+    let result = false;
+    for(let handle of this.blockHandlerTable.blockHandleFunctions) {
+        result = handle(node);
+        if(result) {
+            break;
+        }
+    }
+    if(!result) {
+        result = this.formula(node);
+    }
+    return result;
+}
 
-equation(node: Node): boolean {
+formula(node: Node): boolean {
     for (let i = 0; i < node.children.length; i++) {
         let subnode = node.children[i];
 
@@ -315,7 +346,7 @@ equation(node: Node): boolean {
                 }
             }
         }
-        else if (subnode.type === this.equationType) {
+        else if (subnode.type === this.formulaType) {
             let result = this.find(subnode);
             if (!result) {
                 return false;
@@ -324,22 +355,6 @@ equation(node: Node): boolean {
         }
     }
     return true;
-}
-
-find(node: Node): boolean {
-    // frac
-    let result = this.frac(node);
-    if (result) {
-        return true;
-    }
-
-    // matrix
-    result = this.matrix(node);
-    if (result) {
-        return true;
-    }
-
-    return false;
 }
 
 frac(node: Node): boolean {
@@ -358,8 +373,8 @@ frac(node: Node): boolean {
         return false;
     }
 
-    let firstNode = new Node(this.equationType);
-    let secondNode = new Node(this.equationType);
+    let firstNode = new Node(this.formulaType);
+    let secondNode = new Node(this.formulaType);
     for (let i = 0; i < pos; i++) {
         firstNode.children.push(node.children[i]);
     }
@@ -369,8 +384,8 @@ frac(node: Node): boolean {
     node.children = [firstNode, secondNode];
     node.type = this.fractionType;
 
-    let result = this.equation(firstNode);
-    let secResult = this.equation(secondNode);
+    let result = this.formula(firstNode);
+    let secResult = this.formula(secondNode);
 
     return result && secResult;
 }
@@ -383,12 +398,12 @@ matrix(node: Node): boolean {
         return false;
     }
 
-    let newChildren: Node[] = [new Node(this.equationType)];
+    let newChildren: Node[] = [new Node(this.formulaType)];
     let count = 0;
     for (let i = 1; i < node.children.length; i++) {
         if (node.children[i].content === ";") {
             count++;
-            newChildren.push(new Node(this.equationType));
+            newChildren.push(new Node(this.formulaType));
         }
         else {
             newChildren[count].children.push(node.children[i]);
@@ -398,7 +413,7 @@ matrix(node: Node): boolean {
     let res = true;
 
     for (let i = 0; i < newChildren.length; i++) {
-        res = res && this.equation(newChildren[i]);
+        res = res && this.formula(newChildren[i]);
     }
 
     node.children = newChildren;
@@ -406,31 +421,308 @@ matrix(node: Node): boolean {
 
     return res;
 }
+
+sqrt(node: Node): boolean {
+    let lastNode;
+    if(node.children.length === 0) {
+        return false;
+    }
+    lastNode = node.children[node.children.length -1];
+    if(lastNode.type !== this.symbolType || lastNode.content !== "^2") {
+        return false;
+    }
+
+    
+    node.children.splice(node.children.length - 1);
+    let res1 = this.formula(node);
+    node.type = this.sqrtType;
+    return res1;
 }
 
-/*
-function matchMathLabel(): MatchResult {
-    var preIndex = index;
-    var tNode = new Node(this.equationType);
-    moveForward(); 
-    skipBlank();
-    var tName = tryToMatchName();
-    if (tName[0]) {
-        tNode.content = tName[1];
-        skipBlank();
-        
-        var tRes = matchEquation();
+sum(node: Node): boolean {
 
-        if (!tRes[0]) {
-            index = preIndex;
-            return [false, tNode];
+    let length = node.children.length;
+    if(length === 0) {
+        return false;
+    }
+    if(!this.isSymbol(node.children[0], "sum")) {
+        return false;
+    }
+
+    let from = new Node(this.formulaType);
+    let to = new Node(this.formulaType);
+    let expr = new Node(this.formulaType);
+    
+    let i = 1;
+    for(; i < length; i++) {
+        if(!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
+            from.children.push(node.children[i]);
         }
-        tNode.children = tRes[1].children;
-        return [true, tNode];
+        else {
+            break;
+        }
     }
-    else { 
-        index = preIndex;
-        return [false, tNode];
+
+    if(i < length && this.isSymbol(node.children[i], "to")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], ":"))) {
+                to.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
     }
+    if(i < length && this.isSymbol(node.children[i], ":")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "to"))) {
+                expr.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    if(i < length && this.isSymbol(node.children[i], "to")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], ":"))) {
+                to.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+    if(i < length && this.isSymbol(node.children[i], ":")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "to"))) {
+                expr.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    let res1 = this.formula(from);
+    let res2 = this.formula(to);
+    let res3 = this.formula(expr);
+
+    node.type = this.sumType;
+    node.children = [from, to, expr];
+    return res1 && res2 && res3;
 }
-*/
+
+limit(node: Node): boolean {
+    let length = node.children.length;
+    if(length === 0) {
+        return false;
+    }
+    if(!this.isSymbol(node.children[0], "lim")) {
+        return false;
+    }
+
+    let lim = new Node(this.formulaType);
+    let expr = new Node(this.formulaType);
+    
+    let i = 1;
+    for(; i < length; i++) {
+        if(!(this.isSymbol(node.children[i], ":"))) {
+            lim.children.push(node.children[i]);
+        }
+        else {
+            break;
+        }
+    }
+
+    if(i < length && this.isSymbol(node.children[i], ":")) {
+        i++;
+        for(; i < length; i++) {
+            expr.children.push(node.children[i]);
+            
+        }
+    }
+
+    let res1 = this.formula(lim);
+    let res2 = this.formula(expr);
+
+    node.type = this.limitType;
+    node.children = [lim, expr];
+    return res1 && res2;
+}
+
+integral(node: Node): boolean {
+    let length = node.children.length;
+    if(length === 0) {
+        return false;
+    }
+    if(!this.isSymbol(node.children[0], "int")) {
+        return false;
+    }
+
+    let from = new Node(this.formulaType);
+    let to = new Node(this.formulaType);
+    let expr = new Node(this.formulaType);
+    
+    let i = 1;
+    for(; i < length; i++) {
+        if(!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
+            from.children.push(node.children[i]);
+        }
+        else {
+            break;
+        }
+    }
+
+    if(i < length && this.isSymbol(node.children[i], "to")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], ":"))) {
+                to.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+    if(i < length && this.isSymbol(node.children[i], ":")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "to"))) {
+                expr.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    if(i < length && this.isSymbol(node.children[i], "to")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], ":"))) {
+                to.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+    if(i < length && this.isSymbol(node.children[i], ":")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "to"))) {
+                expr.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    let res1 = this.formula(from);
+    let res2 = this.formula(to);
+    let res3 = this.formula(expr);
+
+    node.type = this.integralType;
+    node.children = [from, to, expr];
+    return res1 && res2 && res3;
+}
+
+script(node: Node): boolean {
+    let length = node.children.length;
+
+    let sub = new Node(this.formulaType);
+    let sup = new Node(this.formulaType);
+    let expr = new Node(this.formulaType);
+    
+    let match = false;
+    let i = 0;
+    for(; i < length; i++) {
+        if(!(this.isSymbol(node.children[i], "_") || this.isSymbol(node.children[i], "^"))) {
+            expr.children.push(node.children[i]);
+        }
+        else {
+            match = true;
+            break;
+        }
+    }
+    if(!match) {
+        return false;
+    }
+
+    if(i < length && this.isSymbol(node.children[i], "^")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "_"))) {
+                sup.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+    if(i < length && this.isSymbol(node.children[i], "_")) {
+        i++;
+        for(; i < length; i++) {
+            if(!(this.isSymbol(node.children[i], "^"))) {
+                sub.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    if(i < length && this.isSymbol(node.children[i], "&")) {
+        i++;
+        for(; i < length; i++) {
+            sup.children.push(node.children[i]);
+        }
+    }
+    if(i < length && this.isSymbol(node.children[i], "_")) {
+        i++;
+        for(; i < length; i++) {
+            sub.children.push(node.children[i]);
+        }
+    }
+
+    let res1 = this.formula(expr);
+    let res2 = this.formula(sub);
+    let res3 = this.formula(sup);
+
+    node.type = this.scriptType;
+    node.children = [expr, sup, sub];
+    return res1 && res2 && res3;
+}
+
+brackets(node: Node): boolean {
+    let length = node.children.length;
+    if(length < 2) {
+        return false;
+    }
+
+    let left = node.children[0].content;
+    let right = node.children[length - 1].content;
+    let leftBrackets = new Set(["(", "{", "<", "|"]);
+    let rightBrackets = new Set([")", "}", ">", "|"]);
+    if(leftBrackets.has(left) && rightBrackets.has(right)) {
+        node.type = this.bracketsType;
+        let content = node.children.slice(1, -1);
+        node.children = [new Node(this.symbolType, left), new Node(this.formulaType, "", content), new Node(this.symbolType, right)];
+        return this.formula(node.children[1]);
+    }
+
+    return false;
+}
+
+isSymbol(node: Node, name: string): boolean {
+    return node.type === this.symbolType && node.content === name;
+}
+
+}

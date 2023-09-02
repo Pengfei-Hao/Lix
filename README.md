@@ -86,7 +86,8 @@ node.ts 对抽象语法树节点及类型的管理，类型分为Type Id Name，
 
 数学环境使用
 ```
-[math ...]
+[formula ...]
+[$ ...]
 ```
 其中 ...代表一串符号列，其中符号的名称由字母和数字组成，并且以空格分隔。
 ```
@@ -99,50 +100,44 @@ token1 token2 [token3 token4] ...
 
 内置符号有以下这些：
 ```
-函数名称
-sin
-cos
-tan
-log
-exp
+Math functions:
+Refer to math.json.
 
+Operator & Symbols:
+Refer to math.json.
+
+Alphabets:
 Latin Alphabet: a b c ...  A B C ...
 Greek Alphabet: alpha beta ...
 Digits: 0 1 2 ...
 
-运算符
-Symbols: ()[]{}!%^&*_-+=|\:;"'<>,.?/~`
-sim
-simeq
-geq
-leq
-neq
-times
-div
-cdot
-cdots
-ddots
-vdots
-ldots
-ldot
-circ
 
-数学结构
-Sqrt: [... sqrt ...]
+
+Structures:
 Fraction: [... / ...]
 Matrix: [... , ... , ...; ... , ... , ...; ...]
-Sum: [sum ^ ... _ ...]
+Matrix with brackets:
+Multiline:
+Aligned:
+
+Sqrt: [... ^2]
+Sum: [sum ... to ... : ...]
 Product: [prod ^ ... _ ...]
-Limit: [lim _ ...]
-Integral: [int _ ... ^ ...]
+Limit: [lim ... : ]
+Integral: [int ... to ... : ...]
 
-字符修饰
-Bar: [bar ...]
-Dot: [dot ...]
-Superscript: [^ ...]
-Subscript: [_ ...]
-Super-subscript: [^ ... _ ...]
+Script:
+Superscript: [... ^ ...]
+Subscript: [... _ ...]
+Super-subscript: [... ^ ... _ ...]
 
+Brackets:
+Round brackets: [( ... )]
+Square brackets: (unsupported)
+Curly brackets: [{ ... }]
+Angle brackets: [< ... >]
+Pipes: [| ... |]
+Double pipes: [|| ... ||]
 
-Tag
-```
+Tag:
+``` 

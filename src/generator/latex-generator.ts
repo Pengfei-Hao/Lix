@@ -36,7 +36,7 @@ export class LatexGenerator extends Generator {
         this.settingParameterType = parser.settingParameterType;
         this.labelType = parser.labelType;
 
-        this.equationType = parser.mathModule.equationType;
+        this.equationType = parser.mathModule.formulaType;
         this.symbolType = parser.mathModule.symbolType;
         this.definationType = parser.mathModule.definationType;
         this.fractionType = parser.mathModule.fractionType;

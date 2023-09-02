@@ -8,6 +8,7 @@ import { TypeTable } from "../sytnax-tree/type-table";
 import { LabelHandlerTable } from "./label-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
+import { Config } from "../config";
 
 
 export class Result<T> {
@@ -52,9 +53,15 @@ export class Parser {
     // Modules
     modules: Module[];
     mathModule: Math;
-    constructor(text: string) {
+
+    // Configs
+    configs: Config;
+
+    constructor(text: string, configs: Config) {
         this.text = text;
         this.index = 0;
+
+        this.configs = configs;
 
         this.typeTable = new TypeTable(this);
         this.documentType = this.typeTable.add("document")!;
@@ -371,7 +378,7 @@ export class Parser {
 
         this.skipBlank();
 
-        let result: MatchResult;
+        
 
         let handle = this.labelHandlerTable.getHandler(name.content);
         if (handle === undefined) {
@@ -379,14 +386,13 @@ export class Parser {
         }
 
         let preIndex = this.index;
-        result = handle();
+        let result = handle();
         if (!result.success) {
             this.index = preIndex;
             return new Result(false, node);
         }
 
-        node.children = result.content.children;
-        return new Result(true, node);
+        return result;
     }
 
     private tryToMatchLabel(): MatchResult {

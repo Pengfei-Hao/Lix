@@ -10,7 +10,14 @@
 'sigmoid => f ( x ) = [x /  1 + x]'
 'mat => [x x y ; z z x ; x y]'
 
-lix [sigmoid / mat]
+// lix [sigmoid / mat]
+
+[lix ^2]
+[sum i = 1 to N : i times i]
+[int x = 1 to 3 : log x]
+[lim x - infty : [sin x / x]]
+[t ^ 3 _ n]
+[( [f / g] )]
 
 ]
 
