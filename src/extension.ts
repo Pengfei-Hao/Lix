@@ -68,8 +68,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Register the Commands
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.showLatex', async () => {
-			showLatex();
+		vscode.commands.registerCommand('lix.generate', async () => {
+			generate();
 		})
 	);
 
@@ -89,8 +89,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.showPdf', async () => {
-			showPdf();
+		vscode.commands.registerCommand('lix.compile', async () => {
+			compile();
 		})
 	);
 
@@ -127,13 +127,13 @@ export async function activate(context: vscode.ExtensionContext) {
 	//await config.saveAll();
 }
 
-async function showPdf() {
+async function compile() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
 		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
-		let generator = new LatexGenerator(parser);
+		let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
 		var latex = generator.generate();
 
 		var encoder = new TextEncoder();
@@ -162,17 +162,16 @@ async function showPdf() {
 	}
 }
 
-async function showLatex() {
+async function generate() {
 	var document = vscode.window.activeTextEditor?.document;
 	if(typeof document !== "undefined") {
 		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
-		let generator = new LatexGenerator(parser);
+		let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
 		var latex = generator.generate();
 
-		var uri = myLatexProvider.addContent(latex);
-		vscode.window.showTextDocument(uri);
+		showFile(latex);
 	}
 	
 	
@@ -184,12 +183,15 @@ async function parse() {
 		let parser = new Parser(document.getText(), config);
 		parser.parse();
 
-		let nodeTree = parser.syntaxTree;
-		let uri = myLatexProvider.addContent(nodeTree.toString());
-		vscode.window.showTextDocument(uri);
+		showFile(parser.syntaxTree.toString());
 	}
 	
 	
+}
+
+function showFile(file: string) {
+	let uri = myLatexProvider.addContent(file);
+		vscode.window.showTextDocument(uri);
 }
 
 function helloWorld() {

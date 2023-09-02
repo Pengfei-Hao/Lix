@@ -329,7 +329,7 @@ formula(node: Node): boolean {
         if (subnode.type === this.symbolType) {
             let resultOfMath = this.blockHandlerTable.symbols.get(subnode.content);
             if (resultOfMath != undefined) {
-                subnode.content += `__${resultOfMath}__`;
+                //subnode.content += `__${resultOfMath}__`;
             }
             else {
                 let resultOfDefination = this.blockHandlerTable.definations.get(subnode.content);
@@ -400,7 +400,7 @@ matrix(node: Node): boolean {
 
     let newChildren: Node[] = [new Node(this.formulaType)];
     let count = 0;
-    for (let i = 1; i < node.children.length; i++) {
+    for (let i = 0; i < node.children.length; i++) {
         if (node.children[i].content === ";") {
             count++;
             newChildren.push(new Node(this.formulaType));
@@ -709,8 +709,8 @@ brackets(node: Node): boolean {
 
     let left = node.children[0].content;
     let right = node.children[length - 1].content;
-    let leftBrackets = new Set(["(", "{", "<", "|"]);
-    let rightBrackets = new Set([")", "}", ">", "|"]);
+    let leftBrackets = new Set(["(", "{", "<", "|", "."]);
+    let rightBrackets = new Set([")", "}", ">", "|", "."]);
     if(leftBrackets.has(left) && rightBrackets.has(right)) {
         node.type = this.bracketsType;
         let content = node.children.slice(1, -1);

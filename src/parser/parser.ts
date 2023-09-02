@@ -72,11 +72,11 @@ export class Parser {
         this.labelType = this.typeTable.add("label")!;
 
         this.labelHandlerTable = new LabelHandlerTable(this);
-        this.labelHandlerTable.add("title", this.matchInteriorParagraph, this);
-        this.labelHandlerTable.add("author", this.matchInteriorParagraph, this);
-        this.labelHandlerTable.add("section", this.matchInteriorParagraph, this);
-        this.labelHandlerTable.add("subsection", this.matchInteriorParagraph, this);
-        this.labelHandlerTable.add("_1", this.matchInteriorParagraph, this);
+        this.labelHandlerTable.add("title", this.matchLabelDefault.bind(this, 1), this);
+        this.labelHandlerTable.add("author", this.matchLabelDefault.bind(this, 2), this);
+        this.labelHandlerTable.add("section", this.matchLabelDefault.bind(this, 3), this);
+        this.labelHandlerTable.add("subsection", this.matchLabelDefault.bind(this, 4), this);
+        this.labelHandlerTable.add("_1", this.matchLabelDefault.bind(this, 5), this);
 
         this.syntaxTree = new Node(this.documentType);
 
@@ -92,6 +92,9 @@ export class Parser {
 
     // parse and 'match' series function
 
+    // Parse & MatchDocument
+    // Lex: Setting | Paragraph
+    // Result: type: document, content: [unused], children: [Paragraph, Setting]
     parse() {
         // 统一行尾
         this.text = this.text.replace(/\r\n/g, "\n");
@@ -363,7 +366,7 @@ export class Parser {
 
     // MatchLabel
     // Lex: [ name ... ]
-    // Result: type: label, content: (name of label), children: (depends on the label)
+    // Result: type: (depends on label), content: (depens on label), children: (depends on the label)
     private matchLabel(): MatchResult {
         let node = new Node(this.labelType);
 
@@ -378,17 +381,13 @@ export class Parser {
 
         this.skipBlank();
 
-        
-
         let handle = this.labelHandlerTable.getHandler(name.content);
         if (handle === undefined) {
             return new Result(false, node);
         }
 
-        let preIndex = this.index;
         let result = handle();
         if (!result.success) {
-            this.index = preIndex;
             return new Result(false, node);
         }
 
@@ -396,6 +395,42 @@ export class Parser {
     }
 
     private tryToMatchLabel(): MatchResult {
+        let preIndex = this.index;
+        let result = this.matchLabel();
+        if (!result.success) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    // MatchLabelDefault (Temporarily!!)
+    // Lex: title | author | section ...
+    // Result: type: label, content: (name of label), children: (depends on the label)
+    private matchLabelDefault(id: number): MatchResult {
+        let res = this.matchInteriorParagraph();
+        res.content.type = this.labelType;
+        let label = "";
+        switch(id) {
+            case 1:
+                label = "title";
+                break;
+            case 2:
+                label = "author";
+                break;
+            case 3:
+                label = "section";
+                break;
+            case 4:
+                label = "subsection";
+                break;
+            default:
+                return new Result(false, res.content);
+        }
+        res.content.content = label;
+        return res;
+    }
+
+    private tryToMatchLabelDefault(): MatchResult {
         let preIndex = this.index;
         let result = this.matchLabel();
         if (!result.success) {

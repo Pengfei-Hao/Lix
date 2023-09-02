@@ -1,17 +1,4 @@
 {
-    "symbols":[
-        "sin","cos","tan","csc","lim","exp","dim","min","max","arcsin","sin","lg","tanh","ln","arg","log","limsup","liminf",
-        
-        "~","`","!","@","#","$","%","^","&","*","(",")","_","-","+","=","{","[","}","]","|","\\",";",":","\"","'","<",",",">",".","?","/",
-        "times","cdot","div","cap","cup","neq","leq","geq","in","perp","notin","subset","simeq","approx","wedge","vee","oplus","otimes","equiv","cong","infty","forall","nabla","exists","partial","varnothing","complement","neg","cdots","square","triangle",
-        
-        "a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
-        "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
-        "0","1","2","3","4","5","6","7","8","9",
-        "alpha","beta","gamma","delta","epsilon","varepsilon","zeta","eta","theta","vartheta","iota","kappa","lambda","mu","nu","xi","pi","rho","varrho","sigma","tau","upsilon","phi","varphi","chi","psi","omega",
-        "Gamma","Delta","Theta","Lambda","Xi","Pi","Sigma","Upsilon","Phi","Psi","Omega",
-        "\\A","\\B","\\C","\\D","\\E","\\F","\\G","\\H","\\I","\\J","\\K","\\L","\\M","\\N","\\O","\\P","\\Q","\\R","\\S","\\T","\\U","\\V","\\W","\\X","\\Y","\\Z","Re","Im"
-    ],
     "map":[
         ["sin","\\sin{}"],["cos","\\cos{}"],["tan","\\tan{}"],["csc","\\csc{}"],["lim","\\lim{}"],["exp","\\exp{}"],["dim","\\dim{}"],["min","\\min{}"],["max","\\max{}"],["arcsin","\\arcsin{}"],["sin","\\sin{}"],["lg","\\lg{}"],["tanh","\\tanh{}"],["ln","\\ln{}"],["arg","\\arg{}"],["log","\\log{}"],["limsup","\\limsup{}"],["liminf","\\liminf{}"],
         

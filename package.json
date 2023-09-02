@@ -18,16 +18,16 @@
         "title": "Hello World"
       },
       {
-        "command": "lix.showLatex",
-        "title": "Show Latex"
+        "command": "lix.generate",
+        "title": "Generate the latex file."
       },
       {
-        "command": "lix.showPdf",
-        "title": "Show PDF"
+        "command": "lix.compile",
+        "title": "Compile and gain the PDF."
       },
       {
         "command": "lix.parse",
-        "title": "Parse"
+        "title": "Parse the lix file."
       },
       {
         "command": "lix.test",
@@ -54,12 +54,12 @@
     "menus": {
       "editor/title": [
         {
-          "command": "lix.showLatex",
+          "command": "lix.generate",
           "group": "navigation",
           "when": "editorLangId == lix"
         },
         {
-          "command": "lix.showPdf",
+          "command": "lix.compile",
           "group": "navigation",
           "when": "editorLangId == lix"
         },

@@ -21,6 +21,16 @@
 
 ]
 
+[formula
+'lix => x y z'
+'sigmoid => f ( x ) = [x /  1 + x]'
+'mat => [x x y ; z z x ; x y]'
+'x2 => [x ^2]'
+ lix [sigmoid / mat]
+
+ log x2
+]
+
 /*
 [equation 
 'x2 => [x _ 2]'
