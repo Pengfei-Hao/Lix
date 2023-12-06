@@ -62,7 +62,7 @@
         "label": {
             "begin": "(\\[)\\s*([a-zA-Z0-9-]+)\\s*",
             "end": "\\]",
-            "name": "entity.name.label.lix",
+
             "beginCaptures": {
                 
                 "1": {
@@ -85,8 +85,7 @@
         },
 
         "text": {
-            "match": "[^\\[\\]]*",
-            "name": "markup.lix"
+            "match": "[^\\[\\]]*"
         }
     }
 }

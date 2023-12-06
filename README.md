@@ -141,3 +141,104 @@ Double pipes: [|| ... ||]
 
 Tag:
 ``` 
+
+
+## 开发
+
+### Parser
+
+#### 文法
+
+document -> blank [paragraph|setting]* eof
+setting -> # blank name : command \n blank
+paragraph -> [label | [escapeChar | blank | text]]
+label -> '[' blank name blank  ']'
+blank -> [ [\t \v\f\r\n]+ | // ... \n | /* ... */] *
+#### Match 函数
+
+每个myMatch函数对应一个语法节点，功能是从index开始匹配该语法节点，如果成功index设置为该语法节点结尾后一个字符的位置，如果失败index位置是随机的。
+
+##### myMatch模版
+let node = new Node(this.xxxType);
+let msg: Message[] = [];
+this.begin("xxx");
+node.begin = this.index;
+
+match syntax ...
+
+   保证index位置正确
+
+需要用到其他match函数时：
+let result = this.tryToMatchLabel();
+this.mergeMessage(msg, result.messages);
+if (!result.success) {
+    this.sendMessage(msg, "Match label failed.");
+    return new Result(false, node, msg);
+}
+node.children.push(result.content);
+
+需要试错match函数时
+let result = this.matchXXX();
+if (result.success) {
+    this.syntaxTree.children.push(result.content);
+    this.mergeMessage(msg, result.messages);
+    return new Result(true, node, msg);
+}
+
+result = this.matchXXX();
+if (result.success) {
+    this.syntaxTree.children.push(result.content);
+    this.mergeMessage(msg, result.messages);
+    return new Result(true, node, msg);
+}
+
+this.sendMessage(msg, "xxx");
+return new Result(false, node, msg);
+
+返回时(失败)
+this.sendMessage(msg, "xxx");
+return new Result(false, node, msg);
+
+返回时(成功)
+return new Result(true, node, msg);
+
+每个match函数对应相应的match函数，提供试错机会，并且在myMatch失败后将index放回初始位置,并且不产生message.
+match模版
+let preIndex = this.index;
+let result = this.matchSetting();
+this.end();
+result.content.end = this.index;
+if (!result.success) {
+    this.index = preIndex;
+}
+return result;
+
+
+#### Match 两种模式
+
+扫描模式
+
+while(this.notEnd()) {
+    if(this.is(Parser.blank)) {
+        do {
+            this.move();
+        } while(this.notEnd() && this.is(Parser.blank));
+    }
+    else if(this.is("/") && this.nextIs("/")) {
+        this.move(2);
+        while(this.notEnd()) {
+            if(this.is("\n")) {
+                this.move();
+                break;
+            }
+            this.move();
+        }
+    }
+    else if(this.is("/") && this.nextIs("*")) {
+        this.move(2);
+        while(this.notEnd(1) && )
+    }
+    else {
+        this.move();
+    }
+}

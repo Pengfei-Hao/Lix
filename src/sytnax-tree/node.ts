@@ -7,11 +7,16 @@ export class Node {
 
     public children: Node[];
 
+    public begin: number;
+    public end: number;
+
     
-    constructor(type: Type, content: string = "", children: Node[] = []) {
+    constructor(type: Type, content: string = "", children: Node[] = [], begin: number = -1, end: number = -1) {
             this.type = type;
             this.content = content;
             this.children = children;
+            this.begin = begin;
+            this.end = end;
     }
 
     static clone(node: Node): Node {

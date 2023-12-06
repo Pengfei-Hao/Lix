@@ -2,7 +2,7 @@
  * Latex generator: convert nodes to latex source
  */
 
-import { Config } from "../config";
+import { Config } from "../foundation/config";
 import { Parser } from "../parser/parser";
 import { Node } from "../sytnax-tree/node";
 import { Type } from "../sytnax-tree/type";
@@ -82,8 +82,8 @@ export class LatexGenerator extends Generator {
 
         // Init math symbols
         this.mathSymbols = new Map();
-        let json: {map: [string, string]} = JSON.parse(config.get("latex"));
-        for(let [key, value] of json.map) {
+        let json: { map: [string, string] } = JSON.parse(config.get("latex"));
+        for (let [key, value] of json.map) {
             this.mathSymbols.set(key, value);
         }
 
@@ -125,7 +125,7 @@ export class LatexGenerator extends Generator {
         return `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
     }
 
-    
+
     // Generator of specific type of node
 
     nodeGeneratorTable: Map<string, (node: Node) => string>;
@@ -167,10 +167,10 @@ export class LatexGenerator extends Generator {
         if (node.type === this.textType) {
             return node.content;
         }
-        else if(node.type === this.formulaType) {
+        else if (node.type === this.formulaType) {
             return this.generateFormula(node);
         }
-        else if(node.type === this.labelType) {
+        else if (node.type === this.labelType) {
             var func = this.nodeGeneratorTable.get(node.content);
             if (func !== undefined) {
                 return func.bind(this)(node);
@@ -219,7 +219,7 @@ export class LatexGenerator extends Generator {
 
     mathSymbols: Map<string, string>;
 
-    
+
     // GenerateFraction
     // Syntax Tree type: fraction
     generateFraction(node: Node): string {
@@ -230,8 +230,12 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: matrix
     generateMatrix(node: Node): string {
         let res = "";
-        for(let subnode of node.children) {
-            res += this.generateChildrenMathNode(subnode);
+        for (let subnode of node.children) {
+            for (let n of subnode.children) {
+                res += this.generateMathNode(n);
+                res += "&";
+            }
+            res = res.substring(0, res.length - 1);
             res += "\\\\";
         }
         return `\\begin{matrix}${res}\\end{matrix}`;
@@ -270,7 +274,15 @@ export class LatexGenerator extends Generator {
     // GenerateBrackets
     // Syntax Tree type: brackets
     generateBrackets(node: Node): string {
-        return `{\\left${node.children[0].content}{${this.generateChildrenMathNode(node.children[1])}}\\right${node.children[2].content}}`;
+        let left = node.children[0].content;
+        let right = node.children[2].content;
+        if(left === "{") {
+            left = "\\{";
+        }
+        if(right === "}") {
+            right = "\\}";
+        }
+        return `{\\left${left}{${this.generateChildrenMathNode(node.children[1])}}\\right${right}}`;
     }
 
     // GenerateFormula
@@ -296,7 +308,7 @@ export class LatexGenerator extends Generator {
         }
         else {
             let generate;
-            switch(node.type) {
+            switch (node.type) {
                 case this.fractionType:
                     generate = this.generateFraction;
                     break;

@@ -1,0 +1,37 @@
+
+[formula
+`lix=>x y z`
+`sigmoid=>f(x) =[x/1+x]`
+`mat=>[x x y;z z x;x y]`
+
+// lix [sigmoid / mat]
+
+[lix^2]
+[sum i=1 to N:i times i]
+[int x=1 to 3:log x]
+[lim x-infty:[sin x/x]]
+[t^3_n]
+[([f/g])]
+
+
+]
+
+
+
+[formula [f/g] geq 0]
+[formula 
+`xxx=>[x^2]`
+`xyz=>[xxx^2]`
+xxx
+xyz
+]
+
+
+/*
+[formula
+
+`x2=>[x^2]`
+ lix[sigmoid/mat]
+ log x2
+]
+*/

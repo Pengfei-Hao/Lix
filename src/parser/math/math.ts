@@ -3,9 +3,13 @@ import exp = require("constants");
 import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
-import { MatchResult, Parser, Result } from "../parser";
+import { MatchResult, Parser } from "../parser";
 import { SymbolTable } from "./symbol-table";
+import { Result } from "../../foundation/result";
+import { MessageType } from "../../foundation/message";
+import { Message } from "../../foundation/message";
 
+//type MsgResult = Result<undefined>;
 
 export class Math extends Module {
 
@@ -50,679 +54,871 @@ export class Math extends Module {
         // Init math symbols from math.json
         let json = parser.configs.get("math");
         let config: { symbols: string[] } = JSON.parse(json);
-        for(let symbol of config.symbols) {
+        for (let symbol of config.symbols) {
             this.blockHandlerTable.addSymbol(symbol);
 
         }
-        
+
+    }
+
+    init() {
+        this.blockHandlerTable.definations = new Map();
     }
 
     matchFormula(): MatchResult {
-        let result = this.myMatchFormula();
 
+        let preIndex = this.parser.index;
+        let result = this.myMatchFormula();
+        this.parser.end();
         if (!result.success) {
+            this.parser.index = preIndex;
             return result;
         }
 
         let analysisResult = this.analyse(result.content);
-
-        return new Result(analysisResult, result.content);
+        if(!analysisResult) {
+            this.parser.sendMessage(result.messages, "Analyse failed.");
+        }
+        return new Result(analysisResult, result.content, result.messages);
     }
 
-// Part 1: scan the text and construct the syntax tree. This part will use types of node as follows:
-// 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
-// 2. type: symbol, content: (name of this symbol), children: [unused]
-// 3. type: defination, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
+    // Part 1: scan the text and construct the syntax tree. This part will use types of node as follows:
+    // 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
+    // 2. type: symbol, content: (name of this symbol), children: [unused]
+    // 3. type: defination, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
 
-private myMatchFormula(): MatchResult {
-    var node = new Node(this.formulaType);
 
-    var text = "";
-    while (this.parser.notEnd()) {
-        if (this.parser.is(Parser.blank)) {
+    static nameChar = /[0-9a-zA-Z]/;
+    static alphabetChar = /[a-zA-Z]/;
+    static blankChar = /[\t \v\f\r\n]/;
+    static newlineChar = /[\r\n]/;
+    static digitChar = /[0-9]/;
+    static symbolChar = /[\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\{\}\|\\\:\;\"\'\<\>\,\.\?\/]/;
 
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-                text = "";
+
+    private myMatchFormula(): MatchResult {
+        let node = new Node(this.formulaType);
+        let msg: Message[] = [];
+        this.parser.begin("formula");
+    
+        while (this.parser.notEnd()) {
+            let blankRes = this.parser.matchBlank();
+            if (blankRes.success) {
+                if(blankRes.content >= 2) {
+                    this.parser.sendMessage(msg, "Formula should not have two or more newline.", MessageType.warning);
+                }
             }
             
-            var count = 0;
-            do {
-                if (this.parser.is(Parser.newline)) {
-                    count++;
+            else if (this.parser.is("`")) {
+                this.parser.move();
+                let result = this.matchSymbols("`");
+                this.parser.mergeMessage(msg, result.messages);
+                if (!result.success) {
+                    this.parser.sendMessage(msg, "Match symbols failed.");
+                    return new Result(false, node, msg);
                 }
-                this.parser.moveForward();
-            } while (this.parser.notEnd() && this.parser.is(Parser.blank));
-
-            // if(count >= 2) {
-            //     text += "\n\n";
-            //     break;
-            // }
-            // else {
-            //     text += " ";
-            // }
-        }
-
-        else if (this.parser.is("'")) {
-            let result = this.matchDefination();
-            node.children.push(result.content);
-
-            if (!result.success) {
-                return new Result(false, node);
+                result.content.type = this.definationType;
+                node.children.push(result.content);
             }
 
-
-        }
-        else if (this.parser.is("[")) {
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-                text = "";
-            }
-            
-            this.parser.moveForward();
-            let result = this.matchSymbols();
-            if (!result.success) {
-                return new Result(false, node);
-            }
-
-            node.children.push(result.content);
-        }
-
-        else if (this.parser.is("]")) {
-            this.parser.moveForward();
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-            }
-            return new Result(true, node);
-        }
-
-        else {
-            text += this.parser.curChar();
-            this.parser.moveForward();
-        }
-    }
-
-    if (text !== "") {
-        node.children.push(new Node(this.symbolType, text));
-    }
-    return new Result(false, node);
-}
-
-private matchDefination(): MatchResult {
-    this.parser.moveForward();
-    this.parser.skipBlank();
-    let text = "";
-    let node = new Node(this.definationType);
-    while (this.parser.notEnd()) {
-        if (this.parser.is(Parser.blank)) {
-
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-                text = "";
-            }
-
-            let count = 0;
-            do {
-                if (this.parser.is(Parser.newline)) {
-                    count++;
+            else if (this.parser.is("[")) {
+                this.parser.move();
+                let result = this.matchSymbols();
+                this.parser.mergeMessage(msg, result.messages);
+                if (!result.success) {
+                    this.parser.sendMessage(msg, "Match symbols failed.");
+                    return new Result(false, node, msg);
                 }
-                this.parser.moveForward();
-            } while (this.parser.notEnd() && this.parser.is(Parser.blank));
-            if (count >= 2) {
-
-            }
-        }
-
-        else if (this.parser.is("[")) {
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-            }
-            text = "";
-            this.parser.moveForward();
-            var result = this.matchSymbols();
-            if (!result.success) {
-                return new Result(false, node);
+    
+                node.children.push(result.content);
             }
 
-            node.children.push(result.content);
-        }
-        else if (this.parser.is("'")) {
-            this.parser.moveForward();
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
+            else if (this.parser.is("]")) {
+                this.parser.move();
+                
+                return new Result(true, node, msg);
             }
-            return new Result(true, node);
-        }
-        else {
-            text += this.parser.curChar();
-            this.parser.moveForward();
-        }
-    }
-    if (text !== "") {
-        node.children.push(new Node(this.symbolType, text));
-    }
-    return new Result(false, node);
-}
 
-private matchSymbols(): MatchResult {
-    let text = "";
-    let node = new Node(this.formulaType);
-    while (this.parser.notEnd()) {
-        if (this.parser.is(Parser.blank)) {
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-                text = "";
-            }
-            
-            var count = 0;
-            do {
-                if (this.parser.is(Parser.newline)) {
-                    count++;
+            else if (this.parser.is(Math.nameChar) || this.parser.is(Math.symbolChar)) {
+                let result = this.matchSymbol();
+                this.parser.mergeMessage(msg, result.messages);
+                if(!result.success) {
+                    this.parser.sendMessage(msg, "Match symbol failed.");
+                    return new Result(false, node, msg);
                 }
-                this.parser.moveForward();
-            } while (this.parser.notEnd() && this.parser.is(Parser.blank));
+                node.children.push(result.content);
+            }
 
-            // if(count >= 2) {
-            //     text += "\n\n";
-            //     break;
-            // }
-            // else {
-            //     text += " ";
-            // }
+            else {
+                this.parser.sendMessage(msg, "Unexpected character.");
+                return new Result(false, node, msg);
+            }
+        }
+    
+        this.parser.sendMessage(msg, "formula ended without ].", MessageType.warning);
+        return new Result(true, node, msg);
+    }
+
+    private matchSymbols(endWith: string = "]"): Result<Node> {
+        let preIndex = this.parser.index;
+        let result = this.myMatchSymbols(endWith);
+        this.parser.end();
+        if (!result.success) {
+            this.parser.index = preIndex;
+        }
+        return result;
+    }
+
+    private myMatchSymbols(endWith: string = "]"): Result<Node> {
+        let node = new Node(this.formulaType);
+        let msg: Message[] = [];
+        this.parser.begin("symbols");
+
+        while (this.parser.notEnd()) {
+            let blankRes = this.parser.matchBlank();
+            if (blankRes.success) {
+                if(blankRes.content >= 2) {
+                    this.parser.sendMessage(msg, "Formula should not have two or more newline.", MessageType.warning);
+                }
+            }
+
+            else if (this.parser.is("[")) {
+                this.parser.move();
+                let result = this.matchSymbols();
+                this.parser.mergeMessage(msg, result.messages);
+                if (!result.success) {
+                    this.parser.sendMessage(msg, "Match symbols failed.");
+                    return new Result(false, node, msg);
+                }
+    
+                node.children.push(result.content);
+            }
+
+            else if (this.parser.is(endWith)) {
+                this.parser.move();
+                return new Result(true, node, msg);
+            }
+
+            else if (this.parser.is(Math.nameChar) || this.parser.is(Math.symbolChar)) {
+                let result = this.matchSymbol();
+                if(!result.success) {
+                    this.parser.sendMessage(msg, "Match symbol failed.");
+                    return new Result(false, node, msg);
+                }
+                node.children.push(result.content);
+            }
+
+            else {
+                this.parser.sendMessage(msg, "Unexpected character.");
+                return new Result(false, node, msg);
+            }
         }
 
-        else if (this.parser.is("[")) {
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-            }
-            text = "";
-            this.parser.moveForward();
-            var result = this.matchSymbols();
-            if (!result.success) {
-                return new Result(false, node);
-            }
+        this.parser.sendMessage(msg, "formula ended without ].", MessageType.warning);
+        return new Result(true, node, msg);
+    }
 
-            node.children.push(result.content);
-
+    private matchSymbol(): Result<Node> {
+        let preIndex = this.parser.index;
+        let result = this.myMatchSymbol();
+        this.parser.end();
+        if (!result.success) {
+            this.parser.index = preIndex;
         }
-        else if (this.parser.is("]")) {
-            this.parser.moveForward();
-            if (text !== "") {
-                node.children.push(new Node(this.symbolType, text));
-            }
-            return new Result(true, node);
+        return result;
+    }
 
+    private myMatchSymbol(): Result<Node> {
+        let node = new Node(this.symbolType);
+        let msg: Message[] = [];
+        this.parser.begin("symbol");
+
+        if (!this.parser.notEnd()) {
+            this.parser.sendMessage(msg, "Unexpected end.");
+            return new Result(false, node, msg);
+        }
+
+        if (this.parser.is(Math.nameChar)) {
+            var text = "";
+            do {
+                text += this.parser.curChar();
+                this.parser.move();
+            } while (this.parser.notEnd() && this.parser.is(Math.nameChar));
+            node.content = text;
+            return new Result(true, node, msg);
+        }
+
+        else if (this.parser.is(Math.symbolChar)) {
+            var text = "";
+            do {
+                text += this.parser.curChar();
+                this.parser.move();
+            } while (this.parser.notEnd() && this.parser.is(Math.symbolChar));
+            node.content = text;
+            return new Result(true, node, msg);
         }
         else {
-            text += this.parser.curChar();
-            this.parser.moveForward();
+            this.parser.sendMessage(msg, "Unexpected character.");
+            return new Result(false, node, msg);
         }
     }
 
-    if (text !== "") {
-        node.children.push(new Node(this.symbolType, text));
-    }
-    return new Result(false, node);
-}
 
-// Part 2: analyse the syntax tree that constructed in Part 1, replace defination nodes with its content, and find out the correct math label function to handle the formula nodes. This part will use types of node as follows:
-// 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
-// 2. type: symbol, content: "${name of symbol}", children: [unused]
-// 3. type: fraction, content: [unused], children: (firstNode 1. secondNode 1.)
-// 4. type: matrix, content: [unused], children: (nodes 1.)
-// 5. type: (some math label name), content: (depends on math label), children: (depends on math label)
-
-analyse(node: Node): boolean {
-
-    // filter the defination, i.e. the symbols surrounded by the ' '.
-    for (let subnode of node.children) {
-        if (subnode.type === this.definationType) {
-            if (subnode.children.length < 2) {
-                return false;
+    /*
+    private myMatchFormula(): MatchResult {
+        var node = new Node(this.formulaType);
+    
+        var text = "";
+        while (this.parser.notEnd()) {
+            if (this.parser.is(Parser.blank)) {
+    
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                    text = "";
+                }
+                
+                var count = 0;
+                do {
+                    if (this.parser.is(Parser.newline)) {
+                        count++;
+                    }
+                    this.parser.move();
+                } while (this.parser.notEnd() && this.parser.is(Parser.blank));
+    
+                // if(count >= 2) {
+                //     text += "\n\n";
+                //     break;
+                // }
+                // else {
+                //     text += " ";
+                // }
             }
-            if (subnode.children[0].type != this.symbolType) {
-                return false;
+    
+            else if (this.parser.is("'")) {
+                let result = this.matchDefination();
+                node.children.push(result.content);
+    
+                if (!result.success) {
+                    return new Result(false, node);
+                }
+    
+    
             }
-            if (subnode.children[1].type != this.symbolType || subnode.children[1].content != "=>") {
-                return false;
+            else if (this.parser.is("[")) {
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                    text = "";
+                }
+                
+                this.parser.move();
+                let result = this.matchSymbols();
+                if (!result.success) {
+                    return new Result(false, node);
+                }
+    
+                node.children.push(result.content);
             }
-
-            let newNode = new Node(this.formulaType);
-            for (let i = 2; i < subnode.children.length; i++) {
-                newNode.children.push(Node.clone(subnode.children[i]));
+    
+            else if (this.parser.is("]")) {
+                this.parser.move();
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                }
+                return new Result(true, node);
             }
-
-            this.blockHandlerTable.addDefination(subnode.children[0].content, newNode);
+    
+            else {
+                text += this.parser.curChar();
+                this.parser.move();
+            }
         }
-
-    }
-
-    for (let i = node.children.length - 1; i >= 0; i--) {
-        if (node.children[i].type === this.definationType) {
-            node.children.splice(i, 1);
+    
+        if (text !== "") {
+            node.children.push(new Node(this.symbolType, text));
         }
+        return new Result(false, node);
     }
-
-    // analyse symbols
-
-    return this.formula(node);
-}
-
-find(node: Node): boolean {
-    let result = false;
-    for(let handle of this.blockHandlerTable.blockHandleFunctions) {
-        result = handle(node);
-        if(result) {
-            break;
-        }
-    }
-    if(!result) {
-        result = this.formula(node);
-    }
-    return result;
-}
-
-formula(node: Node): boolean {
-    for (let i = 0; i < node.children.length; i++) {
-        let subnode = node.children[i];
-
-        if (subnode.type === this.symbolType) {
-            let resultOfMath = this.blockHandlerTable.symbols.get(subnode.content);
-            if (resultOfMath != undefined) {
-                //subnode.content += `__${resultOfMath}__`;
+    
+    private matchDefination(): MatchResult {
+        this.parser.move();
+        this.parser.skipBlank();
+        let text = "";
+        let node = new Node(this.definationType);
+        while (this.parser.notEnd()) {
+            if (this.parser.is(Parser.blank)) {
+    
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                    text = "";
+                }
+    
+                let count = 0;
+                do {
+                    if (this.parser.is(Parser.newline)) {
+                        count++;
+                    }
+                    this.parser.move();
+                } while (this.parser.notEnd() && this.parser.is(Parser.blank));
+                if (count >= 2) {
+    
+                }
+            }
+    
+            else if (this.parser.is("[")) {
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                }
+                text = "";
+                this.parser.move();
+                var result = this.matchSymbols();
+                if (!result.success) {
+                    return new Result(false, node);
+                }
+    
+                node.children.push(result.content);
+            }
+            else if (this.parser.is("'")) {
+                this.parser.move();
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                }
+                return new Result(true, node);
             }
             else {
-                let resultOfDefination = this.blockHandlerTable.definations.get(subnode.content);
-                if (resultOfDefination != undefined) {
-                    node.children.splice(i, 1);
-                    for (let j = 0; j < resultOfDefination.children.length; j++) {
-                        node.children.splice(i + j, 0, resultOfDefination.children[j]);
-                    }
-                    i--;
+                text += this.parser.curChar();
+                this.parser.move();
+            }
+        }
+        if (text !== "") {
+            node.children.push(new Node(this.symbolType, text));
+        }
+        return new Result(false, node);
+    }
+    
+    private matchSymbols(): MatchResult {
+        let text = "";
+        let node = new Node(this.formulaType);
+        while (this.parser.notEnd()) {
+            if (this.parser.is(Parser.blank)) {
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                    text = "";
                 }
+                
+                var count = 0;
+                do {
+                    if (this.parser.is(Parser.newline)) {
+                        count++;
+                    }
+                    this.parser.move();
+                } while (this.parser.notEnd() && this.parser.is(Parser.blank));
+    
+                // if(count >= 2) {
+                //     text += "\n\n";
+                //     break;
+                // }
+                // else {
+                //     text += " ";
+                // }
+            }
+    
+            else if (this.parser.is("[")) {
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                }
+                text = "";
+                this.parser.move();
+                var result = this.matchSymbols();
+                if (!result.success) {
+                    return new Result(false, node);
+                }
+    
+                node.children.push(result.content);
+    
+            }
+            else if (this.parser.is("]")) {
+                this.parser.move();
+                if (text !== "") {
+                    node.children.push(new Node(this.symbolType, text));
+                }
+                return new Result(true, node);
+    
+            }
+            else {
+                text += this.parser.curChar();
+                this.parser.move();
+            }
+        }
+    
+        if (text !== "") {
+            node.children.push(new Node(this.symbolType, text));
+        }
+        return new Result(false, node);
+    }
+    
+    */
 
-                else {
+    // Part 2: analyse the syntax tree that constructed in Part 1, replace defination nodes with its content, and find out the correct math label function to handle the formula nodes. This part will use types of node as follows:
+    // 1. type: formula, content: [unused], children: (contents symbol nodes and formula nodes 1. & 2.)
+    // 2. type: symbol, content: "${name of symbol}", children: [unused]
+    // 3. type: fraction, content: [unused], children: (firstNode 1. secondNode 1.)
+    // 4. type: matrix, content: [unused], children: (nodes 1.)
+    // 5. type: (some math label name), content: (depends on math label), children: (depends on math label)
+
+    analyse(node: Node): boolean {
+
+        // filter the defination, i.e. the symbols surrounded by the ' '.
+        for (let subnode of node.children) {
+            if (subnode.type === this.definationType) {
+                if (subnode.children.length < 2) {
                     return false;
                 }
+                if (subnode.children[0].type != this.symbolType) {
+                    return false;
+                }
+                if (subnode.children[1].type != this.symbolType || subnode.children[1].content != "=>") {
+                    return false;
+                }
+
+                let newNode = new Node(this.formulaType);
+                for (let i = 2; i < subnode.children.length; i++) {
+                    newNode.children.push(Node.clone(subnode.children[i]));
+                }
+
+                this.blockHandlerTable.addDefination(subnode.children[0].content, newNode);
+            }
+
+        }
+
+        for (let i = node.children.length - 1; i >= 0; i--) {
+            if (node.children[i].type === this.definationType) {
+                node.children.splice(i, 1);
             }
         }
-        else if (subnode.type === this.formulaType) {
-            let result = this.find(subnode);
-            if (!result) {
-                return false;
+
+        // analyse symbols
+
+        return this.formula(node);
+    }
+
+    find(node: Node): boolean {
+        let result = false;
+        for (let handle of this.blockHandlerTable.blockHandleFunctions) {
+            result = handle(node);
+            if (result) {
+                break;
             }
-
         }
-    }
-    return true;
-}
-
-frac(node: Node): boolean {
-    let isMatch = false;
-    let pos = -1;
-    for (let i = 0; i < node.children.length; i++) {
-        let subnode = node.children[i];
-        if (subnode.type === this.symbolType && subnode.content === "/") {
-            isMatch = true;
-            pos = i;
-            break;
+        if (!result) {
+            result = this.formula(node);
         }
+        return result;
     }
 
-    if (!isMatch) {
-        return false;
-    }
+    formula(node: Node): boolean {
+        for (let i = 0; i < node.children.length; i++) {
+            let subnode = node.children[i];
 
-    let firstNode = new Node(this.formulaType);
-    let secondNode = new Node(this.formulaType);
-    for (let i = 0; i < pos; i++) {
-        firstNode.children.push(node.children[i]);
-    }
-    for (let i = pos + 1; i < node.children.length; i++) {
-        secondNode.children.push(node.children[i]);
-    }
-    node.children = [firstNode, secondNode];
-    node.type = this.fractionType;
+            if (subnode.type === this.symbolType) {
+                let resultOfMath = this.blockHandlerTable.symbols.get(subnode.content);
+                if (resultOfMath != undefined) {
+                    //subnode.content += `__${resultOfMath}__`;
+                }
+                else {
+                    let resultOfDefination = this.blockHandlerTable.definations.get(subnode.content);
+                    if (resultOfDefination != undefined) {
+                        node.children.splice(i, 1);
+                        for (let j = 0; j < resultOfDefination.children.length; j++) {
+                            node.children.splice(i + j, 0, resultOfDefination.children[j]);
+                        }
+                        i--;
+                    }
 
-    let result = this.formula(firstNode);
-    let secResult = this.formula(secondNode);
+                    else {
+                        return false;
+                    }
+                }
+            }
+            else if (subnode.type === this.formulaType) {
+                let result = this.find(subnode);
+                if (!result) {
+                    return false;
+                }
 
-    return result && secResult;
-}
-
-matrix(node: Node): boolean {
-    let isMatch = false;
-    isMatch = true;
-
-    if (!isMatch) {
-        return false;
-    }
-
-    let newChildren: Node[] = [new Node(this.formulaType)];
-    let count = 0;
-    for (let i = 0; i < node.children.length; i++) {
-        if (node.children[i].content === ";") {
-            count++;
-            newChildren.push(new Node(this.formulaType));
+            }
+            else {
+                //return false;
+            }
         }
-        else {
-            newChildren[count].children.push(node.children[i]);
+        return true;
+    }
+
+    frac(node: Node): boolean {
+        let isMatch = false;
+        let pos = -1;
+        for (let i = 0; i < node.children.length; i++) {
+            let subnode = node.children[i];
+            if (subnode.type === this.symbolType && subnode.content === "/") {
+                isMatch = true;
+                pos = i;
+                break;
+            }
         }
-    }
 
-    let res = true;
-
-    for (let i = 0; i < newChildren.length; i++) {
-        res = res && this.formula(newChildren[i]);
-    }
-
-    node.children = newChildren;
-    node.type = this.matrixType;
-
-    return res;
-}
-
-sqrt(node: Node): boolean {
-    let lastNode;
-    if(node.children.length === 0) {
-        return false;
-    }
-    lastNode = node.children[node.children.length -1];
-    if(lastNode.type !== this.symbolType || lastNode.content !== "^2") {
-        return false;
-    }
-
-    
-    node.children.splice(node.children.length - 1);
-    let res1 = this.formula(node);
-    node.type = this.sqrtType;
-    return res1;
-}
-
-sum(node: Node): boolean {
-
-    let length = node.children.length;
-    if(length === 0) {
-        return false;
-    }
-    if(!this.isSymbol(node.children[0], "sum")) {
-        return false;
-    }
-
-    let from = new Node(this.formulaType);
-    let to = new Node(this.formulaType);
-    let expr = new Node(this.formulaType);
-    
-    let i = 1;
-    for(; i < length; i++) {
-        if(!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
-            from.children.push(node.children[i]);
+        if (!isMatch) {
+            return false;
         }
-        else {
-            break;
+
+        let firstNode = new Node(this.formulaType);
+        let secondNode = new Node(this.formulaType);
+        for (let i = 0; i < pos; i++) {
+            firstNode.children.push(node.children[i]);
         }
+        for (let i = pos + 1; i < node.children.length; i++) {
+            secondNode.children.push(node.children[i]);
+        }
+        node.children = [firstNode, secondNode];
+        node.type = this.fractionType;
+
+        let result = this.formula(firstNode);
+        let secResult = this.formula(secondNode);
+
+        return result && secResult;
     }
 
-    if(i < length && this.isSymbol(node.children[i], "to")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], ":"))) {
-                to.children.push(node.children[i]);
+    matrix(node: Node): boolean {
+        let isMatch = false;
+        isMatch = true;
+
+        if (!isMatch) {
+            return false;
+        }
+
+        let newChildren: Node[] = [new Node(this.formulaType)];
+        let count = 0;
+        for (let i = 0; i < node.children.length; i++) {
+            if (node.children[i].content === ";") {
+                count++;
+                newChildren.push(new Node(this.formulaType));
+            }
+            else {
+                newChildren[count].children.push(node.children[i]);
+            }
+        }
+
+        let res = true;
+
+        for (let i = 0; i < newChildren.length; i++) {
+            res = res && this.formula(newChildren[i]);
+        }
+
+        node.children = newChildren;
+        node.type = this.matrixType;
+
+        return res;
+    }
+
+    sqrt(node: Node): boolean {
+        let lastNode;
+        if (node.children.length === 0) {
+            return false;
+        }
+        lastNode = node.children[node.children.length - 1];
+        if (lastNode.type !== this.symbolType || lastNode.content !== "^2") {
+            return false;
+        }
+
+
+        node.children.splice(node.children.length - 1);
+        let res1 = this.formula(node);
+        node.type = this.sqrtType;
+        return res1;
+    }
+
+    sum(node: Node): boolean {
+
+        let length = node.children.length;
+        if (length === 0) {
+            return false;
+        }
+        if (!this.isSymbol(node.children[0], "sum")) {
+            return false;
+        }
+
+        let from = new Node(this.formulaType);
+        let to = new Node(this.formulaType);
+        let expr = new Node(this.formulaType);
+
+        let i = 1;
+        for (; i < length; i++) {
+            if (!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
+                from.children.push(node.children[i]);
             }
             else {
                 break;
             }
         }
+
+        if (i < length && this.isSymbol(node.children[i], "to")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], ":"))) {
+                    to.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        if (i < length && this.isSymbol(node.children[i], ":")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "to"))) {
+                    expr.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        if (i < length && this.isSymbol(node.children[i], "to")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], ":"))) {
+                    to.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        if (i < length && this.isSymbol(node.children[i], ":")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "to"))) {
+                    expr.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        let res1 = this.formula(from);
+        let res2 = this.formula(to);
+        let res3 = this.formula(expr);
+
+        node.type = this.sumType;
+        node.children = [from, to, expr];
+        return res1 && res2 && res3;
     }
-    if(i < length && this.isSymbol(node.children[i], ":")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "to"))) {
+
+    limit(node: Node): boolean {
+        let length = node.children.length;
+        if (length === 0) {
+            return false;
+        }
+        if (!this.isSymbol(node.children[0], "lim")) {
+            return false;
+        }
+
+        let lim = new Node(this.formulaType);
+        let expr = new Node(this.formulaType);
+
+        let i = 1;
+        for (; i < length; i++) {
+            if (!(this.isSymbol(node.children[i], ":"))) {
+                lim.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+
+        if (i < length && this.isSymbol(node.children[i], ":")) {
+            i++;
+            for (; i < length; i++) {
+                expr.children.push(node.children[i]);
+
+            }
+        }
+
+        let res1 = this.formula(lim);
+        let res2 = this.formula(expr);
+
+        node.type = this.limitType;
+        node.children = [lim, expr];
+        return res1 && res2;
+    }
+
+    integral(node: Node): boolean {
+        let length = node.children.length;
+        if (length === 0) {
+            return false;
+        }
+        if (!this.isSymbol(node.children[0], "int")) {
+            return false;
+        }
+
+        let from = new Node(this.formulaType);
+        let to = new Node(this.formulaType);
+        let expr = new Node(this.formulaType);
+
+        let i = 1;
+        for (; i < length; i++) {
+            if (!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
+                from.children.push(node.children[i]);
+            }
+            else {
+                break;
+            }
+        }
+
+        if (i < length && this.isSymbol(node.children[i], "to")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], ":"))) {
+                    to.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        if (i < length && this.isSymbol(node.children[i], ":")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "to"))) {
+                    expr.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        if (i < length && this.isSymbol(node.children[i], "to")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], ":"))) {
+                    to.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+        if (i < length && this.isSymbol(node.children[i], ":")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "to"))) {
+                    expr.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+
+        let res1 = this.formula(from);
+        let res2 = this.formula(to);
+        let res3 = this.formula(expr);
+
+        node.type = this.integralType;
+        node.children = [from, to, expr];
+        return res1 && res2 && res3;
+    }
+
+    script(node: Node): boolean {
+        let length = node.children.length;
+
+        let sub = new Node(this.formulaType);
+        let sup = new Node(this.formulaType);
+        let expr = new Node(this.formulaType);
+
+        let match = false;
+        let i = 0;
+        for (; i < length; i++) {
+            if (!(this.isSymbol(node.children[i], "_") || this.isSymbol(node.children[i], "^"))) {
                 expr.children.push(node.children[i]);
             }
             else {
+                match = true;
                 break;
             }
         }
-    }
-
-    if(i < length && this.isSymbol(node.children[i], "to")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], ":"))) {
-                to.children.push(node.children[i]);
-            }
-            else {
-                break;
-            }
+        if (!match) {
+            return false;
         }
-    }
-    if(i < length && this.isSymbol(node.children[i], ":")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "to"))) {
-                expr.children.push(node.children[i]);
-            }
-            else {
-                break;
+
+        if (i < length && this.isSymbol(node.children[i], "^")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "_"))) {
+                    sup.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
             }
         }
-    }
-
-    let res1 = this.formula(from);
-    let res2 = this.formula(to);
-    let res3 = this.formula(expr);
-
-    node.type = this.sumType;
-    node.children = [from, to, expr];
-    return res1 && res2 && res3;
-}
-
-limit(node: Node): boolean {
-    let length = node.children.length;
-    if(length === 0) {
-        return false;
-    }
-    if(!this.isSymbol(node.children[0], "lim")) {
-        return false;
-    }
-
-    let lim = new Node(this.formulaType);
-    let expr = new Node(this.formulaType);
-    
-    let i = 1;
-    for(; i < length; i++) {
-        if(!(this.isSymbol(node.children[i], ":"))) {
-            lim.children.push(node.children[i]);
-        }
-        else {
-            break;
-        }
-    }
-
-    if(i < length && this.isSymbol(node.children[i], ":")) {
-        i++;
-        for(; i < length; i++) {
-            expr.children.push(node.children[i]);
-            
-        }
-    }
-
-    let res1 = this.formula(lim);
-    let res2 = this.formula(expr);
-
-    node.type = this.limitType;
-    node.children = [lim, expr];
-    return res1 && res2;
-}
-
-integral(node: Node): boolean {
-    let length = node.children.length;
-    if(length === 0) {
-        return false;
-    }
-    if(!this.isSymbol(node.children[0], "int")) {
-        return false;
-    }
-
-    let from = new Node(this.formulaType);
-    let to = new Node(this.formulaType);
-    let expr = new Node(this.formulaType);
-    
-    let i = 1;
-    for(; i < length; i++) {
-        if(!(this.isSymbol(node.children[i], "to") || this.isSymbol(node.children[i], ":"))) {
-            from.children.push(node.children[i]);
-        }
-        else {
-            break;
-        }
-    }
-
-    if(i < length && this.isSymbol(node.children[i], "to")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], ":"))) {
-                to.children.push(node.children[i]);
-            }
-            else {
-                break;
+        if (i < length && this.isSymbol(node.children[i], "_")) {
+            i++;
+            for (; i < length; i++) {
+                if (!(this.isSymbol(node.children[i], "^"))) {
+                    sub.children.push(node.children[i]);
+                }
+                else {
+                    break;
+                }
             }
         }
-    }
-    if(i < length && this.isSymbol(node.children[i], ":")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "to"))) {
-                expr.children.push(node.children[i]);
-            }
-            else {
-                break;
-            }
-        }
-    }
 
-    if(i < length && this.isSymbol(node.children[i], "to")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], ":"))) {
-                to.children.push(node.children[i]);
-            }
-            else {
-                break;
-            }
-        }
-    }
-    if(i < length && this.isSymbol(node.children[i], ":")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "to"))) {
-                expr.children.push(node.children[i]);
-            }
-            else {
-                break;
-            }
-        }
-    }
-
-    let res1 = this.formula(from);
-    let res2 = this.formula(to);
-    let res3 = this.formula(expr);
-
-    node.type = this.integralType;
-    node.children = [from, to, expr];
-    return res1 && res2 && res3;
-}
-
-script(node: Node): boolean {
-    let length = node.children.length;
-
-    let sub = new Node(this.formulaType);
-    let sup = new Node(this.formulaType);
-    let expr = new Node(this.formulaType);
-    
-    let match = false;
-    let i = 0;
-    for(; i < length; i++) {
-        if(!(this.isSymbol(node.children[i], "_") || this.isSymbol(node.children[i], "^"))) {
-            expr.children.push(node.children[i]);
-        }
-        else {
-            match = true;
-            break;
-        }
-    }
-    if(!match) {
-        return false;
-    }
-
-    if(i < length && this.isSymbol(node.children[i], "^")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "_"))) {
+        if (i < length && this.isSymbol(node.children[i], "&")) {
+            i++;
+            for (; i < length; i++) {
                 sup.children.push(node.children[i]);
             }
-            else {
-                break;
-            }
         }
-    }
-    if(i < length && this.isSymbol(node.children[i], "_")) {
-        i++;
-        for(; i < length; i++) {
-            if(!(this.isSymbol(node.children[i], "^"))) {
+        if (i < length && this.isSymbol(node.children[i], "_")) {
+            i++;
+            for (; i < length; i++) {
                 sub.children.push(node.children[i]);
             }
-            else {
-                break;
-            }
         }
+
+        let res1 = this.formula(expr);
+        let res2 = this.formula(sub);
+        let res3 = this.formula(sup);
+
+        node.type = this.scriptType;
+        node.children = [expr, sup, sub];
+        return res1 && res2 && res3;
     }
 
-    if(i < length && this.isSymbol(node.children[i], "&")) {
-        i++;
-        for(; i < length; i++) {
-            sup.children.push(node.children[i]);
+    brackets(node: Node): boolean {
+        let length = node.children.length;
+        if (length < 2) {
+            return false;
         }
-    }
-    if(i < length && this.isSymbol(node.children[i], "_")) {
-        i++;
-        for(; i < length; i++) {
-            sub.children.push(node.children[i]);
+
+        let left = node.children[0].content;
+        let right = node.children[length - 1].content;
+        let leftBrackets = new Set(["(", "{", "<", "|", "."]);
+        let rightBrackets = new Set([")", "}", ">", "|", "."]);
+        if (leftBrackets.has(left) && rightBrackets.has(right)) {
+            node.type = this.bracketsType;
+            let content = node.children.slice(1, -1);
+            node.children = [new Node(this.symbolType, left), new Node(this.formulaType, "", content), new Node(this.symbolType, right)];
+            return this.formula(node.children[1]);
         }
-    }
 
-    let res1 = this.formula(expr);
-    let res2 = this.formula(sub);
-    let res3 = this.formula(sup);
-
-    node.type = this.scriptType;
-    node.children = [expr, sup, sub];
-    return res1 && res2 && res3;
-}
-
-brackets(node: Node): boolean {
-    let length = node.children.length;
-    if(length < 2) {
         return false;
     }
 
-    let left = node.children[0].content;
-    let right = node.children[length - 1].content;
-    let leftBrackets = new Set(["(", "{", "<", "|", "."]);
-    let rightBrackets = new Set([")", "}", ">", "|", "."]);
-    if(leftBrackets.has(left) && rightBrackets.has(right)) {
-        node.type = this.bracketsType;
-        let content = node.children.slice(1, -1);
-        node.children = [new Node(this.symbolType, left), new Node(this.formulaType, "", content), new Node(this.symbolType, right)];
-        return this.formula(node.children[1]);
+    isSymbol(node: Node, name: string): boolean {
+        return node.type === this.symbolType && node.content === name;
     }
-
-    return false;
-}
-
-isSymbol(node: Node, name: string): boolean {
-    return node.type === this.symbolType && node.content === name;
-}
 
 }

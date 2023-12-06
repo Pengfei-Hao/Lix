@@ -1,6 +1,7 @@
 
 import { Node } from "../sytnax-tree/node";
-import { MatchResult, Parser, Result } from "./parser";
+import { MatchResult, Parser } from "./parser";
+import { Result } from "../foundation/result";
 
 export type HandlerFunction = () => Result<Node>;
 
@@ -21,7 +22,7 @@ export function init() {
 export class LabelHandlerTable {
 
 parser: Parser;
-private labelHandlers: Map<string, HandlerFunction>;
+labelHandlers: Map<string, HandlerFunction>;
 
 constructor(parser: Parser) {
     this.labelHandlers = new Map();
@@ -44,6 +45,7 @@ getHandler(name: string): HandlerFunction | undefined {
     return this.labelHandlers.get(name);
 }
 
+/*
 private getAndHandle(name: string): MatchResult {
     let handle = this.labelHandlers.get(name);
     if(handle != undefined) {
@@ -53,5 +55,6 @@ private getAndHandle(name: string): MatchResult {
         return new Result(false, new Node(this.parser.labelType, "[[[Label name cannot be found.]]]"));
     }
 }
+*/
 
 }

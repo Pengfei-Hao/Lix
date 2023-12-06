@@ -19,15 +19,15 @@
       },
       {
         "command": "lix.generate",
-        "title": "Generate the latex file."
+        "title": "Generate"
       },
       {
         "command": "lix.compile",
-        "title": "Compile and gain the PDF."
+        "title": "Compile"
       },
       {
         "command": "lix.parse",
-        "title": "Parse the lix file."
+        "title": "Parse"
       },
       {
         "command": "lix.test",
@@ -70,11 +70,28 @@
         }
       ]
     },
-    "views": {
-      "explorer": [
+    "viewsContainers": {
+      "activitybar": [
         {
-          "id": "LixNavigator",
-          "name": "Lix Navigator"
+          "id": "lix-navigator",
+          "title": "LiX Navigator",
+          "icon": "/icons/icon-light.svg"
+        }
+      ]
+    },
+    "views": {
+      "lix-navigator": [
+        {
+          "id": "lix-label-list",
+          "name": "Label List"
+        },
+        {
+          "id": "lix-font-list",
+          "name": "Font List"
+        },
+        {
+          "id": "lix-math-list",
+          "name": "Math List"
         }
       ]
     }
@@ -103,6 +120,7 @@
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
     "typescript": "^4.9.5",
-    "@vscode/test-electron": "^2.3.0"
+    "@vscode/test-electron": "^2.3.0",
+    "pdfjs-dist": "^3.10.111"
   }
 }

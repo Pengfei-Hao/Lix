@@ -8,13 +8,12 @@ import { TypeTable } from "../sytnax-tree/type-table";
 import { LabelHandlerTable } from "./label-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
-import { Config } from "../config";
+import { Config } from "../foundation/config";
+import { Result } from "../foundation/result";
+import { off, send } from "process";
+import { Message, MessageType } from "../foundation/message";
+import { notebooks } from "vscode";
 
-
-export class Result<T> {
-    constructor(public success: boolean, public content: T) {
-    }
-}
 export type MatchResult = Result<Node>;
 
 /*
@@ -33,7 +32,7 @@ export class Parser {
 
     // Text and index of the source text.
     private text: string;
-    private index: number;
+    index: number;
 
     // Generated syntax tree will be storaged here, type table holds all the type of node.
     syntaxTree: Node;
@@ -46,6 +45,7 @@ export class Parser {
     settingType: Type;
     settingParameterType: Type;
     labelType: Type;
+    errorType: Type;
 
     // This table holds all the labels that lix contains with its handle function.
     labelHandlerTable: LabelHandlerTable;
@@ -57,9 +57,16 @@ export class Parser {
     // Configs
     configs: Config;
 
+    // Message list
+    messageList: Message[];
+    lineRanges: [number, number][];
+    process: string[];
+
     constructor(text: string, configs: Config) {
         this.text = text;
         this.index = 0;
+        this.lineRanges = [];
+        this.process = [];
 
         this.configs = configs;
 
@@ -70,6 +77,7 @@ export class Parser {
         this.settingType = this.typeTable.add("setting")!;
         this.settingParameterType = this.typeTable.add("setting-parameter")!;
         this.labelType = this.typeTable.add("label")!;
+        this.errorType = this.typeTable.add("error")!;
 
         this.labelHandlerTable = new LabelHandlerTable(this);
         this.labelHandlerTable.add("title", this.matchLabelDefault.bind(this, 1), this);
@@ -82,92 +90,141 @@ export class Parser {
 
         this.modules = [];
         this.mathModule = new Math(this);
+
+        this.messageList = [];
     }
 
-    /*
-    getSyntaxTree(): Node {
-        return this.syntaxTree;
+    init(text: string) {
+        this.text = text;
+        this.index = 0;
+        this.lineRanges = [];
+        this.process = [];
+
+        // 统一行尾
+        this.text = this.text.replace(/\r\n/g, "\n");
+        this.text = this.text.replace(/\r/g, "\n");
+
+        // 去除注释
+        //this.text = this.text.replace(/\/\/.*\n/g, "\n").replace(/\/\*[^]*?\*\//g, " ");
+
+        this.generateLineRanges();
     }
-    */
 
     // parse and 'match' series function
 
     // Parse & MatchDocument
     // Lex: Setting | Paragraph
     // Result: type: document, content: [unused], children: [Paragraph, Setting]
-    parse() {
-        // 统一行尾
-        this.text = this.text.replace(/\r\n/g, "\n");
-        this.text = this.text.replace(/\r/g, "\n");
-
-        // 去除注释
-        this.text = this.text.replace(/\/\/.*\n/g, "\n").replace(/\/\*[^]*?\*\//g, " ");
+    parse(text: string) {
+       this.init(text);
+       this.mathModule.init();
 
         // parse
-        this.skipBlank();
-        while (this.notEnd()) {
-            let result = this.tryToMatchSetting();
-            if (result.success) {
-                this.syntaxTree.children.push(result.content);
-                continue;
-            }
-
-            result = this.tryToMatchParagraph();
-            if (result.success) {
-                this.syntaxTree.children.push(result.content);
-                continue;
-            }
-
-            // failed
-            this.syntaxTree.children.push(new Node(this.paragraphType, "[[[Parse Failed!!!]]]"));
-            return;
-        }
-        // success
-
+        this.matchDocument();
     }
 
     // All the 'match' functions begin scanning from the current index, and end in the index of first unmatched char if success, and end in uncertain index if not success.
     // If you are not sure that the match will success, use 'tryTo' to reset the index.
 
+    // MatchDocument
+
+    private matchDocument(): boolean {
+        let preIndex = this.index;
+        let result = this.myMatchDocument();
+        this.end();
+        this.syntaxTree.end = this.index;
+        if (!result) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    private myMatchDocument(): boolean {
+        this.syntaxTree = new Node(this.documentType);
+        this.messageList = [];
+        this.begin("document");
+        this.syntaxTree.begin = this.index;
+
+        this.skipBlank();
+        while (this.notEnd()) {
+            let result = this.matchSetting();
+            if (result.success) {
+                this.syntaxTree.children.push(result.content);
+                this.mergeMessage(this.messageList, result.messages);
+                continue;
+            }
+
+            result = this.matchParagraph();
+            if (result.success) {
+                this.syntaxTree.children.push(result.content);
+                this.mergeMessage(this.messageList, result.messages);
+                continue;
+            }
+
+            // failed
+            this.mergeMessage(this.messageList, result.messages);
+            this.syntaxTree.children.push(new Node(this.errorType, "[[[Parse Failed!!!]]]"));
+            this.sendMessage(this.messageList, "Match both paragraph and setting failed.");
+            return false;
+        }
+        // success
+        return true;
+    }
+
     // MatchSetting
     // Lex:  # name : ... \n
     // Result: type: setting, content: (name of this setting), children: [type: settingParameter, content: (parameter of this setting), children: [unused]]
-    private matchSetting(): Result<Node> {
+    private myMatchSetting(): Result<Node> {
         let node = new Node(this.settingType);
+        let msg: Message[] = [];
+        this.begin("setting");
+        node.begin = this.index;
 
         if (!this.match("#")) {
-            return new Result(false, node);
+            this.sendMessage(msg, "Missing '#'.");
+            return new Result(false, node, msg);
         }
 
         this.skipBlank();
 
-        let nameRes = this.tryToMatchName();
+        let nameRes = this.matchName();
         if (!nameRes.success) {
-            return new Result(false, node);
+            this.sendMessage(msg, "Missing name.");
+            return new Result(false, node, msg);
         }
         node.content = nameRes.content;
 
         this.skipBlank();
 
         if (!this.match(":")) {
-            return new Result(false, node);
+            this.sendMessage(msg, "Missing ':'.");
+            return new Result(false, node, msg);
         }
 
-        var command = "";
-        while (this.notEnd() && !this.is("\n")) {
-            command += this.curChar();
-            this.moveForward();
+        let command = "";
+        while (this.notEnd()) {
+            if(this.is("\n")) {
+                this.move();
+                break;
+            }
+            else {
+                command += this.curChar();
+                this.move();
+            }
+            
         }
 
         this.skipBlank();
 
         node.children.push(new Node(this.settingParameterType, command));
-        return new Result(true, node);
+        return new Result(true, node, msg);
     }
 
-    private tryToMatchSetting(): MatchResult {
+    private matchSetting(): MatchResult {
         let preIndex = this.index;
-        let result = this.matchSetting();
+        let result = this.myMatchSetting();
+        this.end();
+        result.content.end = this.index;
         if (!result.success) {
             this.index = preIndex;
         }
@@ -177,40 +234,36 @@ export class Parser {
     // MatchParagraph
     // Lex:  ... \n\n
     // Result: type: paragraph, content: [unused], children: [type: text, content: (text), children: [unused]], [type: label]]
-    private matchParagraph(): MatchResult {
+    private myMatchParagraph(): MatchResult {
         let node = new Node(this.paragraphType);
+        let msg: Message[] = [];
+        this.begin("paragraph");
+        node.begin = this.index;
 
         if (!(this.notEnd() && !this.is(Parser.blank))) {
-            return new Result(false, node);
+            this.sendMessage(msg, "Not a paragraph.");
+            return new Result(false, node, msg);
         }
 
         let text = "";
         while (this.notEnd()) {
-            if (this.is(Parser.blank)) {
-                let count = 0;
-                do {
-                    if (this.is(Parser.newline)) {
-                        count++;
-                    }
-                    this.moveForward();
-                } while (this.notEnd() && this.is(Parser.blank));
-
-                if (count >= 2) {
+            let blankRes = this.matchBlank();
+            if (blankRes.success) {
+                if(blankRes.content >= 2) {
                     break;
                 }
-                else {
-                    text += " ";
-                }
+                text += " ";
             }
 
+
             else if (this.is("\\")) {
-                this.moveForward();
+                this.move();
                 if (this.notEnd()) {
                     switch (this.curChar()) {
                         case "\"": case "\\": case "[": case "]": case "{": case "}": case "'":
                             text += this.curChar();
                             break;
-
+                        /*
                         case "t":
                             text += "\t";
                             break;
@@ -220,12 +273,14 @@ export class Parser {
                         case "r":
                             text += "\r";
                             break;
+                        */
                         default:
                             text += "\\";
                             text += this.curChar();
+                            this.sendMessage(msg, `\\${this.curChar()} do not represent any char.`, MessageType.warning);
 
                     }
-                    this.moveForward();
+                    this.move();
                 }
                 else {
                     text += "\\";
@@ -238,28 +293,31 @@ export class Parser {
                     text = "";
                 }
 
-                let result = this.tryToMatchLabel();
+                let result = this.matchLabel();
+                this.mergeMessage(msg, result.messages);
                 if (!result.success) {
-                    return new Result(false, node);
+                    this.sendMessage(msg, "Match label failed.");
+                    return new Result(false, node, msg);
                 }
-
                 node.children.push(result.content);
             }
             else {
                 text += this.curChar();
-                this.moveForward();
+                this.move();
             }
         }
         if (text !== "") {
             node.children.push(new Node(this.textType, text));
         }
 
-        return new Result(true, node);
+        return new Result(true, node, msg);
     }
 
-    private tryToMatchParagraph(): MatchResult {
+    private matchParagraph(): MatchResult {
         let preIndex = this.index;
-        let result = this.matchParagraph();
+        let result = this.myMatchParagraph();
+        this.end();
+        result.content.end = this.index;
         if (!result.success) {
             this.index = preIndex;
         }
@@ -270,35 +328,31 @@ export class Parser {
     // Lex:  ... ]
     // Result: type: paragraph, content: [unused], children: [type: text, content: (text), children: [unused]], [type: label]]
     // Only use the children!
-    private matchInteriorParagraph(): MatchResult {
-        var text = "";
-        var node = new Node(this.paragraphType);
-        while (this.notEnd()) {
-            if (this.is(Parser.blank)) {
-                var count = 0;
-                do {
-                    if (this.is(Parser.newline)) {
-                        count++;
-                    }
-                    this.moveForward();
-                } while (this.notEnd() && this.is(Parser.blank));
+    private myMatchInteriorParagraph(): MatchResult {
 
-                if (count >= 2) {
-                    break;
+        let node = new Node(this.paragraphType);
+        let msg: Message[] = [];
+        this.begin("interior-paragraph");
+
+        let text = "";
+        let count = 0;
+        while (this.notEnd()) {
+            let blankRes = this.matchBlank();
+            if (blankRes.success) {
+                if(blankRes.content >= 2) {
+                    this.sendMessage(msg, "Interior paragraph should not have two or more newline.", MessageType.warning);
                 }
-                else {
-                    text += " ";
-                }
+                text += " ";
             }
 
             else if (this.is("\\")) {
-                this.moveForward();
+                this.move();
                 if (this.notEnd()) {
                     switch (this.curChar()) {
                         case "\"": case "\\": case "[": case "]": case "{": case "}": case "'":
                             text += this.curChar();
                             break;
-
+                        /*
                         case "t":
                             text += "\t";
                             break;
@@ -308,43 +362,47 @@ export class Parser {
                         case "r":
                             text += "\r";
                             break;
+                        */
                         default:
                             text += "\\";
                             text += this.curChar();
+                            this.sendMessage(msg, `\\${this.curChar()} do not represent any char.`, MessageType.warning);
 
                     }
-                    this.moveForward();
+                    this.move();
                 }
                 else {
                     text += "\\";
                 }
             }
+
             else if (this.is("[")) {
                 if (text !== "") {
                     node.children.push(new Node(this.textType, text));
                     text = "";
                 }
                 
-                var result = this.tryToMatchLabel();
+                let result = this.matchLabel();
+                this.mergeMessage(msg, result.messages);
                 if (!result.success) {
-                    return new Result(false, node);
+                    this.sendMessage(msg, "Match label failed.");
+                    return new Result(false, node, msg);
                 }
 
                 node.children.push(result.content);
-
             }
 
             else if (this.is("]")) {
-                this.moveForward();
+                this.move();
                 if (text !== "") {
                     node.children.push(new Node(this.textType, text));
                 }
-                return new Result(true, node);
+                return new Result(true, node, msg);
 
             }
             else {
                 text += this.curChar();
-                this.moveForward();
+                this.move();
             }
         }
 
@@ -352,12 +410,14 @@ export class Parser {
             node.children.push(new Node(this.textType, text));
         }
 
-        return new Result(false, node);
+        this.sendMessage(msg, "Missing ']' in interior paragraph.", MessageType.warning);
+        return new Result(true, node, msg);
     }
 
-    private tryToMatchInteriorParagraph(): MatchResult {
+    private matchInteriorParagraph(): MatchResult {
         let preIndex = this.index;
-        let result = this.matchInteriorParagraph();
+        let result = this.myMatchInteriorParagraph();
+        this.end();
         if (!result.success) {
             this.index = preIndex;
         }
@@ -367,15 +427,18 @@ export class Parser {
     // MatchLabel
     // Lex: [ name ... ]
     // Result: type: (depends on label), content: (depens on label), children: (depends on the label)
-    private matchLabel(): MatchResult {
+    private myMatchLabel(): MatchResult {
         let node = new Node(this.labelType);
+        let msg: Message[] = [];
+        this.begin("label");
 
-        this.moveForward();
+        this.move();
         this.skipBlank();
 
-        let name = this.tryToMatchName();
+        let name = this.matchName();
         if (!name.success) {
-            return new Result(false, node);
+            this.sendMessage(msg, "Missing name.");
+            return new Result(false, node, msg);
         }
         node.content = name.content;
 
@@ -383,20 +446,26 @@ export class Parser {
 
         let handle = this.labelHandlerTable.getHandler(name.content);
         if (handle === undefined) {
-            return new Result(false, node);
+            this.sendMessage(msg, `Label name '${name.content}' not found.`);
+            return new Result(false, node, msg);
         }
 
         let result = handle();
+        this.mergeMessage(msg, result.messages);
         if (!result.success) {
-            return new Result(false, node);
+            this.sendMessage(msg, `'${name.content}' label failed.`);
+            return new Result(false, node, msg);
         }
 
-        return result;
+        return new Result(true, result.content, msg);
     }
 
-    private tryToMatchLabel(): MatchResult {
+    private matchLabel(): MatchResult {
         let preIndex = this.index;
-        let result = this.matchLabel();
+        let result = this.myMatchLabel();
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
         if (!result.success) {
             this.index = preIndex;
         }
@@ -424,42 +493,35 @@ export class Parser {
                 label = "subsection";
                 break;
             default:
-                return new Result(false, res.content);
+                res.success = false;
+                this.sendMessage(res.messages, "Label (default) name not found.")
+                return res;
         }
         res.content.content = label;
         return res;
-    }
-
-    private tryToMatchLabelDefault(): MatchResult {
-        let preIndex = this.index;
-        let result = this.matchLabel();
-        if (!result.success) {
-            this.index = preIndex;
-        }
-        return result;
     }
 
     // MatchName
     // Lex: text char
     // Result: string
 
-    tryToMatchName(): Result<string> {
+    matchName(): Result<string> {
         let preIndex = this.index;
         if (!this.notEnd()) {
-            return new Result(false, "");
+            return new Result(false, "", []);
         }
         if (this.is(Parser.nameChar)) {
             var temp = this.curChar();
             while (this.nextIs(Parser.nameChar)) {
-                this.moveForward();
+                this.move();
                 temp += this.curChar();
             }
-            this.moveForward();
-            return new Result(true, temp);
+            this.move();
+            return new Result(true, temp, []);
         }
         else {
             this.index = preIndex;
-            return new Result(false, "");
+            return new Result(false, "", []);
         }
     }
 
@@ -472,7 +534,7 @@ export class Parser {
             return false;
         }
         let result = true;
-        for(let i = 0; i < length; i++, this.moveForward()) {
+        for(let i = 0; i < length; i++, this.move()) {
             if(this.curChar() != text[i]) {
                 result = false;
                 break;
@@ -481,31 +543,145 @@ export class Parser {
         return result;
     }
 
+    matchBlank(): Result<number> {
+        let count = 0;
+        let success = false;
+        while(this.notEnd()) {
+            if(this.is(Parser.blank)) {
+                success = true;
+                do {
+                    if (this.is(Parser.newline)) {
+                        count++;
+                    }
+                    this.move();
+                } while(this.notEnd() && this.is(Parser.blank));
+            }
+            else if(this.is("/") && this.nextIs("/")) {
+                success = true;
+                this.move(2);
+                while(this.notEnd()) {
+                    if(this.is(Parser.newline)) {
+                        this.move();
+                        break;
+                    }
+                    this.move();
+                }
+            }
+            else if(this.is("/") && this.nextIs("*")) {
+                success = true;
+                this.move(2);
+                while(this.notEnd()) {
+                    if(this.is("*") && this.nextIs("/")) {
+                        this.move(2);
+                        break;
+                    }
+                    this.move();
+                }
+            }
+            else {
+                break;
+            }
+        }
+        return new Result(success, count, []);
+    }
+
     // SkipBlank
     // Lex: all the blank char
     // Result: null
     skipBlank() {
-        if (this.is(Parser.blank)) {
-            while (this.nextIs(Parser.blank)) {
-                this.moveForward();
+        while(this.notEnd()) {
+            if(this.is(Parser.blank)) {
+                do {
+                    this.move();
+                } while(this.notEnd() && this.is(Parser.blank));
             }
-            this.moveForward();
+            else if(this.is("/") && this.nextIs("/")) {
+                this.move(2);
+                while(this.notEnd()) {
+                    if(this.is(Parser.newline)) {
+                        this.move();
+                        break;
+                    }
+                    this.move();
+                }
+            }
+            else if(this.is("/") && this.nextIs("*")) {
+                this.move(2);
+                while(this.notEnd()) {
+                    if(this.is("*") && this.nextIs("/")) {
+                        this.move(2);
+                        break;
+                    }
+                    this.move();
+                }
+            }
+            else {
+                break;
+            }
         }
     }
 
-    // fundenmental functions
+    // Line and position
 
-    // tryTo function
-    /*
-    tryTo<T>(match: () => Result<T>): Result<T> {
-        let preIndex = this.index;
-        let result = match.call(this);
-        if (!result.success) {
-            this.index = preIndex;
+    generateLineRanges() {
+        let range: [number, number] = [0, 0]; // [begin, end)
+        for(let i = 0; i < this.text.length; i++, this.move()) {
+            if(this.is(Parser.newline)) {
+                range[1] = i + 1;
+                this.lineRanges.push(range);
+                range = [0, 0];
+                range[0] = i + 1;
+            }
         }
-        return result;
+        if(range[0] < this.text.length) {
+            range[1] = this.text.length;
+        }
+        this.lineRanges.push(range);
+        this.index = 0;
     }
-    */
+
+    getLineAndPosition(): {line: number, position: number} | undefined {
+        for(let i = 0; i < this.lineRanges.length; i++) {
+            if(this.lineRanges[i][0] <= this.index && this.index < this.lineRanges[i][1]) {
+                return {line: i + 1, position: this.index - this.lineRanges[i][0] + 1};
+            }
+        }
+        return undefined;
+    }
+
+    getIndex(line: number, position: number): number | undefined {
+        if(0 <= line - 1 && line -1 < this.lineRanges.length) {
+            if(position >= 0 && position + this.lineRanges[line][0] - 1 < this.lineRanges[line][1]) {
+                return position + this.lineRanges[line][0] - 1;
+            }
+        }
+        return undefined;
+    }
+
+    // process
+
+    begin(process: string) {
+        this.process.push(process);
+    }
+
+    end() {
+        this.process.pop();
+    }
+
+    // message
+
+    sendMessage(messageList: Message[], message: string, type: MessageType = MessageType.error, code: number = -1) {
+        let lp = this.getLineAndPosition() ?? {line: -1, position: -1};
+        let pro = this.process.slice();
+        messageList.push(new Message(message, type, code, lp.line, lp.position, pro));
+    }
+
+    mergeMessage(list: Message[], preList: Message[]) {
+        for(let msg of preList) {
+            list.push(msg);
+        }
+    }
+    // Fundamental methods of parser
 
     // current char
 
@@ -519,15 +695,16 @@ export class Parser {
     static blank = /[\t \v\f\r\n]/;
     static newline = /[\r\n]/;
 
+    // must ensure not end.
     is(char: string): boolean;
     is(exp: RegExp): boolean;
     is(condition: string | RegExp): boolean;
     is(condition: string | RegExp): boolean {
         if (typeof (condition) === "string") {
-            return this.text[this.index] === condition;
+            return this.curChar() === condition;
         }
         else {
-            return condition.exec(this.text[this.index]) !== null;
+            return condition.exec(this.curChar()) !== null;
         }
 
     }
@@ -536,9 +713,9 @@ export class Parser {
     nextIs(exp: RegExp): boolean;
     nextIs(condition: string | RegExp) {
         if (this.notEnd(1)) {
-            this.moveForward();
+            this.move();
             var res = this.is(condition);
-            this.moveBackward();
+            this.move(-1);
             return res;
         }
         else {
@@ -547,19 +724,22 @@ export class Parser {
     }
 
     // index control
-
+    
     notEnd(offset: number = 0): boolean {
         return this.index + offset < this.text.length;
     }
 
-    moveTo(index: number) {
+    /*
+    private moveTo(index: number) {
         this.index = index;
     }
+    */
 
-    move(offset: number) {
+    move(offset: number = 1) {
         this.index += offset;
     }
 
+    /*
     moveForward() {
         this.move(1);
     }
@@ -567,5 +747,5 @@ export class Parser {
     moveBackward() {
         this.move(-1);
     }
-
+    */
 }
