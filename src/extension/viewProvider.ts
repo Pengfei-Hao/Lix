@@ -15,7 +15,7 @@ export class LabelProvider implements vscode.TreeDataProvider<string> {
         }
         if(!element) {
             let res = [];
-            for(let label of this.context.getParser(document).labelHandlerTable.labelHandlers.keys()) {
+            for(let label of this.context.getParser(document).blockHandlerTable.blockHandlers.keys()) {
                 res.push(label);
             }
             return res;

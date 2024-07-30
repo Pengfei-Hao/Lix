@@ -1,10 +1,6 @@
-out
-dist
-node_modules
-.vscode-test/
-*.vsix
-.DS_Store
-.eslintrc.json
-package-lock.json
-/tests/lix_temp
 .VSCodeCounter
+.DS_Store
+node_modules
+out
+tests/lix_temp
+package-lock.json

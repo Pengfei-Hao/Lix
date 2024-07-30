@@ -1,0 +1,65 @@
+# setting-1: param of setting 1
+
+# setting-2: param of setting 2
+
+This test is set for the basic blocks in lix.
+
+Free paragraph test. This is a free paragraph. [emph Empasize some words.] Some words. [bold: Make these words bold.] \\
+A new line of words. 
+[text New line of words again. [bold A bold word. [emph Error: repeated.]]]
+
+This is a new paragraph.
+[text New line of words again.[emph [bold Error: repeated.]] ]
+
+[paragraph (center) 
+Paragraph block test. This is a paragraph block. [emph Empasize some words.] Some words. [bold Make these words bold.] \\
+A new line of words. 
+[text New line of words again. ]
+]
+
+# setting-3: param of setting 3
+
+[error-name ]
+
+Formula test. / a [b c]/
+[formula `fg ↦ y` a b c]
+[formula `hpf ↦ h p f` hpf ]
+[formula `hello ↦ h` A epsilon ]
+/ a [ b 错 c ] c d /* error */ () * ↦ fg hpf "hello"/
+Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp /
+aℬa a𝕒b 𝔹 𝔞 𝔅 
+1. math accent, vec, hat, arrow 
+2. sub\/superscript
+/[a𝛟1 ^ b𝛗 _ c𝛔]/, /a _ b ^ c/
+
+3. brackets
+/[{ case1  case2 .] /, /(1 2 3)/ 
+4. frac
+/ [a b / c d] /, / a/ b 
+
+5. sqrt
+/[√ 2 a]/, / √ a /
+
+6. sum, int, pi, lim, binom
+/[∑ a b]/
+
+7. mat
+/[mat a b]/
+
+8. cases
+/[cases a ; b]/
+
+9. quad, qquad \ , \;\,
+/quad qquad/
+
+[text (center,large) Commit test. /* commit */ This is a multiline commit.  /* commit
+commit */ Another multiline commit.
+This is a line commit. // line commit.
+Embeded commit. /* commit /* Embeded commit. */ */
+
+[error-block ]
+[]
+]
+
+Reference test. This is a reference @reference. [emph @refer].
+

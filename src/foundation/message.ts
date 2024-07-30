@@ -38,7 +38,7 @@ export class Message {
                 break;
         }
 
-        mes += `(at line ${this.line} position ${this.position}) `;
+        mes += `(at line ${this.line + 1} position ${this.position + 1}) `;
         
         if(this.process.length == 0) {
             mes += `: [${this.code}] ${this.message}`;

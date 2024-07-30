@@ -1,0 +1,56 @@
+[formula
+`lix ↦ x y z`
+`sigmoid ↦ f(x)=[x/1+x]`
+`mat ↦ [x x y;z z x;x y]`
+// lix [sigmoid / mat]
+[lix^2]
+[sum i=1 to N: i times i]
+[int x=1 to 3: log x]
+[lim x approx infty: [sin x/x]]
+[t^3_n]
+[([f/g])]
+]
+
+/𝛒(x,y) = ‖x-y‖/, /𝛒(x,M) = ‖x-z‖/ 
+
+[formula
+`lix ↦ x y z`
+`sigmoid ↦ f(x) =[x/1+x]`
+`mat ↦ [x x y;z z x;x y]`
+`x2 ↦ [x^2]`
+lix[sigmoid/mat]
+log x2
+]
+
+
+[formula 
+`x2 ↦ [x_2]`
+[1/log x2]
+]
+
+
+[formula
+`x1 ↦ x 1`
+`x2 ↦x 2`
+`x3 ↦[x_3]`
+`y1 ↦[y_1]`
+`y2 ↦[y_2]`
+`y3 ↦[y_3]`
+`r1 ↦r_1`
+`r12 ↦r_1 2`
+`a1 ↦ alpha_1`
+`a2 ↦ alpha_2`
+[d x1/d t]=x1 R [(r1 - a1 x1 - r12 x2)]
+[d x1/d t] = x1 R [( r1 - a1 x1 - r12 x2)]
+]
+
+
+[formula 
+
+[1 / d t] [([a b c;d e f;g h i])] = [( x1 x2 x3 )] times [( [y1 ;y2 ;y3] )]
+ 
+[{
+[d x1 / d t] = A [( [x1 ; x2] )]
+[d x2 / d t] = A [( [x1 ; x2] )]
+}]
+]

@@ -21,6 +21,8 @@ export class Node {
 
     static clone(node: Node): Node {
         let newNode = new Node(node.type, node.content);
+        newNode.begin = node.begin;
+        newNode.end = node.end;
         for(let subNode of node.children) {
             newNode.children.push(Node.clone(subNode));
         }
@@ -28,23 +30,8 @@ export class Node {
     }
 
     private myToString(level: string): string {
-        /*
-        if(node.type === Type.paragraph) {
-            return `${level}"${node.content}"`;
-        }
-        else if(node.type === Type.setting) {
-            return `#${level}${node.content}`;
-        }
-        else {
-            let res = `${level}${node.content}`;
-            for(let n of node.children) {
-                res += "\n";
-                res += myToString(n, level + "\t");
-            }
-            return res;
-        }
-        */
-        let res = `${level}${this.type.name}: "${this.content}"`
+
+        let res = `${level}${this.type.name}: "${this.content}", begin = ${this.begin}, end = ${this.end}`
         if (this.children.length === 0) {
             return res;
         }

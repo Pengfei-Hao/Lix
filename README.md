@@ -158,9 +158,17 @@ blank -> [ [\t \v\f\r\n]+ | // ... \n | /* ... */] *
 
 每个myMatch函数对应一个语法节点，功能是从index开始匹配该语法节点，如果成功index设置为该语法节点结尾后一个字符的位置，如果失败index位置是随机的。
 
+Match函数用来构建Result<Node>:
+success
+messages[] -> line&position, process, type, code, message
+content -> type, content, children, begin, end
+并控制index
+index
+
 ##### myMatch模版
-let node = new Node(this.xxxType);
-let msg: Message[] = [];
+let result = new Result<Node>(true, new Node(this.xxxType), []);
+let node = result.content;
+let msg = result.messages;
 this.begin("xxx");
 node.begin = this.index;
 
@@ -168,16 +176,28 @@ match syntax ...
 
    保证index位置正确
 
-需要用到其他match函数时：
-let result = this.tryToMatchLabel();
-this.mergeMessage(msg, result.messages);
-if (!result.success) {
-    this.sendMessage(msg, "Match label failed.");
-    return new Result(false, node, msg);
-}
-node.children.push(result.content);
+##### myMatch 返回时
+成功
+return result;
 
-需要试错match函数时
+失败
+msg.push(this.getMessage("xxx"));
+result.success = false;
+return result;
+
+
+
+##### 需要用到其他match函数时
+let nResult = this.matchXXX();
+result.merge(nResult);
+if (!result.success) {
+    msg.push(this.getMessage("xxx"));
+    result.success = false;
+    return result;
+}
+nResult.content ....
+
+##### 需要试错match函数时
 let result = this.matchXXX();
 if (result.success) {
     this.syntaxTree.children.push(result.content);
@@ -195,13 +215,8 @@ if (result.success) {
 this.sendMessage(msg, "xxx");
 return new Result(false, node, msg);
 
-返回时(失败)
-this.sendMessage(msg, "xxx");
-return new Result(false, node, msg);
 
-返回时(成功)
-return new Result(true, node, msg);
-
+##### Match函数
 每个match函数对应相应的match函数，提供试错机会，并且在myMatch失败后将index放回初始位置,并且不产生message.
 match模版
 let preIndex = this.index;

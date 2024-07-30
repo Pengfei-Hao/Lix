@@ -6,6 +6,7 @@ import * as path from 'path';
 import { workspace, ExtensionContext } from 'vscode';
 
 import {
+	DiagnosticSeverity,
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
@@ -22,6 +23,7 @@ import { Context } from './extension/context';
 import { LabelProvider, MathLabelProvider } from './extension/viewProvider';
 import { LatexProvider } from './extension/documentProvider';
 import { MessageType } from './foundation/message';
+import { ResultState } from './foundation/result';
 
 
 // let client: LanguageClient;
@@ -37,43 +39,6 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
-
-	// Start the language cilent
-
-	
-	// let serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
-
-	// let debugOptions = { execArgv: ['--nolazy', '--inspect=6009'] };
-
-	// let serverOptions: ServerOptions = {
-	// 	run: { module: serverModule, transport: TransportKind.ipc },
-	// 	debug: {
-	// 		module: serverModule,
-	// 		transport: TransportKind.ipc,
-	// 		options: debugOptions
-	// 	}
-	// };
-
-	// let clientOptions: LanguageClientOptions = {
-	// 	// Register the server for plain text documents
-	// 	documentSelector: [{ scheme: 'file', language: 'lix' }],
-	// 	synchronize: {
-	// 		// Notify the server about file changes to '.clientrc files contained in the workspace
-	// 		fileEvents: workspace.createFileSystemWatcher('**/.clientrc')
-	// 	}
-	// };
-
-	// // Create the language client and start the client.
-	// client = new LanguageClient(
-	// 	'languageServerExample',
-	// 	'Language Server Example',
-	// 	serverOptions,
-	// 	clientOptions
-	// );
-
-	// // Start the client. This will also launch the server
-	// client.start();
-	
 
 	// Register the Commands
 
@@ -122,11 +87,15 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 
+	// document provider
+
 	//vscode.window.showInformationMessage(`extensionPath:${context.extensionPath};globalStorage:${context.globalStorageUri.fsPath};Storage:${context.storageUri?.path};logPath:${context.logUri.fsPath}`);
 
 	context.subscriptions.push(
 		vscode.workspace.registerTextDocumentContentProvider("lix", documentProvider)
 	);
+
+	// load configs
 
 	config = new Config(context.extensionUri);
 	let success = await config.readAll();
@@ -137,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	lixContext = new Context(config);
 
-	// languages
+	// diagnostic
 
 	diagnosticCollection = vscode.languages.createDiagnosticCollection("lix");
 	context.subscriptions.push(diagnosticCollection);
@@ -145,12 +114,66 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider({ scheme: "file", language: "lix" }, new LixCompletionProvider(lixContext), "[", " ")
 	);
+
+	// semantic token provider
+
+	const tokenTypes = ['keyword', 'operator', 'label', 'function', 'variable'];
+	const tokenModifiers = ['declaration', 'documentation'];
+	const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
+	
+	const provider: vscode.DocumentSemanticTokensProvider = {
+	  provideDocumentSemanticTokens(
+		document: vscode.TextDocument
+	  ): vscode.ProviderResult<vscode.SemanticTokens> {
+		// analyze the document and return semantic tokens
+	
+		const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
+		// on line 1, characters 1-5 are a class declaration
+
+		let parser = lixContext.getParser(document);
+		let highlights = parser.highlights;
+		for(let hlt of highlights) {
+			let type = "";
+			switch (hlt.type) {
+				case 0:
+					type = "variable";
+					break;
+				case 1:
+					type = "keyword";
+					break;
+				default:
+					type = "label";
+					break;
+			}
+			let lp = parser.getLineAndPosition(hlt.begin) ?? {line: -1, position: -1};
+			let lpe = parser.getLineAndPosition(hlt.end) ?? {line: -1, position: -1};
+
+			tokensBuilder.push(
+				new vscode.Range(new vscode.Position(lp.line, lp.position), new vscode.Position(lpe.line, lpe.position)),
+				type,
+				[]
+			  );
+		}
+	
+		return tokensBuilder.build();
+	  }
+	};
+	
+	const selector = { language: 'lix', scheme: 'file' }; // register for all Java documents from the local file system
+	
+	vscode.languages.registerDocumentSemanticTokensProvider(selector, provider, legend);
+	
+
+	// tree data provider
+
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-label-list", new LabelProvider(lixContext))
 	);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-math-list", new MathLabelProvider(lixContext))
 	);
+
+	// events
 
 	context.subscriptions.push(
 		vscode.workspace.onDidOpenTextDocument(onOpen)
@@ -173,36 +196,28 @@ export async function activate(context: vscode.ExtensionContext) {
 }
 
 async function onOpen(document: vscode.TextDocument) {
-	//console.log(`Document '${document.fileName}' opened.`);
-	//lixContext.parser(document);
+	return;
+	console.log(`Document '${document.fileName}' opened.`);
+	lixContext.parser(document);
 }
 
 async function onWinChange(editor: vscode.TextEditor | undefined) {
+	/*
 	let document = editor?.document;
 	if(!document) {
 		return;
 	}
 	console.log(`Document editor '${document.fileName}' changed.`);
+	*/
 }
 
 async function onChange(document: vscode.TextDocumentChangeEvent) {
 	//console.log(`Document '${document.document.fileName}' changed.`);
+	//return;
 	if(document.document.languageId !== "lix") {
 		return;
 	}
-	lixContext.parser(document.document);
-
-	let msgs = lixContext.messageLists.get(document.document)!;
-	let diags: vscode.Diagnostic[] = [];
-
-	for(let msg of msgs) {
-		let diag = new vscode.Diagnostic(new vscode.Range(msg.line-1,msg.position-1,msg.line-1,msg.position), msg.toString());
-		if(msg.type == MessageType.warning) {
-			diag.severity = vscode.DiagnosticSeverity.Warning;
-		}
-		diags.push(diag);
-	}
-	diagnosticCollection.set(document.document.uri, diags);
+	parseFile();
 }
 
 async function onClose(document: vscode.TextDocument) {
@@ -255,16 +270,48 @@ async function generate() {
 }
 
 async function parse() {
+	parseFile();
+	let document = vscode.window.activeTextEditor?.document!;
+	let syntaxTree = lixContext.syntaxTrees.get(document)!;
+
+	showFile(syntaxTree.toString() + `\n[[[success: ${lixContext.success.get(document)!}]]]`);
+}
+
+function parseFile() {
 	let document = vscode.window.activeTextEditor?.document!;
 
 	lixContext.parser(document);
 	let messageList = lixContext.messageLists.get(document)!;
-	let syntaxTree = lixContext.syntaxTrees.get(document)!;
+	let state = lixContext.state.get(document)!;;
 
+	let diags: vscode.Diagnostic[] = [];
 	for(let msg of messageList) {
-		console.log(msg.toString());
+		let diag = new vscode.Diagnostic(new vscode.Range(msg.line,msg.position,msg.line,msg.position+1), msg.toString());
+		if(msg.type == MessageType.warning) {
+			diag.severity = vscode.DiagnosticSeverity.Warning;
+		}
+		diags.push(diag);
 	}
-	showFile(syntaxTree.toString());
+	let st = "";
+	switch(state) {
+		case ResultState.successful:
+			st = "successful";
+			break;
+		case ResultState.skippable:
+			st = "skippable";
+			break;
+		case ResultState.matched:
+			st = "matched";
+			break;
+		case ResultState.failing:
+			st = "failing";
+			break;
+	}
+
+	let diag = new vscode.Diagnostic(new vscode.Range(0,0,0,1),"State: " + st, vscode.DiagnosticSeverity.Information);
+	diags.push(diag);
+
+	diagnosticCollection.set(document.uri, diags);
 }
 
 function showFile(file: string) {

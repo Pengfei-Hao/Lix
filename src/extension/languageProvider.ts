@@ -20,20 +20,28 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
 
         let res: vscode.CompletionItem[] = [];
         let parser = this.context.getParser(document)!;
-        if (this.inMath(parser, parser.getIndex(position.line - 1, position.character - 1)!)) {
+        if (this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
             if (context.triggerCharacter == " " || context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
-                for (let item of parser.mathModule.blockHandlerTable.symbols.keys()) {
+                for (let item of parser.mathModule.symbols) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
                     comp.insertText = item + " ";
                     comp.detail = "math symbol from lix.";
                     res.push(comp);
                 }
+                parser.mathModule.symbolCharAndNotations.forEach((nota, name) => {
+                    let comp = new vscode.CompletionItem(name, vscode.CompletionItemKind.Keyword);
+                    comp.insertText = nota;
+                    comp.detail = `Symbol char '${nota}'.`;
+                    res.push(comp);
+                })
+
                 for (let item of parser.mathModule.blockHandlerTable.definations.keys()) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
                     comp.insertText = item + " ";
                     comp.detail = "user-defined math symbol from lix.";
                     res.push(comp);
                 }
+                
             }
             if (context.triggerCharacter == "[") {
                 for (let [item,val] of [["fraction","/"],["matrix",""],["script","^_"],["int","int to :"],["sum to :","sum"],["lim","lim :"]]) {
@@ -47,7 +55,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
 
 
         else if (context.triggerCharacter == "[") {
-            for (let item of parser.labelHandlerTable.labelHandlers.keys()) {
+            for (let item of parser.blockHandlerTable.blockHandlers.keys()) {
                 let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Function);
                 comp.insertText = item + " ";
                 comp.detail = "labels from lix.";
@@ -58,8 +66,25 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
     }
 
     inMath(parser: Parser, pos: number): boolean {
-        let node: Node | undefined = undefined;
-        let syntax: Node = parser.syntaxTree;
+        let node: Node | undefined = parser.syntaxTree;
+
+        outer: while(true) {
+            if(node === undefined) {
+                return false;
+            }
+            else if(node.type === parser.mathModule.formulaType) {
+                return true;
+            }
+            for(let i = 0; i < node!.children.length; i++) {
+                if(node!.children[i].begin <= pos && pos < node!.children[i].end) {
+                    node = node!.children[i];
+                    continue outer;
+                }
+            }
+            node = undefined;
+        }
+        
+        /*
         for(let i = 0; i < syntax.children.length; i++) {
             if(syntax.children[i].begin <= pos && pos < syntax.children[i].end) {
                 node = syntax.children[i];
@@ -80,6 +105,8 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
             return true;
         }
         return false;
+        */
     }
+
 }
 
