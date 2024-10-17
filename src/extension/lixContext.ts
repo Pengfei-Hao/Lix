@@ -5,24 +5,24 @@ import { Message } from "../foundation/message";
 import { Node } from "../sytnax-tree/node";
 import { HighlightType, ResultState } from "../foundation/result";
 
-export class Context {
+export class LixContext {
 
     parsers: Map<TextDocument, Parser>;
-    messageLists: Map<TextDocument, Message[]>;
-    syntaxTrees: Map<TextDocument, Node>;
-    highlights: Map<TextDocument, HighlightType[]>;
-    success: Map<TextDocument, boolean>;
-    state: Map<TextDocument, ResultState>;
+    //messageLists: Map<TextDocument, Message[]>;
+    //syntaxTrees: Map<TextDocument, Node>;
+    //highlights: Map<TextDocument, HighlightType[]>;
+    //success: Map<TextDocument, boolean>;
+    //state: Map<TextDocument, ResultState>;
     config: Config; 
 
     constructor(config: Config) {
         this.parsers = new Map();
         this.config = config;
-        this.messageLists = new Map();
-        this.syntaxTrees = new Map();
-        this.highlights = new Map();
-        this.success = new Map();
-        this.state = new Map();
+        // this.messageLists = new Map();
+        // this.syntaxTrees = new Map();
+        // this.highlights = new Map();
+        // this.success = new Map();
+        // this.state = new Map();
     }
 
     getParser(document: TextDocument): Parser {
@@ -37,14 +37,16 @@ export class Context {
         }
     }
 
-    parser(document: TextDocument) {
-        console.log(`Document '${document.fileName}' parsered.`);
+    /*
+
+    parse(document: TextDocument) {
         let parser = this.getParser(document);
 	    parser.parse(document.getText());
-        this.syntaxTrees.set(document, parser.syntaxTree);
-        this.messageLists.set(document, parser.messageList);
-        this.highlights.set(document, parser.highlights);
-        this.success.set(document, parser.success);
-        this.state.set(document, parser.state);
+        // this.syntaxTrees.set(document, parser.syntaxTree);
+        // this.messageLists.set(document, parser.messageList);
+        // this.highlights.set(document, parser.highlights);
+        // //this.success.set(document, parser.success);
+        // this.state.set(document, parser.state);
     }
+        */
 }

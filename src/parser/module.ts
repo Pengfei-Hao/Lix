@@ -7,4 +7,6 @@ export abstract class Module {
         this.parser = parser;
     }
 
+    abstract init(): void;
+
 }

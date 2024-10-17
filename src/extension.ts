@@ -1,40 +1,34 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+
 import * as vscode from 'vscode';
 
 import * as path from 'path';
-import { workspace, ExtensionContext } from 'vscode';
-
-import {
-	DiagnosticSeverity,
-  LanguageClient,
-  LanguageClientOptions,
-  ServerOptions,
-  TransportKind
-} from 'vscode-languageclient/node';
+import { workspace } from 'vscode';
 
 import { TextEncoder } from 'util';
 import { Parser } from './parser/parser';
 import { Generator } from './generator/generator';
 import { LatexGenerator } from './generator/latex-generator';
 import { Config } from './foundation/config';
-import { LixCompletionProvider } from './extension/languageProvider';
-import { Context } from './extension/context';
-import { LabelProvider, MathLabelProvider } from './extension/viewProvider';
+import { LixCompletionProvider } from './extension/completionProvider';
+import { LixContext } from './extension/lixContext';
+import { LabelProvider, MathLabelProvider } from './extension/treeDataProvider';
 import { LatexProvider } from './extension/documentProvider';
-import { MessageType } from './foundation/message';
+import { LixSemanticProvider } from './extension/semanticProvider';
+import { updateDiagnostic } from './extension/diagnosticProvider';
 import { ResultState } from './foundation/result';
+import { Heap } from './foundation/heap';
+import { Ref } from './foundation/ref';
+import { DocumentFilter, DocumentSelector } from 'vscode-languageclient';
+import { Node } from './sytnax-tree/node';
 
-
-// let client: LanguageClient;
 
 let config: Config;
-
-let lixContext: Context;
+let lixContext: LixContext;
 
 let documentProvider = new LatexProvider();
+export let diagnosticCollection: vscode.DiagnosticCollection;
 
-let diagnosticCollection: vscode.DiagnosticCollection;
+let docSel: DocumentSelector = [{ scheme: "file", language: "lix" }];
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -43,30 +37,19 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Register the Commands
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.generate', async () => {
-			generate();
-		})
+		vscode.commands.registerCommand('lix.generate', generate)
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.helloWorld', async () => {
-			// The code you place here will be executed every time your command is executed
-			// Display a message box to the user
-			//vscode.window.showInformationMessage('Hello World from LiX!');
-			helloWorld();
-		})
+		vscode.commands.registerCommand('lix.helloWorld', helloWorld)
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.parse', async () => {
-			parse();
-		})
+		vscode.commands.registerCommand('lix.parse', parse)
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.compile', async () => {
-			compile();
-		})
+		vscode.commands.registerCommand('lix.compile', compile)
 	);
 
 	context.subscriptions.push(
@@ -86,10 +69,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-
 	// document provider
-
-	//vscode.window.showInformationMessage(`extensionPath:${context.extensionPath};globalStorage:${context.globalStorageUri.fsPath};Storage:${context.storageUri?.path};logPath:${context.logUri.fsPath}`);
 
 	context.subscriptions.push(
 		vscode.workspace.registerTextDocumentContentProvider("lix", documentProvider)
@@ -100,68 +80,29 @@ export async function activate(context: vscode.ExtensionContext) {
 	config = new Config(context.extensionUri);
 	let success = await config.readAll();
 	console.log(`Configs loading success: ${success}`);
-	//console.log(`math.json: ${config.get("math")}`);
-	//config.set("label", '{"labels": ["paragraph", "title"]}');
-	//await config.saveAll();
 
-	lixContext = new Context(config);
+	// lix contexts
+
+	lixContext = new LixContext(config);
 
 	// diagnostic
 
 	diagnosticCollection = vscode.languages.createDiagnosticCollection("lix");
 	context.subscriptions.push(diagnosticCollection);
 
+	// completion provider
+
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider({ scheme: "file", language: "lix" }, new LixCompletionProvider(lixContext), "[", " ")
+		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", " ")
 	);
 
 	// semantic token provider
 
-	const tokenTypes = ['keyword', 'operator', 'label', 'function', 'variable'];
-	const tokenModifiers = ['declaration', 'documentation'];
-	const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
-	
-	const provider: vscode.DocumentSemanticTokensProvider = {
-	  provideDocumentSemanticTokens(
-		document: vscode.TextDocument
-	  ): vscode.ProviderResult<vscode.SemanticTokens> {
-		// analyze the document and return semantic tokens
-	
-		const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
-		// on line 1, characters 1-5 are a class declaration
+	let tokenTypes = ['keyword', 'operator', 'string', 'function', 'variable', 'comment', 'class', 'type'];
+	let tokenModifiers = ['declaration', 'documentation'];
+	let legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
 
-		let parser = lixContext.getParser(document);
-		let highlights = parser.highlights;
-		for(let hlt of highlights) {
-			let type = "";
-			switch (hlt.type) {
-				case 0:
-					type = "variable";
-					break;
-				case 1:
-					type = "keyword";
-					break;
-				default:
-					type = "label";
-					break;
-			}
-			let lp = parser.getLineAndPosition(hlt.begin) ?? {line: -1, position: -1};
-			let lpe = parser.getLineAndPosition(hlt.end) ?? {line: -1, position: -1};
-
-			tokensBuilder.push(
-				new vscode.Range(new vscode.Position(lp.line, lp.position), new vscode.Position(lpe.line, lpe.position)),
-				type,
-				[]
-			  );
-		}
-	
-		return tokensBuilder.build();
-	  }
-	};
-	
-	const selector = { language: 'lix', scheme: 'file' }; // register for all Java documents from the local file system
-	
-	vscode.languages.registerDocumentSemanticTokensProvider(selector, provider, legend);
+	vscode.languages.registerDocumentSemanticTokensProvider(docSel, new LixSemanticProvider(lixContext, legend), legend);
 	
 
 	// tree data provider
@@ -175,60 +116,127 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// events
 
-	context.subscriptions.push(
-		vscode.workspace.onDidOpenTextDocument(onOpen)
-	);
+	// context.subscriptions.push(
+	// 	vscode.workspace.onDidOpenTextDocument(onOpen)
+	// );
+
+	// context.subscriptions.push(
+	// 	vscode.workspace.onDidChangeTextDocument(onChange)
+	// );
+
+	// context.subscriptions.push(
+	// 	vscode.workspace.onDidCloseTextDocument(onClose)
+	// );
+
+	// context.subscriptions.push(
+	// 	vscode.window.onDidChangeActiveTextEditor(onWinChange)
+	// )
 
 	context.subscriptions.push(
-		vscode.workspace.onDidChangeTextDocument(onChange)
+		vscode.window.onDidChangeTextEditorSelection(onSelectionChange)
 	);
-
-	context.subscriptions.push(
-		vscode.workspace.onDidCloseTextDocument(onClose)
-	);
-
-	context.subscriptions.push(
-		vscode.window.onDidChangeActiveTextEditor(onWinChange)
-	)
 
 	// Successfully init
+
 	console.log('Congratulations, your extension "lix" is now active!');
 }
 
-async function onOpen(document: vscode.TextDocument) {
-	return;
-	console.log(`Document '${document.fileName}' opened.`);
-	lixContext.parser(document);
+// This method is called when your extension is deactivated
+export async function deactivate(): Promise<void> {
+	
+	// if (!client) {
+	// 	return;
+	// }
+	// await client.stop();
 }
 
-async function onWinChange(editor: vscode.TextEditor | undefined) {
-	/*
-	let document = editor?.document;
+// **************** events ****************
+
+async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
+	let doc = getDocument(change.textEditor.document);
+	if(!doc) {
+		return;
+	}
+	
+	let parser = lixContext.getParser(doc);
+	let pos = change.selections[0].start;
+	let index = parser.getIndex(pos.line, pos.character)!;
+	let line = locate(index, parser.syntaxTree)-1;
+	console.log(`index:${index};line:${pos.line},char:${pos.character}`);
+
+	let uri = getUri(doc);
+	vscode.workspace.openTextDocument(uri).then(doc => {
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
+		vscode.window.showTextDocument(doc, opt);
+		
+	});
+
+}
+
+function locate(pos: number, node: Node, skip = false): number {
+	let line = 1;
+
+	for (let i = 0; i < node.children.length; i++) {
+		if (!skip) {
+			if(node.children[i].begin <= pos && pos < node.children[i].end) {
+				line += locate(pos, node.children[i], false);
+				return line;
+			}
+			else if(node.children[i].end <= pos) {
+				line += locate(pos, node.children[i], true);
+			}
+			else {
+				return line;
+			}
+		}
+		else {
+			line += locate(pos, node.children[i], true);
+		}
+	}
+	return line;
+
+}
+
+// async function onOpen(document: vscode.TextDocument) {
+// 	return;
+// 	console.log(`Document '${document.fileName}' opened.`);
+// 	//lixContext.parse(document);
+// }
+
+// async function onWinChange(editor: vscode.TextEditor | undefined) {
+// 	/*
+// 	let document = editor?.document;
+// 	if(!document) {
+// 		return;
+// 	}
+// 	console.log(`Document editor '${document.fileName}' changed.`);
+// 	*/
+// }
+
+// async function onChange(document: vscode.TextDocumentChangeEvent) {
+// 	//console.log(`Document '${document.document.fileName}' changed.`);
+// 	//return;
+// 	// if(document.document.languageId !== "lix") {
+// 	// 	return;
+// 	// }
+// 	// parseFile();
+// }
+
+// async function onClose(document: vscode.TextDocument) {
+// 	//console.log(`Document '${document.fileName}' closed.`);
+// }
+
+// **************** commands ****************
+
+async function compile() {
+	let document = getDocument();
 	if(!document) {
 		return;
 	}
-	console.log(`Document editor '${document.fileName}' changed.`);
-	*/
-}
-
-async function onChange(document: vscode.TextDocumentChangeEvent) {
-	//console.log(`Document '${document.document.fileName}' changed.`);
-	//return;
-	if(document.document.languageId !== "lix") {
+	let parser = parseDocument(document);
+	if(!parser) {
 		return;
 	}
-	parseFile();
-}
-
-async function onClose(document: vscode.TextDocument) {
-	//console.log(`Document '${document.fileName}' closed.`);
-}
-
-async function compile() {
-	let document = vscode.window.activeTextEditor?.document!;
-
-	let parser = lixContext.getParser(document);
-	parser.parse(document.getText());
 
 	let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
 	let latex = generator.generate();
@@ -258,42 +266,62 @@ async function compile() {
 }
 
 async function generate() {
-	let document = vscode.window.activeTextEditor?.document!;
+	let document = getDocument();
+	if(!document) {
+		return;
+	}
 
-	let parser = lixContext.getParser(document);
-	parser.parse(document.getText());
+	let parser = parseDocument(document);
+	if(!parser) {
+		return;
+	}
 
 	let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
-	var latex = generator.generate();
+	let latex = generator.generate();
 
-	showFile(latex);
+	//showFile(latex);
 }
 
 async function parse() {
-	parseFile();
-	let document = vscode.window.activeTextEditor?.document!;
-	let syntaxTree = lixContext.syntaxTrees.get(document)!;
-
-	showFile(syntaxTree.toString() + `\n[[[success: ${lixContext.success.get(document)!}]]]`);
+	let document = getDocument();
+	if(!document) {
+		return;
+	}
+	parseDocument(document);
+	showFile(getUri(document));
 }
 
-function parseFile() {
-	let document = vscode.window.activeTextEditor?.document!;
+function helloWorld() {
+	//test1();
+	console.log("hello world!");
+	let h = new Heap<number>();
+	h.push(1);
+	h.push(2);
+	h.push(3);
+	h.pop();
+	h.pop();
+	let y = h.top();
 
-	lixContext.parser(document);
-	let messageList = lixContext.messageLists.get(document)!;
-	let state = lixContext.state.get(document)!;;
+	let i = new Ref<number>(0);
+	i.value = 10086;
+	let j = i;
+	j.value =123;
+	console.log(i.value);
+}
 
-	let diags: vscode.Diagnostic[] = [];
-	for(let msg of messageList) {
-		let diag = new vscode.Diagnostic(new vscode.Range(msg.line,msg.position,msg.line,msg.position+1), msg.toString());
-		if(msg.type == MessageType.warning) {
-			diag.severity = vscode.DiagnosticSeverity.Warning;
-		}
-		diags.push(diag);
-	}
+// **************** assistance ****************
+
+
+export function parseDocument(document: vscode.TextDocument): Parser | undefined {
+
+	let parser = lixContext.getParser(document);
+	parser.parse(document.getText());
+	console.log(`Document '${document.fileName}' parsered.`);
+
+	updateDiagnostic(document, lixContext);
+
 	let st = "";
-	switch(state) {
+	switch(parser.state) {
 		case ResultState.successful:
 			st = "successful";
 			break;
@@ -307,16 +335,18 @@ function parseFile() {
 			st = "failing";
 			break;
 	}
+	documentProvider.updateContent(getUri(document), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 
-	let diag = new vscode.Diagnostic(new vscode.Range(0,0,0,1),"State: " + st, vscode.DiagnosticSeverity.Information);
-	diags.push(diag);
-
-	diagnosticCollection.set(document.uri, diags);
+	return parser;
 }
 
-function showFile(file: string) {
-	let uri = documentProvider.addContent(file);
-	vscode.window.showTextDocument(uri);
+function showFile(uri: vscode.Uri) {
+	vscode.workspace.openTextDocument(uri).then(doc => {
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : undefined};
+		vscode.window.showTextDocument(doc,opt);
+		
+	});
+
 }
 
 function showPDF(file: string) {
@@ -334,38 +364,16 @@ function showPDF(file: string) {
 	panel.webview.html = html;
 }
 
-function helloWorld() {
-	test1();
-	console.log("first follow");
+function getUri(document: vscode.TextDocument): vscode.Uri {
+	let duri = document.uri;
+	return vscode.Uri.from({ scheme: "lix", path: duri.path, fragment: "parser" });
 }
 
-function test1(): Thenable<number> {
-
-	return new Promise((resolve) => {
-		sleep(1000).then(() => {
-			console.log("1");
-		console.log("2");
-		console.log("3");
-		console.log("4");
-		console.log("5");
-		console.log("6");
-		resolve(7);
-		})
-	})
-	
-}
-
-function sleep(time: number) {
-	return new Promise((resolve, reject) => {
-		setTimeout(resolve, time);
-	})	
-}
-
-// This method is called when your extension is deactivated
-export async function deactivate(): Promise<void> {
-	
-	// if (!client) {
-	// 	return;
-	// }
-	// await client.stop();
+function getDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document): vscode.TextDocument | undefined {
+	if(!document) {
+		return;
+	}
+	if(vscode.languages.match(docSel, document) == 10) {
+		return document;
+	}
 }

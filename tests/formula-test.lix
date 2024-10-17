@@ -1,33 +1,67 @@
-[formula
-`lix ↦ x y z`
-`sigmoid ↦ f(x)=[x/1+x]`
-`mat ↦ [x x y;z z x;x y]`
-// lix [sigmoid / mat]
-[lix^2]
-[sum i=1 to N: i times i]
-[int x=1 to 3: log x]
-[lim x approx infty: [sin x/x]]
-[t^3_n]
-[([f/g])]
-]
 
-/𝛒(x,y) = ‖x-y‖/, /𝛒(x,M) = ‖x-z‖/ 
+[text 1. math accent, vec, hat, arrow]
 
-[formula
-`lix ↦ x y z`
-`sigmoid ↦ f(x) =[x/1+x]`
-`mat ↦ [x x y;z z x;x y]`
-`x2 ↦ [x^2]`
-lix[sigmoid/mat]
-log x2
-]
+有 Unicode 字符的直接打出来, 如: Â â ȧ; 没有的用指令: /dot A /,
 
+[text 2. sub \/ superscript]
+
+/[[] ^ b𝛗 _ c𝛔]/, /a _ b ^ c/ \\
+数字直接用/⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉/ ᵃᵇᶜ ᵈ ᵉ ᵍ ʰ ⁱ ʲ ᵏ ˡ ᵐ ⁿ ᵒ ᵖ ᵒ ʳ ˢ ᵗ ᵘ ᵛ ʷ ˣ ʸ ᙆ / x¹² /
+单字用 / 𝚽^k_t /
+复杂串用 / [(∫𝚽"d"x)]^[t_k]_["kkt"]/
+同样的表达式用latex.
+${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
+
+[text 3. brackets]
+
+/[{ case1  case2 }] /, /(1 2 3)/ 
+配对的括号直接输入, /() {} <>/
+
+
+[text 4. frac]
+
+/ [a b ⁄ c d] /, / a ⁄ b/ 
+单字用 / a /, /b/
+复杂字用 / [a b] ⁄ [c d]/
+
+
+[text 5. sqrt]
+
+/  √ [ 2  a]/, / √ a /
+/ 3 √ [ a ^ 3]/
+
+[text 6. sum, int, pi, lim, binom]
+
+/∑ a to b: c/
+
+[text 7. mat]
+
+/mat [a b]/
+
+[text 8. cases]
+
+/[cases a ; b]/
+
+[text 9. quad, qquad \ \;\,]
+
+/quad qquad/
+
+[text Example of Formulas]
 
 [formula 
-`x2 ↦ [x_2]`
-[1/log x2]
+[lim norm h ↦ 0 : norm [f(x+h)-f(x)-Ah]_F ⁄ norm h_E]=0
+f(y) ⩾ f(x) +⟨x,y-x⟩ 
 ]
 
+[formula 
+
+[1 ⁄ d t] ([mat a b c;d e f;g h i] ) = ( x1 x2 x3 ) × ( [mat y1 ;y2 ;y3] )
+ 
+{
+["d" x1 ⁄ d t] = A ( [mat x1 ; x2] )
+["d" x2 ⁄ d t] = A ( [mat x1 ; x2] )
+}
+]
 
 [formula
 `x1 ↦ x 1`
@@ -40,17 +74,23 @@ log x2
 `r12 ↦r_1 2`
 `a1 ↦ alpha_1`
 `a2 ↦ alpha_2`
-[d x1/d t]=x1 R [(r1 - a1 x1 - r12 x2)]
-[d x1/d t] = x1 R [( r1 - a1 x1 - r12 x2)]
+["d" x1⁄"d" t]=x1 R (r1 - a1 x1 - r12 x2)
+["d" x1⁄"d" t] = x1 R ( r1 - a1 x1 - r12 x2)
 ]
 
+[formula
+`lix ↦ x y z`
+`sigmoid ↦ f(x)=[x/1+x]`
+`matrix ↦ [mat x x y;z z x;x y]`
 
-[formula 
-
-[1 / d t] [([a b c;d e f;g h i])] = [( x1 x2 x3 )] times [( [y1 ;y2 ;y3] )]
+[lix^2]
+[∑ i=1 to N: i × i]
+[int x=1 to 3: log x]
+[lim x approx infty: [sin x/x]]
+[t^3_n]
+(f⁄g)
+lix[sigmoid/mat a]
+]  
  
-[{
-[d x1 / d t] = A [( [x1 ; x2] )]
-[d x2 / d t] = A [( [x1 ; x2] )]
-}]
-]
+/𝛒(x,y) = ‖x-y‖/, /𝛒(x,M) = ‖x-z‖/  
+

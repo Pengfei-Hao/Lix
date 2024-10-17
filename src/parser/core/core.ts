@@ -4,7 +4,7 @@ import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { MatchResult, Parser } from "../parser";
-import { AnalyseResult, HighlightType, Result, ResultState } from "../../foundation/result";
+import { HighlightType, Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
 import { Message } from "../../foundation/message";
 import { parse } from "path";
@@ -18,6 +18,7 @@ export class Core extends Module {
     listType: Type;
     tableType: Type;
     codeType: Type;
+    
     emphType: Type;
     boldType: Type;
     italicType: Type;
@@ -28,15 +29,30 @@ export class Core extends Module {
         // Init label handle function
 
         // basic blocks
+        this.parser.basicBlocks.add("figure");
+        this.parser.basicBlocks.add("list");
+        this.parser.basicBlocks.add("table");
+        this.parser.basicBlocks.add("code");
         this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this);
         this.parser.blockHandlerTable.add("list", this.parser.textBlockHandler, this.parser);
         this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
         this.parser.blockHandlerTable.add("code", this.parser.textBlockHandler, this.parser);
 
         // format blocks
+        this.parser.formatBlocks.add("emph");
+        this.parser.formatBlocks.add("bold");
+        this.parser.formatBlocks.add("italic");
         this.parser.blockHandlerTable.add("emph", this.emphBlockHandler, this);
         this.parser.blockHandlerTable.add("bold", this.boldBlockHandler, this);
         this.parser.blockHandlerTable.add("italic", this.italicBlockHandler, this);
+
+
+                /*this.labelHandlerTable.add("title", this.defaultBlockHandler.bind(this, 1), this);
+        this.labelHandlerTable.add("author", this.defaultBlockHandler.bind(this, 2), this);
+        this.labelHandlerTable.add("section", this.defaultBlockHandler.bind(this, 3), this);
+        this.labelHandlerTable.add("subsection", this.defaultBlockHandler.bind(this, 4), this);
+        this.labelHandlerTable.add("_1", this.defaultBlockHandler.bind(this, 5), this);
+        */
 
         // Init syntax tree node type
         this.figureType = this.parser.typeTable.add("figure")!;
@@ -57,7 +73,7 @@ export class Core extends Module {
     emphBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
         let result = new Result<Node>(new Node(this.parser.textType));
         let preIndex = this.parser.index;
-        this.parser.begin("emph-handler");
+        this.parser.begin("emph-block-handler");
         this.myFormatBlockHandler(result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -72,7 +88,7 @@ export class Core extends Module {
     boldBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
         let result = new Result<Node>(new Node(this.parser.textType));
         let preIndex = this.parser.index;
-        this.parser.begin("bold-handler");
+        this.parser.begin("bold-block-handler");
         this.myFormatBlockHandler(result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -87,7 +103,7 @@ export class Core extends Module {
     italicBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
         let result = new Result<Node>(new Node(this.parser.textType));
         let preIndex = this.parser.index;
-        this.parser.begin("italic-handler");
+        this.parser.begin("italic-block-handler");
         this.myFormatBlockHandler(result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -194,7 +210,7 @@ export class Core extends Module {
                 node.children.push(ndRes.content);
             }
 
-            else if ((curIndex = this.parser.index, ndRes = this.parser.mathModule.matchEmbededFormula()).matched) {
+            else if ((curIndex = this.parser.index, ndRes = this.parser.mathModule.matchInlineFormula()).matched) {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
                     text = "";
@@ -209,7 +225,7 @@ export class Core extends Module {
                 node.children.push(ndRes.content);
             }
 
-            else if (this.parser.isBlock(null)) {
+            else if (this.parser.isBlock()) {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                     text = "";
@@ -234,7 +250,7 @@ export class Core extends Module {
     private figureBlockHandler(): Result<Node> {
         let result = new Result<Node>(new Node(this.figureType));
         let preIndex = this.parser.index;
-        this.parser.begin("text-handler");
+        this.parser.begin("figure-block-handler");
         this.myFigureBlockHandler(result);
         this.parser.end();
         result.content.begin = preIndex;

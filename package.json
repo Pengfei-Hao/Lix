@@ -56,17 +56,17 @@
         {
           "command": "lix.generate",
           "group": "navigation",
-          "when": "editorLangId == lix"
+          "when": "editorLangId == lix && resourceScheme == file"
         },
         {
           "command": "lix.compile",
           "group": "navigation",
-          "when": "editorLangId == lix"
+          "when": "editorLangId == lix && resourceScheme == file"
         },
         {
           "command": "lix.parse",
           "group": "navigation",
-          "when": "editorLangId == lix"
+          "when": "editorLangId == lix && resourceScheme == file"
         }
       ]
     },

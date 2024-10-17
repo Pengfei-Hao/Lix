@@ -5,20 +5,32 @@ import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { MatchResult, Parser } from "../parser";
 import { SymbolTable } from "./symbol-table";
-import { AnalyseResult, HighlightType, Result, ResultState } from "../../foundation/result";
+import { HighlightType, Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
 import { Message } from "../../foundation/message";
+import { InfixOperator, OperatorTable, OperatorType, PrefixOperator } from "./operator-table";
+import { Heap } from "../../foundation/heap"
+import { Ref } from "../../foundation/ref";
 
-//type MsgResult = Result<undefined>;
 
 export class Math extends Module {
 
     blockHandlerTable: SymbolTable;
 
+    operatorTable: OperatorTable;
+
     // types of syntax tree node
     formulaType: Type;
-    symbolType: Type;
+    elementType: Type;
     definationType: Type;
+    mathTextType: Type;
+
+    expressionType: Type;
+    termType: Type;
+    infixType: Type;
+    prefixType: Type;
+
+    /*
     fractionType: Type;
     matrixType: Type;
     sqrtType: Type;
@@ -27,24 +39,34 @@ export class Math extends Module {
     integralType: Type;
     scriptType: Type;
     bracketsType: Type;
+    */
 
-    symbolCharAndNotations: Map<string, string>;
-    symbolChars: Set<string>;
-    symbols: string[];
+    notationsToUnicodeSymbols: Map<string, string>;
+
+    symbols: Set<string>; // 符号, 包括 Symbols 字段和 Unicode Symbols 的 Symbol
+    notations: Set<string>; // 字母组合, 包括 Notations 字段和 Unicode Symbols 的 Notation
 
     constructor(parser: Parser) {
         super(parser);
 
         // Init label handle function
+        this.parser.basicBlocks.add("formula");
         this.parser.blockHandlerTable.add("formula", this.formulaBlockHandler, this);
 
         // Init syntax tree node type
         this.formulaType = this.parser.typeTable.add("formula")!;
-        this.symbolType = this.parser.typeTable.add("symbol")!;
+        this.elementType = this.parser.typeTable.add("element")!;
         this.definationType = this.parser.typeTable.add("defination")!;
+        this.mathTextType = this.parser.typeTable.add("math-text")!;
+
+        this.expressionType = this.parser.typeTable.add("expression")!;
+        this.termType = this.parser.typeTable.add("term")!;
+        this.infixType = this.parser.typeTable.add("infix")!;
+        this.prefixType = this.parser.typeTable.add("prefix")!;
 
         // Init math block handle function and init syntax tree node
         this.blockHandlerTable = new SymbolTable(parser);
+        /*
         this.fractionType = this.blockHandlerTable.addBlock("fraction", this.frac, this)!;
         this.sqrtType = this.blockHandlerTable.addBlock("sqrt", this.sqrt, this)!;
         this.sumType = this.blockHandlerTable.addBlock("sum", this.sum, this)!;
@@ -53,36 +75,59 @@ export class Math extends Module {
         this.scriptType = this.blockHandlerTable.addBlock("script", this.script, this)!;
         this.bracketsType = this.blockHandlerTable.addBlock("brackets", this.brackets, this)!;
         this.matrixType = this.blockHandlerTable.addBlock("matrix", this.matrix, this)!;
+        */
 
-
-        this.symbols = [];
-        this.symbolCharAndNotations = new Map();
-        this.symbolChars = new Set();
+        this.notations = new Set();
+        this.symbols = new Set();
+        this.notationsToUnicodeSymbols = new Map();
 
         // Init math symbols from math.json
         let json = parser.configs.get("math");
-        let config: { symbols: string[], SymbolCharAndNotations: string [][], SymbolChars: string } = JSON.parse(json);
+        let config: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(json);
 
         // 字母组合
-        for (let symbol of config.symbols) {
-            this.blockHandlerTable.addSymbol(symbol);
-            this.symbols.push(symbol);
+        for (let notation of config.Notations) {
+            this.blockHandlerTable.addSymbol(notation);
+            this.notations.add(notation);
         }
 
         // 键盘上能打出来的符号
-        for (let sym of config.SymbolChars) {
-            this.symbolChars.add(sym);
+        for (let sym of config.Symbols) {
+            this.symbols.add(sym);
             this.blockHandlerTable.addSymbol(sym);
         }
 
         // vscode 中要关闭 DisableHighlightingOfAmbiguousCharacters 这个选项
         // Unicode 特殊字符
-        for( let tmp of config.SymbolCharAndNotations) {
-            this.symbolChars.add(tmp[0]);
+        for (let tmp of config.UnicodeSymbolsAndNotations) {
+            this.symbols.add(tmp[0]);
+            this.notations.add(tmp[1]);
             this.blockHandlerTable.addSymbol(tmp[0]);
             this.blockHandlerTable.addSymbol(tmp[1]);
-            this.symbolCharAndNotations.set(tmp[1], tmp[0]);
+            this.notationsToUnicodeSymbols.set(tmp[1], tmp[0]);
         }
+
+        this.operatorTable = new OperatorTable();
+
+        for (let prefix of config.PrefixOperator) {
+            this.operatorTable.addPrefixOperator(prefix);
+        }
+
+        let medium = 0;
+        for (medium = 0; medium < config.InfixOperator.length; medium++) {
+            if (config.InfixOperator[medium][0] === "") {
+                break;
+            }
+        }
+
+        for (let i = medium - 1; i >= 0; i--) {
+            this.operatorTable.insertAtTop(config.InfixOperator[i]);
+        }
+
+        for (let i = medium + 1; i < config.InfixOperator.length; i++) {
+            this.operatorTable.insertAtBottom(config.InfixOperator[i]);
+        }
+
     }
 
     init() {
@@ -92,80 +137,58 @@ export class Math extends Module {
     formulaBlockHandler(): MatchResult {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
-        this.parser.begin("formula");
+        this.parser.begin("formula-block-handler");
         this.myMatchFormula(result);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
-        if(result.failed) {
+        if (result.failed) {
             this.parser.index = preIndex;
-        }
-        if(result.shouldTerminate) {
             return result;
         }
+        // if (!result.succeeded) {
+        //     return result;
+        // }
 
         this.parser.begin("analysis");
         let analysisResult = this.analyse(result.content);
         this.parser.end();
-        if(!analysisResult.success) {
-            //result.messages.push(this.parser.getMessage("Analyse failed."));
-            result.mergeState(ResultState.skippable);
-        }
-        else {
-            result.mergeState(ResultState.successful);
-        }
-
-        for(let msg of analysisResult.messages) {
-            result.messages.push(msg);
-        }
-        for(let hlt of analysisResult.highlights) {
-            result.highlights.push(hlt);
-        }
+        result.merge(analysisResult);
+        result.content.children.push(analysisResult.content);
         return result;
     }
 
-    matchEmbededFormula(): MatchResult {
+    matchInlineFormula(): MatchResult {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
-        this.parser.begin("embeded-formula");
+        this.parser.begin("inline-formula");
 
         result.merge(this.parser.match("/"));
-        if(result.shouldTerminate) {
+        if (result.shouldTerminate) {
             this.parser.end();
             return result;
         }
+        result.GuaranteeMatched();
+        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
         this.myMatchFormula(result, true);
 
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
 
-        if(result.failed) {
+        if (result.failed) {
             this.parser.index = preIndex;
-        }
-        if(result.shouldTerminate) {
             return result;
         }
-        //result.highlights.push({begin: preIndex, end: this.parser.index, type: 0});
-        //return result;
+        // if (!result.succeeded) {
+        //     return result;
+        // }
 
         this.parser.begin("analysis");
         let analysisResult = this.analyse(result.content);
         this.parser.end();
-        if(!analysisResult.success) {
-            //result.messages.push(this.parser.getMessage("Analyse failed."));
-            result.mergeState(ResultState.skippable);
-        }
-        else {
-            result.mergeState(ResultState.successful);
-        }
-
-        for(let msg of analysisResult.messages) {
-            result.messages.push(msg);
-        }
-        for(let hlt of analysisResult.highlights) {
-            result.highlights.push(hlt);
-        }
+        result.merge(analysisResult);
+        result.content.children.push(analysisResult.content);
         return result;
     }
 
@@ -182,76 +205,122 @@ export class Math extends Module {
     //static digitChar = /[0-9]/;
     //static symbolChar = /[\~\!\@\#\$\%\^\&\*\(\)\_\+\-\=\{\}\|\\\:\;\"\'\<\>\,\.\?\/↦]/;
 
+    private myMatchFormula(result: MatchResult, inline = false) {
 
-    private myMatchFormula(result: MatchResult, embeded = false) {
+        let node = result.content;
+        let msg = result.messages;
+
+        let ndRes: Result<Node>;
+        let nullRes: Result<null>;
+
+
+        if(inline) {
+            ndRes = this.matchElements("/");
+        }
+        else {
+            ndRes = this.matchElements("]");
+        }
+        result.merge(ndRes);
+        if (result.shouldTerminate) {
+            result.promoteToSkippable();
+            if (inline) {
+                this.skipByBracketsEndWith("/");
+            }
+            else {
+                this.skipByBracketsEndWith("]");
+            }
+            return;
+        }
+        result.content = ndRes.content;
+
+        if (inline) {
+            nullRes = this.parser.match("/");
+            if (result.shouldTerminate) {
+                msg.push(this.parser.getMessage("Missing '/'."));
+                return;
+            }
+            result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+        }
+        else {
+            nullRes = this.parser.match("]");
+            if (result.shouldTerminate) {
+                msg.push(this.parser.getMessage("Missing ']'."));
+                return;
+            }
+        }
+        
+    }
+
+    /*
+    private myMatchFormula(result: MatchResult, inline = false) {
 
         let node = result.content;
         let msg = result.messages;
 
         let blnRes: Result<number>;
         let ndRes: Result<Node>;
+        let nullRes: Result<null>;
 
         while (true) {
 
-            if(this.parser.isEOF()) {
+            if (this.parser.isEOF()) {
                 result.messages.push(this.parser.getMessage("formula ended abruptly.", MessageType.warning));
-                result.mergeState(ResultState.skippable);
-                break;
-            }
-
-            else if (!embeded && this.parser.is("]")) {
-                this.parser.move();
-                result.mergeState(ResultState.successful);
+                result.mergeState(ResultState.failing);
+                result.promoteToSkippable();
                 return;
             }
-            
+            else if (!inline && (nullRes = this.parser.match("]")).matched) {
+                result.merge(nullRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+                return;
+            }
+            else if (inline && (nullRes = this.parser.match("/")).matched) {
+                result.merge(nullRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+                return;
+            }
+
             else if ((blnRes = this.parser.matchMultilineBlank()).matched) {
-                if(blnRes.content >= 2) {
+                result.merge(blnRes);
+                if (blnRes.content >= 2) {
                     result.messages.push(this.parser.getMessage("Formula should not have two or more newline.", MessageType.warning));
-                    result.mergeState(ResultState.skippable);
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
                 }
             }
 
-            else if(embeded && this.parser.is("/")) {
-                this.parser.move();
-                result.mergeState(ResultState.successful);
-                return;
-            }
-
-            else if (this.parser.is("`")) {
-                if(embeded) {
-                    msg.push(this.parser.getMessage("Embeded formula should not have symbol defination.", MessageType.warning));
-                    result.mergeState(ResultState.skippable);
+            else if ((nullRes = this.parser.match("`")).matched) {
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+                result.merge(nullRes);
+                if (inline) {
+                    msg.push(this.parser.getMessage("Embeded formula should not have element defination.", MessageType.warning));
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
                 }
 
-                this.parser.move();
-                ndRes = this.matchSymbols("`");
+                ndRes = this.matchElements("`");
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
-                    //result.messages.push(this.parser.getMessage("Match symbols failed."));
                     return;
                 }
                 ndRes.content.type = this.definationType;
                 node.children.push(ndRes.content);
             }
 
-            else if (this.parser.is("[")) {
-                this.parser.move();
-                ndRes = this.matchSymbols();
+            else if ((nullRes = this.parser.match("[")).matched) {
+                result.merge(nullRes);
+
+                ndRes = this.matchElements();
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
-                    //result.messages.push(this.parser.getMessage("Match symbols failed."));
-                    //result.state = ResultState.matched;
                     return;
                 }
-    
                 node.children.push(ndRes.content);
             }
 
-            else if ((ndRes = this.matchSymbol()).matched) {
+            else if ((ndRes = this.matchElement()).matched) {
                 result.merge(ndRes);
-                if(result.shouldTerminate) {
-                    //result.messages.push(this.parser.getMessage("Match symbol failed."));
+                if (result.shouldTerminate) {
                     return;
                 }
                 node.children.push(ndRes.content);
@@ -259,166 +328,187 @@ export class Math extends Module {
 
             else {
                 result.messages.push(this.parser.getMessage("Unexpected character."));
-                result.mergeState(ResultState.skippable);
+                result.mergeState(ResultState.failing);
 
-                if(embeded) {
+                result.promoteToSkippable();
+                if (inline) {
                     this.skipByBracketsEndWith("/");
                 }
                 else {
                     this.skipByBracketsEndWith("]");
                 }
-                break;
+                return;
             }
         }
     }
+    */
 
-    matchSymbols(endWith: string = "]"): Result<Node> {
+    // MatchElements: failing | skippable | successful
+
+    matchElements(endWith: string = "]"): Result<Node> {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
-        this.parser.begin("symbols");
-        this.myMatchSymbols(result, endWith);
+        this.parser.begin("elements");
+        this.myMatchElements(result, endWith);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
         return result;
     }
 
-    private myMatchSymbols(result: Result<Node>, endWith: string = "]") {
-        
+    private myMatchElements(result: Result<Node>, endWith: string) {
+
         let node = result.content;
         let msg = result.messages;
 
         let blnRes: Result<number>;
         let ndRes: Result<Node>;
+        let nullRes: Result<null>;
 
         while (true) {
 
-            if(this.parser.isEOF()) {
-                result.messages.push(this.parser.getMessage("formula ended without ].", MessageType.warning));
-                result.mergeState(ResultState.skippable);
+            if (this.parser.isEOF()) {
                 break;
             }
-            
+            else if ((nullRes = this.parser.match(endWith)).matched) {
+                result.merge(nullRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+                break;
+            }
+
             else if ((blnRes = this.parser.matchMultilineBlank()).matched) {
-                if(blnRes.content >= 2) {
+                result.merge(blnRes);
+                if (blnRes.content >= 2) {
                     result.messages.push(this.parser.getMessage("Formula should not have two or more newline.", MessageType.warning));
-                    result.mergeState(ResultState.skippable);
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
                 }
             }
 
-            else if (this.parser.is(endWith)) {
-                this.parser.move();
-                result.mergeState(ResultState.successful);
-                break;
-            }
+            else if ((nullRes = this.parser.match("[")).matched) {
+                result.merge(nullRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
 
-            else if (this.parser.is("[")) {
-                this.parser.move();
-                ndRes = this.matchSymbols();
+                ndRes = this.matchElements();
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
-                    //result.messages.push(this.parser.getMessage("Match symbols failed."));
-                    //result.state = ResultState.matched;
                     return;
                 }
-    
                 node.children.push(ndRes.content);
             }
 
-            else if ((ndRes = this.matchSymbol()).matched) {
+            else if ((nullRes = this.parser.match("`")).matched) {
+                result.merge(nullRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+
+                ndRes = this.matchElements("`");
                 result.merge(ndRes);
-                if(result.shouldTerminate) {
-                    //result.messages.push(this.parser.getMessage("Match symbol failed."));
+                if (result.shouldTerminate) {
+                    return;
+                }
+                ndRes.content.type = this.definationType;
+                node.children.push(ndRes.content);
+            }
+
+            else if ((ndRes = this.matchElement()).matched) {
+                result.merge(ndRes);
+                if (result.shouldTerminate) {
                     return;
                 }
                 node.children.push(ndRes.content);
             }
 
             else {
-                result.messages.push(this.parser.getMessage("Unexpected character."));
-                result.mergeState(ResultState.skippable);
+                result.messages.push(this.parser.getMessage("Unexpected character in formula."));
+                result.mergeState(ResultState.failing);
 
+                result.promoteToSkippable();
                 this.skipByBracketsEndWith(endWith);
-                break;
+                return;
             }
         }
     }
 
-    matchSymbol(): Result<Node> {
-        let result = new Result<Node>(new Node(this.symbolType));
+    // MatchElement: failing | (matched) | skippable | successful
+
+    matchElement(): Result<Node> {
+        let result = new Result<Node>(new Node(this.elementType));
         let preIndex = this.parser.index;
-        this.parser.begin("symbol");
-        this.myMatchSymbol(result);
+        this.parser.begin("element");
+        this.myMatchElement(result);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
         return result;
     }
 
-    private myMatchSymbol(result: Result<Node>) {
+    private myMatchElement(result: Result<Node>) {
 
         let node = result.content;
         let msg = result.messages;
 
         if (this.parser.isEOF()) {
-            //result.messages.push(this.parser.getMessage("Unexpected end."));
             return;
         }
 
         else if (this.parser.is(Math.nameChar)) {
-            let text = "";
-            
-            while(true) {
-                if(this.parser.isEOF()) {
-                    node.content = text;
+            result.GuaranteeMatched();
+            while (true) {
+                if (this.parser.isEOF()) {
                     break;
                 }
-                else if(this.parser.is(Math.nameChar)) {
+                else if (this.parser.is(Math.nameChar)) {
                     result.mergeState(ResultState.successful);
-                    text += this.parser.curChar();
+                    node.content += this.parser.curChar();
                     this.parser.move();
                 }
                 else {
-                    node.content = text;
                     break;
                 }
             }
         }
 
         // 数学的特殊符号属于 0x10000 平面, ts 使用 utf16 编码, 因而占两个字符的位置, 要使用 curUnicodeChar
-        else if (this.symbolChars.has(this.parser.curUnicodeChar())) {
+        else if (this.symbols.has(this.parser.curUnicodeChar())) {
+            result.GuaranteeMatched();
             node.content = this.parser.curUnicodeChar();
             result.mergeState(ResultState.successful);
             this.parser.moveUnicode();
         }
 
+
         else if (this.parser.is("\"")) {
+            result.GuaranteeMatched();
             this.parser.move();
             result.mergeState(ResultState.successful);
+            node.type = this.mathTextType;
 
-            let text = "";
-
-            while(true) {
-                if(this.parser.isEOF()) {
+            while (true) {
+                if (this.parser.isEOF()) {
                     msg.push(this.parser.getMessage("Formula ended abruptly."));
-                    result.mergeState(ResultState.skippable);
-                    break;
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
+                    return;
                 }
                 else if (this.parser.is("\"")) {
-                    node.content = text;
                     result.mergeState(ResultState.successful);
+                    this.parser.move();
                     break;
                 }
                 else {
-                    text += this.parser.curChar();
+                    node.content += this.parser.curChar();
                     this.parser.move();
                     result.mergeState(ResultState.successful);
                 }
             }
-            
+
         }
         else {
-            //result.messages.push(this.parser.getMessage("Unexpected character."));
+            //result.messages.push(this.parser.getMessage("Formula has unexpected character."));
+            //result.mergeState(ResultState.failing);
             return;
         }
     }
@@ -439,7 +529,7 @@ export class Math extends Module {
                 count--;
             }
             this.parser.move();
-                }
+        }
     }
     /*
     private myMatchFormula(): MatchResult {
@@ -642,25 +732,37 @@ export class Math extends Module {
     // 4. type: matrix, content: [unused], children: (nodes 1.)
     // 5. type: (some math label name), content: (depends on math label), children: (depends on math label)
 
-    analyse(node: Node): AnalyseResult {
+    analyse(node: Node): Result<Node> {
 
-        let result: AnalyseResult = new AnalyseResult(true);
+        let result = new Result<Node>(new Node(this.expressionType));
 
-        // filter the defination, i.e. the symbols surrounded by the ' '.
+        /*
+        // filter the defination, i.e. the chars surrounded by the ' '.
         for (let subnode of node.children) {
             if (subnode.type === this.definationType) {
+                result.mergeState(ResultState.successful);
+
                 if (subnode.children.length < 2) {
-                    return result;
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
+                    result.messages.push(this.parser.getMessage("Defination uncompleted."));
+                    continue;
                 }
-                if (subnode.children[0].type != this.symbolType) {
-                    return result;
+                if (subnode.children[0].type != this.elementType) {
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
+                    result.messages.push(this.parser.getMessage("Defination element unfounded."));
+                    continue;
                 }
-                if (subnode.children[1].type != this.symbolType || subnode.children[1].content != "↦") {
-                    return result;
+                if (subnode.children[1].type != this.elementType || subnode.children[1].content != "↦") {
+                    result.mergeState(ResultState.failing);
+                    result.promoteToSkippable();
+                    result.messages.push(this.parser.getMessage("Symbol '↦' unfounded."));
+                    continue;
                 }
 
-                result.highlights.push({begin: subnode.begin, end: subnode.begin + 1, type: 3});
-                result.highlights.push({begin: subnode.begin, end: subnode.begin + 1, type: 3});
+                result.highlights.push({ begin: subnode.begin, end: subnode.begin + 1, type: 3 });
+                result.highlights.push({ begin: subnode.end, end: subnode.end + 1, type: 3 });
 
                 let newNode = new Node(this.formulaType);
                 for (let i = 2; i < subnode.children.length; i++) {
@@ -677,13 +779,386 @@ export class Math extends Module {
                 node.children.splice(i, 1);
             }
         }
+            */
 
-        // analyse symbols
+        // analyse 
 
-        result.merge(this.formula(node));
+        let nResult = this.matchFormulaNode(node);
+        result.merge(nResult);
+        result.content = nResult.content;
         return result;
     }
 
+    matchFormulaNode(node: Node): Result<Node> {
+        let index = new Ref<number>(0);
+        let result = new Result(new Node(this.formulaType));
+
+        this.parser.begin("analysis-formula-node");
+        this.myMatchFormulaNode(node, index, result);
+        this.parser.end();
+        //result.content.begin = preIndex;
+        //result.content.end = this.index;
+        return result;
+    }
+
+    myMatchFormulaNode(node: Node, index: Ref<number>, result: Result<Node>) {
+        let res = this.matchExpression(node, index);
+        result.merge(res);
+        if (result.shouldTerminate) {
+            result.promoteToSkippable();
+        }
+        result.content = res.content;
+    }
+
+    matchExpression(node: Node, index: Ref<number>, endTerm: string[] = []): Result<Node> {
+        let result = new Result(new Node(this.expressionType));
+        this.parser.begin("analysis-expression");
+        this.myMatchExpression(node, index, endTerm, result);
+        this.parser.end();
+        //result.content.begin = preIndex;
+        //result.content.end = this.index;
+        return result;
+    }
+
+    myMatchExpression(parnode: Node, index: Ref<number>, endTerm: string[], result: Result<Node>) {
+
+        let msg = result.messages;
+
+        let termHeap = new Heap<Node>();
+        let operatorHeap = new Heap<string>();
+
+        
+        if (this.isEOF(parnode, index, endTerm)) {
+            //msg.push(this.parser.getMessage("Expression should not be empty."));
+            result.mergeState(ResultState.successful);
+            return;
+        }
+        
+
+        let res: Result<Node>;
+        let curOp: string;
+
+        let hasInfixOperator = true;
+        let constructing = false;
+        let constructing2 = false;
+
+        while (true) {
+            if (constructing) {
+                // cur operator = Blank operator
+                let lastOp = operatorHeap.top();
+                //  == undefined 必须用, 空串会被判为false
+                if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= OperatorTable.BlankOperator.priority) {
+                    operatorHeap.push("");
+                    termHeap.push(res!.content);
+                    hasInfixOperator = false;
+                    constructing = false;
+                }
+                else {
+                    if(!this.construct(termHeap, operatorHeap)) {
+                        result.messages.push(this.parser.getMessage("Infix operator pattern failed."));
+                        result.mergeState(ResultState.failing);
+                        return;
+                    }
+                }
+                continue;
+            }
+
+            if (constructing2) {
+                let lastOp = operatorHeap.top();
+                //  == undefined 必须用, 空串会被判为false
+                if (lastOp  == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= this.operatorTable.getInfixOperator(curOp!)!.priority) {
+                    operatorHeap.push(curOp!);
+                    hasInfixOperator = true;
+                    constructing2 = false;
+                }
+                else {
+                    if(!this.construct(termHeap, operatorHeap)) {
+                        result.messages.push(this.parser.getMessage("Infix operator pattern failed."));
+                        result.mergeState(ResultState.failing);
+                        return;
+                    }
+                }
+
+                continue;
+            }
+
+            if (this.isEOF(parnode, index, endTerm)) {
+                if(hasInfixOperator) {
+                    result.messages.push(this.parser.getMessage("Missing last term of expression."));
+                    result.mergeState(ResultState.failing);
+                    return;
+                }
+                // same as below
+                if (operatorHeap.length != 0) {
+                    if(!this.construct(termHeap, operatorHeap)) {
+                        result.messages.push(this.parser.getMessage("Infix operator pattern failed."));
+                        result.mergeState(ResultState.failing);
+                        return;
+                    }
+                    continue;
+                }
+
+                if (termHeap.length != 1 || operatorHeap.length != 0) {
+                    result.messages.push(this.parser.getMessage("expression failed."));
+                    result.mergeState(ResultState.failing);
+                    return;
+                }
+
+                result.content.children.push(termHeap.pop()!);
+                return;
+
+            }
+
+            else if ((res = this.matchTerm(parnode, index)).matched) {
+                result.merge(res);
+                if (result.shouldTerminate) {
+                    msg.push(this.parser.getMessage("Match term failed."));
+                    return;
+                }
+
+
+                if (!hasInfixOperator) {
+
+                    let lastOp = operatorHeap.top();
+                    //  == undefined 必须用, 空串会被判为false
+                    // same as below
+                    if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= OperatorTable.BlankOperator.priority) {
+                        operatorHeap.push("");
+                        termHeap.push(res.content);
+                        hasInfixOperator = false;
+                    }
+                    else {
+                        constructing = true;
+                    }
+                }
+                else {
+                    termHeap.push(res.content);
+                    hasInfixOperator = false;
+                }
+            }
+
+            else if ((res = this.matchOperator(parnode, index)).matched) {
+                result.merge(res);
+                if (hasInfixOperator) {
+                    result.messages.push(this.parser.getMessage("Infix operator repeated."));
+                    result.mergeState(ResultState.failing);
+                    return;
+                }
+
+                let lastOp = operatorHeap.top();
+                curOp = res.content.content;
+                //  == undefined 必须用, 空串会被判为false
+                if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= this.operatorTable.getInfixOperator(curOp)!.priority) {
+                    operatorHeap.push(curOp!);
+                    hasInfixOperator = true;
+                }
+                else {
+                    constructing2 = true;
+                }
+            }
+
+            else {
+                console.log("Logic error.");
+                result.mergeState(ResultState.failing);
+                return;
+            }
+        }
+    }
+
+    construct(termHeap: Heap<Node>, operatorHeap: Heap<string>): boolean {
+
+        let lastOp = operatorHeap.top()!;
+
+        let nNode = new Node(this.infixType);
+        nNode.children.push(termHeap.pop()!);
+
+        let topOp: string | undefined;
+        // 必须要用 != undefined, 空字符串会被判定为 false
+        while ((topOp = operatorHeap.top()) != undefined && this.operatorTable.getInfixOperator(topOp)!.priority === this.operatorTable.getInfixOperator(lastOp)!.priority) {
+
+            nNode.content = topOp.concat(nNode.content);
+            operatorHeap.pop();
+            nNode.children.push(termHeap.pop()!);
+        }
+
+        let pat = this.operatorTable.getInfixOperator(lastOp)!.pattern;
+
+        if(pat.size != 0) {
+            if(!pat.has(nNode.content)) {
+                return false;
+            }
+        }
+        
+        nNode.children.reverse();
+
+        termHeap.push(nNode);
+        return true;
+    }
+
+    isEOF(node: Node, index: Ref<number>, endTerm: string[]): boolean {
+        if (index.value === node.children.length) {
+            return true;
+        }
+        let child = node.children[index.value];
+        for (let op of endTerm) {
+            if (child.type === this.elementType && child.content === op) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    matchTerm(node: Node, index: Ref<number>): Result<Node> {
+        let result = new Result(new Node(this.expressionType));
+        this.parser.begin("analysis-term");
+        this.myMatchTerm(node, index, result);
+        this.parser.end();
+        //注意result.content整个被换掉了
+        //result.content.begin = preIndex;
+        //result.content.end = this.index;
+        return result;
+    }
+
+    myMatchTerm(parnode: Node, index: Ref<number>, result: Result<Node>) {
+        let msg = result.messages;
+        if (this.isEOF(parnode, index, [])) {
+            msg.push(this.parser.getMessage("Term should not be empty."));
+            return;
+        }
+        let node = parnode.children[index.value];
+
+        if (node.type === this.formulaType || node.type === this.definationType) {
+            result.GuaranteeMatched();
+
+            let nResult = this.matchFormulaNode(node);
+            result.merge(nResult);
+            if (nResult.shouldTerminate) {
+                return result;
+            }
+            result.content = nResult.content;
+            index.value++;
+        }
+        else if (node.type === this.mathTextType) {
+            result.GuaranteeMatched();
+
+            result.mergeState(ResultState.successful);
+            result.highlights.push(this.parser.getHighlight(HighlightType.string, node));
+            index.value++;
+            result.content = Node.clone(node);
+        }
+        else if (node.type === this.elementType) {
+            let infixOp = this.operatorTable.getInfixOperator(node.content);
+            let prefixOp = this.operatorTable.getPrefixOperator(node.content);
+            if (infixOp) {
+                msg.push(this.parser.getMessage("Term should not be empty."));
+                return;
+            }
+            else if (prefixOp) {
+                result.GuaranteeMatched();
+
+                result.mergeState(ResultState.successful);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, node));
+
+                let nNode = new Node(this.prefixType);
+                let format = prefixOp.format;
+
+                nNode.content = format[0];
+                index.value++;
+
+                for (let i = 1; i < format.length; i++) {
+                    let res: Result<Node>;
+                    switch (format[i]) {
+                        case "[expr]":
+
+                            if (i + 1 < format.length) {
+                                res = this.matchExpression(parnode, index, [format[i + 1]]);
+                            }
+                            else {
+                                res = this.matchExpression(parnode, index);
+                            }
+                            result.merge(res);
+                            if (result.shouldTerminate) {
+                                msg.push(this.parser.getMessage("Prefix match [expr] failed."));
+                                return;
+                            }
+                            nNode.children.push(res.content);
+                            break;
+
+                        case "[term]":
+                            res = this.matchTerm(parnode, index);
+
+                            result.merge(res);
+                            if (result.shouldTerminate) {
+                                msg.push(this.parser.getMessage("Prefix match [term] failed."));
+                                return;
+                            }
+                            nNode.children.push(res.content);
+                            break;
+
+                        default:
+                            if (this.isEOF(parnode, index, [])) {
+                                result.mergeState(ResultState.failing);
+                                msg.push(this.parser.getMessage("Prefix match element ended abruptly."));
+                                return;
+                            }
+                            node = parnode.children[index.value];
+                            if (node.type === this.elementType && node.content === format[i]) {
+                                result.mergeState(ResultState.successful);
+                                result.highlights.push(this.parser.getHighlight(HighlightType.operator, node));
+                                index.value++;
+                                break;
+                            }
+                            else {
+                                result.mergeState(ResultState.failing);
+                                msg.push(this.parser.getMessage("Prefix match element failed."));
+                                return;
+                            }
+                    }
+                }
+
+                result.content = nNode;
+            }
+            else {
+                result.GuaranteeMatched();
+                result.mergeState(ResultState.successful);
+                result.highlights.push(this.parser.getHighlight(HighlightType.variable, node));
+                index.value++;
+                result.content = Node.clone(node);
+                result.content.type = this.termType;
+            }
+        }
+    }
+
+    matchOperator(node: Node, index: Ref<number>): Result<Node> {
+        let result = new Result(new Node(this.expressionType));
+        this.parser.begin("analysis-operator");
+        this.myMatchOperator(node, index, result);
+        this.parser.end();
+        //result.content.begin = preIndex;
+        //result.content.end = this.index;
+        return result;
+    }
+
+    myMatchOperator(parnode: Node, index: Ref<number>, result: Result<Node>) {
+        let msg = result.messages;
+        if (this.isEOF(parnode, index, [])) {
+            msg.push(this.parser.getMessage("Operator should not be empty."));
+            return;
+        }
+        let node = parnode.children[index.value];
+        if (node.type === this.elementType) {
+            let iop = this.operatorTable.getInfixOperator(node.content);
+            if (iop) {
+                result.GuaranteeMatched();
+
+                result.mergeState(ResultState.successful);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, node));
+                index.value++;
+                result.content = Node.clone(node);
+            }
+        }
+    }
+    /*
     find(node: Node): AnalyseResult {
         let result: AnalyseResult = new AnalyseResult(true);
 
@@ -698,22 +1173,331 @@ export class Math extends Module {
         }
         return result;
     }
+        */
+
+    /*
+    expression(parnode: Node, start: number = 0, end: number = parnode.children.length): Result<Node> {
+
+        let result = new Result<Node>(new Node(this.expressionType));
+
+        let termHeap = new Heap<Node>();
+        let operatorHeap = new Heap<InfixOperator>();
+
+        let hasInfixOperator = true;
+
+        let index = start;
+
+        if (start === end) {
+            result.messages.push(this.parser.getMessage("Expression empty."));
+            return result;
+        }
+
+        while (true) {
+            if (index === end) {
+                // same as below
+                if (operatorHeap.length != 0) {
+                    let nNode = new Node(this.infixType);
+                    nNode.children.push(termHeap.pop()!);
+
+                    let top: InfixOperator | undefined;
+                    let lop = operatorHeap.top()!;
+                    while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                        operatorHeap.pop();
+                        nNode.children.push(termHeap.pop()!);
+                    }
+                    nNode.children.reverse();
+                    termHeap.push(nNode);
+                    continue;
+                }
+
+                if (termHeap.length != 1 || operatorHeap.length != 0) {
+                    result.messages.push(this.parser.getMessage("expression failed."));
+                    result.mergeState(ResultState.matched);
+                    return result;
+                }
+                result.content.children.push(termHeap.pop()!);
+                return result;
+
+            }
+
+            let node = parnode.children[index];
+
+            if (node.type === this.formulaType) {
+                let nResult = this.formula(node);
+                result.merge(nResult);
+                if (nResult.shouldTerminate) {
+                    return result;
+                }
+                if (!hasInfixOperator) {
+
+                    let lop = operatorHeap.top();
+
+                    // same as below
+                    if (!lop || lop.priority <= OperatorTable.BlankOperator.priority) {
+                        operatorHeap.push(OperatorTable.BlankOperator);
+                        termHeap.push(nResult.content);
+                        hasInfixOperator = false;
+                        index++;
+                    }
+                    else {
+
+                        let nNode = new Node(this.infixType);
+                        nNode.children.push(termHeap.pop()!);
+
+                        let top: InfixOperator | undefined;
+                        while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                            operatorHeap.pop();
+                            nNode.children.push(termHeap.pop()!);
+                        }
+                        nNode.children.reverse();
+
+                        termHeap.push(nNode);
+                    }
+                }
+                else {
+                    termHeap.push(nResult.content);
+                    hasInfixOperator = false;
+                    index++;
+                }
+            }
+            else if (node.type === this.mathTextType) {
+                result.mergeState(ResultState.successful);
+                if (!hasInfixOperator) {
+
+                    let lop = operatorHeap.top();
+
+                    // same as below
+                    if (!lop || lop.priority <= OperatorTable.BlankOperator.priority) {
+                        operatorHeap.push(OperatorTable.BlankOperator);
+                        termHeap.push(Node.clone(node));
+                        hasInfixOperator = false;
+                        index++;
+                    }
+                    else {
+
+                        let nNode = new Node(this.infixType);
+                        nNode.children.push(termHeap.pop()!);
+
+                        let top: InfixOperator | undefined;
+                        while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                            operatorHeap.pop();
+                            nNode.children.push(termHeap.pop()!);
+                        }
+                        nNode.children.reverse();
+
+                        termHeap.push(nNode);
+                    }
+                }
+                else {
+                    termHeap.push(Node.clone(node));
+                    hasInfixOperator = false;
+                    index++;
+                }
+            }
+            else if (node.type === this.symbolType) {
+                let iop = this.operatorTable.getInfixOperator(node.content);
+                let pop = this.operatorTable.getPrefixOperator(node.content);
+                if (iop) {
+                    result.mergeState(ResultState.successful);
+                    if (hasInfixOperator) {
+                        result.messages.push(this.parser.getMessage("Infix operator repeated."));
+                        result.mergeState(ResultState.matched);
+                        return result;
+                    }
+                    let lop = operatorHeap.top();
+
+                    if (!lop || lop.priority <= iop.priority) {
+                        operatorHeap.push(iop);
+                        hasInfixOperator = true;
+                        index++;
+                    }
+                    else {
+                        // same as above
+                        let nNode = new Node(this.infixType);
+                        nNode.children.push(termHeap.pop()!);
+
+                        let top: InfixOperator | undefined;
+                        while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                            operatorHeap.pop();
+                            nNode.children.push(termHeap.pop()!);
+                        }
+                        nNode.children.reverse();
+
+                        termHeap.push(nNode);
+                    }
+
+                }
+                else if (pop) {
+                    result.mergeState(ResultState.successful);
+                    let nNode = new Node(this.prefixType);
+
+                    let j = index;
+                    for (let i = 1; i < pop.format.length; i += 2) {
+                        index++;
+                        j = end;
+                        if (i + 1 < pop.format.length) {
+                            for (j = index; j < end; j++) {
+                                if (parnode.children[j].type === this.symbolType && parnode.children[j].content === pop.format[i + 1]) {
+                                    break;
+                                }
+                            }
+                        }
+                        let nResult = this.expression(parnode, index, j);
+                        result.merge(nResult);
+                        if (result.shouldTerminate) {
+                            return result;
+                        }
+                        nNode.children.push(nResult.content);
+                        index = j;
+                    }
+                    if (j < end) {
+                        index++;
+                    }
+
+                    if (!hasInfixOperator) {
+
+                        let lop = operatorHeap.top();
+
+                        // same as below
+                        if (!lop || lop.priority <= OperatorTable.BlankOperator.priority) {
+                            operatorHeap.push(OperatorTable.BlankOperator);
+                            termHeap.push(nNode);
+                            hasInfixOperator = false;
+                        }
+                        else {
+
+                            let nNode = new Node(this.infixType);
+                            nNode.children.push(termHeap.pop()!);
+
+                            let top: InfixOperator | undefined;
+                            while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                                operatorHeap.pop();
+                                nNode.children.push(termHeap.pop()!);
+                            }
+                            nNode.children.reverse();
+
+                            termHeap.push(nNode);
+                        }
+                    }
+                    else {
+                        termHeap.push(nNode);
+                        hasInfixOperator = false;
+                    }
+
+                }
+                else {
+                    result.mergeState(ResultState.successful);
+                    if (!hasInfixOperator) {
+
+                        let lop = operatorHeap.top();
+
+                        // same as below
+                        if (!lop || lop.priority <= OperatorTable.BlankOperator.priority) {
+                            operatorHeap.push(OperatorTable.BlankOperator);
+                            termHeap.push(Node.clone(node));
+                            hasInfixOperator = false;
+                            index++;
+                        }
+                        else {
+
+                            let nNode = new Node(this.infixType);
+                            nNode.children.push(termHeap.pop()!);
+
+                            let top: InfixOperator | undefined;
+                            while ((top = operatorHeap.top()) && top.priority === lop.priority) {
+                                operatorHeap.pop();
+                                nNode.children.push(termHeap.pop()!);
+                            }
+                            nNode.children.reverse();
+
+                            termHeap.push(nNode);
+                        }
+                    }
+                    else {
+                        termHeap.push(Node.clone(node));
+                        hasInfixOperator = false;
+                        index++;
+                    }
+                }
+            }
+            else {
+                console.log("Logic error.");
+                result.mergeState(ResultState.matched);
+                return result;
+            }
+
+        }
+    }
+*/
+
+    /*
+    term(node: Node): Result<Node> {
+
+        let result = new Result<Node>(new Node(this.formulaType));
+
+        if (node.type === this.symbolType) {
+            let op: PrefixOperator | undefined;
+            if (op = this.operatorTable.getPrefixOperator(node.content)) {
+                result.mergeState(ResultState.successful);
+                //result.highlights.push({ begin: node.begin, end: node.end, type: 0 });
+                for (int i = 1; i <)
+            }
+            else if (this.operatorTable.getInfixOperator(node.content)) {
+                result.messages.push(this.getMessage("[[Logic error]]", node.begin, MessageType.warning));
+            }
+            else {
+                result.mergeState(ResultState.successful);
+                result.highlights.push({ begin: node.begin, end: node.end, type: 0 });
+                result.content = Node.clone(node);
+            }
+
+        }
+        else if (node.type === this.mathTextType) {
+            result.mergeState(ResultState.successful);
+            result.highlights.push({ begin: node.begin, end: node.end, type: 0 });
+            result.content = Node.clone(node);
+        }
+
+        else if (node.type === this.formulaType) {
+            let nResult = this.expression(node);
+            result.merge(nResult);
+            result.content = nResult.content;
+            if (nResult.shouldTerminate) {
+                return result;
+            }
+        }
+        else {
+            result.messages.push(this.getMessage("[[Logic error]]", node.begin, MessageType.warning));
+
+        }
+
+        return result;
+    }
+    */
+
+    /*
+    formula(node: Node): Result<Node> {
+        return this.expression(node);
+    }
+*/
+    /*
+
+    priority: Map<string, number> = new Map([["/", 1], [" ", 0], ["sum", -1], ["to", -1]]);
 
     formula(node: Node): AnalyseResult {
 
-        let result: AnalyseResult = new AnalyseResult(true);
+        let result: AnalyseResult = new AnalyseResult();
 
         for (let i = 0; i < node.children.length; i++) {
             let subnode = node.children[i];
 
             if (subnode.type === this.symbolType) {
+                result.mergeState(ResultState.successful);
+
                 result.highlights.push({begin: subnode.begin, end: subnode.end, type: 0});
 
                 let resultOfMath = this.blockHandlerTable.symbols.get(subnode.content);
-                if (resultOfMath != undefined) {
-                    //subnode.content += `__${resultOfMath}__`;
-                }
-                else {
+                if (resultOfMath === undefined) {
                     let resultOfDefination = this.blockHandlerTable.definations.get(subnode.content);
                     if (resultOfDefination != undefined) {
                         node.children.splice(i, 1);
@@ -725,30 +1509,35 @@ export class Math extends Module {
 
                     else {
                         result.messages.push(this.getMessage("Undefined symbol.", subnode.begin, MessageType.error));
-                        result.success = false;
-                        return result;
+                        result.mergeState(ResultState.skippable);
+                        continue;
                     }
                 }
             }
-            else if (subnode.type === this.formulaType) {
-                let nResult = this.find(subnode);
-                result.merge(nResult);
+            else if (subnode.type === this.mathTextType) {
+                result.mergeState(ResultState.successful);
+                result.highlights.push({begin: subnode.begin, end: subnode.end, type: 0});
+            }
 
-                if (!nResult.success) {
+            else if (subnode.type === this.formulaType) {
+                let nResult = this.formula(subnode);
+                result.merge(nResult);
+                if(nResult.shouldTerminate) {
                     return result;
                 }
                 
             }
             else {
                 result.messages.push(this.getMessage("[[Logic error]]", subnode.begin, MessageType.warning));
-                //result.success = false;
+                result.mergeState(ResultState.matched);
                 return result;
             }
         }
-        result.success = true;
         return result;
     }
+    */
 
+    /*
     frac(node: Node): AnalyseResult {
 
         let result: AnalyseResult = new AnalyseResult(true);
@@ -1244,14 +2033,16 @@ export class Math extends Module {
         result.messages.push(this.getMessage("Undefined brackets.", node.children[length - 1].begin, MessageType.error));
         return result;
     }
+        */
 
     isSymbol(node: Node, name: string): boolean {
-        return node.type === this.symbolType && node.content === name;
+        return node.type === this.elementType && node.content === name;
     }
 
-    getMessage(message: string, index:number, type: MessageType = MessageType.error, code: number = -1): Message {
-        let lp = this.parser.getLineAndPosition(index) ?? {line: -1, position: -1};
+    getMessage(message: string, index: number, type: MessageType = MessageType.error, code: number = -1): Message {
+        let lp = this.parser.getLineAndCharacter(index) ?? { line: -1, character: -1 };
         let pro = this.parser.process.slice();
-        return new Message(message, type, code, lp.line, lp.position, pro);
+        return new Message(message, type, code, lp.line, lp.character, pro);
+
     }
 }

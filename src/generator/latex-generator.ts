@@ -1,5 +1,5 @@
 /**
- * Latex generator: convert nodes to latex source
+ * Latex generator: translate syntax tree to latex source
  */
 
 import { Config } from "../foundation/config";
@@ -13,57 +13,118 @@ import { Generator } from "./generator";
 
 export class LatexGenerator extends Generator {
 
-    // Types
-    type: TypeTable;
-    documentType: Type;
-    paragraphType: Type;
-    textType: Type;
-    settingType: Type;
-    settingParameterType: Type;
-    labelType: Type;
+    // Basic Types
+
+    documentType: Type;;
+    paragraphType: Type;;
+    textType: Type;;
+    wordsType: Type;;
+    nameType: Type;
+    referenceType: Type;;
+    settingType: Type;;
+    settingParameterType: Type;;
+    blockType: Type;
+    errorType: Type;
+    argumentsType: Type;
+    argumentItemType: Type;
 
     // Math Types
     formulaType: Type;
-    symbolType: Type;
+    elementType: Type;
     definationType: Type;
-    fractionType: Type;
-    matrixType: Type;
-    sqrtType: Type;
-    sumType: Type;
-    limitType: Type;
-    integralType: Type;
-    scriptType: Type;
-    bracketsType: Type;
+    mathTextType: Type;
 
-    constructor(syntaxTree: Node, typeTable: TypeTable, config: Config) {
-        super(syntaxTree);
-        this.type = typeTable;
+    expressionType: Type;
+    termType: Type;
+    infixType: Type;
+    prefixType: Type;
+
+    // Core Types
+
+    figureType: Type;
+    figureInfoType: Type;
+    listType: Type;
+    tableType: Type;
+    codeType: Type;
+    
+    emphType: Type;;
+    boldType: Type;;
+    italicType: Type;;
+
+
+    // fractionType: Type;
+    // matrixType: Type;
+    // sqrtType: Type;
+    // sumType: Type;
+    // limitType: Type;
+    // integralType: Type;
+    // scriptType: Type;
+    // bracketsType: Type;
+
+    // Introduction & Document
+    introduction: string;
+    document: string;
+
+    hasMakedTitle: boolean;
+
+    // Generator of specific type of node
+    nodeGeneratorTable: Map<string, (node: Node) => string>;
+
+    // generator of specific math node
+    mathSymbols: Map<string, string>;
+
+    // generator of specific setting node
+    settingGeneratorTable: Map<string, (parameter: string) => string>;
+
+
+
+    constructor(typeTable: TypeTable, config: Config) {
+        super(typeTable, config);
 
         this.introduction = "";
         this.document = "";
 
         this.hasMakedTitle = false;
 
-        this.documentType = this.type.get("document")!;
-        this.paragraphType = this.type.get("paragraph")!;
-        this.textType = this.type.get("text")!;
-        this.settingType = this.type.get("setting")!;
-        this.settingParameterType = this.type.get("setting-parameter")!;
-        this.labelType = this.type.get("label")!;
+        this.documentType = this.typeTable.get("document")!;
+        this.paragraphType = this.typeTable.get("paragraph")!;
+        this.textType = this.typeTable.get("text")!;
+        this.wordsType = this.typeTable.get("words")!;
+        this.nameType = this.typeTable.get("name")!;
+        this.referenceType = this.typeTable.get("reference")!;
+        this.settingType = this.typeTable.get("setting")!;
+        this.settingParameterType = this.typeTable.get("setting-parameter")!;
+        this.blockType = this.typeTable.get("block")!;
+        this.errorType = this.typeTable.get("error")!;
+        this.argumentsType = this.typeTable.get("arguments")!;
+        this.argumentItemType = this.typeTable.get("argument-item")!;
 
+        this.formulaType = this.typeTable.get("formula")!;
+        this.elementType = this.typeTable.get("element")!;
+        this.definationType = this.typeTable.get("defination")!;
+        this.mathTextType = this.typeTable.get("math-text")!;
+        this.expressionType = this.typeTable.get("expression")!;
+        this.termType = this.typeTable.get("term")!;
+        this.infixType = this.typeTable.get("infix")!;
+        this.prefixType = this.typeTable.get("prefix")!;
 
-        this.formulaType = this.type.get("formula")!;
-        this.symbolType = this.type.get("symbol")!;
-        this.definationType = this.type.get("defination")!;
+        this.figureType = this.typeTable.get("figure")!;
+        this.figureInfoType = this.typeTable.get("figure-info")!;
+        this.listType = this.typeTable.get("list")!;
+        this.tableType = this.typeTable.get("table")!;
+        this.codeType = this.typeTable.get("code")!;
+        this.emphType = this.typeTable.get("emph")!;
+        this.boldType = this.typeTable.get("bold")!;
+        this.italicType = this.typeTable.get("italic")!;
 
-        this.fractionType = this.type.get("fraction")!;
-        this.sqrtType = this.type.get("sqrt")!;
-        this.sumType = this.type.get("sum")!;
-        this.limitType = this.type.get("limit")!;
-        this.integralType = this.type.get("integral")!;
-        this.scriptType = this.type.get("script")!;
-        this.bracketsType = this.type.get("brackets")!;
-        this.matrixType = this.type.get("matrix")!;
+        // this.fractionType = this.typeTable.get("fraction")!;
+        // this.sqrtType = this.typeTable.get("sqrt")!;
+        // this.sumType = this.typeTable.get("sum")!;
+        // this.limitType = this.typeTable.get("limit")!;
+        // this.integralType = this.typeTable.get("integral")!;
+        // this.scriptType = this.typeTable.get("script")!;
+        // this.bracketsType = this.typeTable.get("brackets")!;
+        // this.matrixType = this.typeTable.get("matrix")!;
 
 
         // Init node generator table
@@ -86,13 +147,29 @@ export class LatexGenerator extends Generator {
         for (let [key, value] of json.map) {
             this.mathSymbols.set(key, value);
         }
+    }
+
+
+    // generate
+
+    generate(syntaxTree: Node) {
+        this.syntaxTree = syntaxTree;
+
+        this.introduction = "";
+        this.document = "";
+        this.hasMakedTitle = false;
+
+        this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
+        this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
+        this.addIntrodunction(this.line(this.command("usepackage", "amsmath")));
+
+        this.addContent(this.generateDocument(this.syntaxTree));
+
+        return `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
 
     }
 
     // introduction and document of latex source
-
-    introduction: string;
-    document: string;
 
     addIntrodunction(intr: string) {
         this.introduction += intr;
@@ -109,37 +186,21 @@ export class LatexGenerator extends Generator {
         this.document += text;
     }
 
-    // generate
-
-    generate(): string {
-
-        this.introduction = "";
-        this.document = "";
-        this.hasMakedTitle = false;
-
-        this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
-        this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
-        this.addIntrodunction(this.line(this.command("usepackage", "amsmath")));
-        this.addContent(this.generateDocument(this.syntaxTree));
-
-        return `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
-    }
-
-
-    // Generator of specific type of node
-
-    nodeGeneratorTable: Map<string, (node: Node) => string>;
 
     // GenerateDocument
     // Syntax Tree type: document
     generateDocument(node: Node): string {
-        var res = "";
-        for (var n of node.children) {
+        let res = "";
+        for (let n of node.children) {
             if (n.type === this.settingType) {
-                this.generateSetting(n);
+                res += this.generateSetting(n);
+            }
+            else if (n.type === this.paragraphType) {
+                res += this.generateParagraph(n);
             }
             else {
-                res += this.generateParagraph(n);
+                console.log("geDocument error.");
+                break;
             }
         }
         return res;
@@ -148,77 +209,127 @@ export class LatexGenerator extends Generator {
     // GenerateSetting
     // Syntax Tree type: setting
     generateSetting(node: Node): string {
-        var func = this.settingGeneratorTable.get(node.content);
+        let func = this.settingGeneratorTable.get(node.content);
         if (func !== undefined) {
             func.bind(this)(node.children[0].content);
         }
-        return "[[[setting failure]]]";
+        else {
+            console.log("geSetting error.");
+        }
+        return "";
     }
 
     // GenerateParagraph
     // Syntax Tree type: paragraph
     generateParagraph(node: Node): string {
-        return this.generateChildrenNode(node) + "\n";
+        let res = "";
+        for (let n of node.children) {
+            switch (n.type) {
+                case this.textType:
+                    res += this.generateText(n);
+                    break;
+
+                case this.formulaType:
+                    res += this.generateFormula(n);
+                    break;
+                case this.figureType:
+                case this.listType:
+                case this.tableType:
+                case this.codeType:
+                    res += "[[Basic Block]]";
+                    console.log("Unsupported basic block.");
+                    break;
+            }
+        }
+        return res;
+    }
+
+    // GenerateText
+    // Syntax Tree type: text | emph | bold | italic
+    generateText(node: Node): string {
+        let res = "";
+        for (let n of node.children) {
+            switch (n.type) {
+                case this.wordsType:
+                    res += n.content;
+                    break;
+                case this.referenceType:
+                    res += `\ref{${n.content}}`;
+                    break;
+                case this.formulaType:
+                    res += this.generateFormula(n, true);
+                    break;
+                case this.emphType:
+                case this.boldType:
+                case this.italicType:
+                    res += this.generateText(n);
+                    break;
+            }
+        }
+        return res;
     }
 
     // GenerateNode: Assistant function to generateParagraph
     // Syntax Tree type: text | label | formula
-    generateNode(node: Node): string {
-        if (node.type === this.textType) {
-            return node.content;
-        }
-        else if (node.type === this.formulaType) {
-            return this.generateFormula(node);
-        }
-        else if (node.type === this.labelType) {
-            var func = this.nodeGeneratorTable.get(node.content);
-            if (func !== undefined) {
-                return func.bind(this)(node);
-            }
-            else {
-                // todo
-                return "[[[failure]]]";
-            }
-        }
-        else {
-            return "[[[failure]]]";
-        }
-    }
+    // generateNode(node: Node): string {
+    //     if (node.type === this.textType) {
+    //         return node.content;
+    //     }
+    //     else if (node.type === this.formulaType) {
+    //         return this.generateFormula(node);
+    //     }
+    //     else if (node.type === this.labelType) {
+    //         let func = this.nodeGeneratorTable.get(node.content);
+    //         if (func !== undefined) {
+    //             return func.bind(this)(node);
+    //         }
+    //         else {
+    //             // todo
+    //             return "[[[failure]]]";
+    //         }
+    //     }
+    //     else {
+    //         return "[[[failure]]]";
+    //     }
+    // }
 
-    generateChildrenNode(node: Node): string {
-        var res = "";
-        for (var n of node.children) {
-            res += this.generateNode(n);
-        }
-        return res;
-    }
-
-
-    hasMakedTitle;
+    // generateChildrenNode(node: Node): string {
+    //     let res = "";
+    //     for (let n of node.children) {
+    //         res += this.generateNode(n);
+    //     }
+    //     return res;
+    // }
 
     // GenerateTitleAuthorDate
     // Syntax Tree type: title | author | date (Use label type and its content to represent temporarily)
-    generateTitleAuthorDate(node: Node): string {
-        var t = this.generateChildrenNode(node);
-        var res = "";
-        if (!this.hasMakedTitle) {
-            res = this.line(this.command("maketitle"));
-            this.hasMakedTitle = !this.hasMakedTitle;
-        }
-        this.addIntrodunction(this.line(this.command(node.content, t)));
-        return res;
-    }
+    // generateTitleAuthorDate(node: Node): string {
+    //     let t = this.generateChildrenNode(node);
+    //     let res = "";
+    //     if (!this.hasMakedTitle) {
+    //         res = this.line(this.command("maketitle"));
+    //         this.hasMakedTitle = !this.hasMakedTitle;
+    //     }
+    //     this.addIntrodunction(this.line(this.command(node.content, t)));
+    //     return res;
+    // }
 
     // GenerateSectionSubsection
     // Syntax Tree type: section | subsection (Use label type and its content to represent temporarily)
-    generateSectionSubsection(node: Node): string {
-        return this.line(this.command(node.content, this.generateChildrenNode(node)));
+    // generateSectionSubsection(node: Node): string {
+    //     return this.line(this.command(node.content, this.generateChildrenNode(node)));
+    // }
+
+    // GenerateFormula
+    // Syntax Tree type: formula
+    generateFormula(node: Node, inline: boolean = false): string {
+        let res = "\\[";
+        if(node.children.at(-1)?.type === this.expressionType) {
+            res += this.generateChildrenMathNode(node);
+        }
+        res += "\\]";
+        return res;
     }
-
-    // generator of specific math node
-
-    mathSymbols: Map<string, string>;
-
 
     // GenerateFraction
     // Syntax Tree type: fraction
@@ -276,22 +387,13 @@ export class LatexGenerator extends Generator {
     generateBrackets(node: Node): string {
         let left = node.children[0].content;
         let right = node.children[2].content;
-        if(left === "{") {
+        if (left === "{") {
             left = "\\{";
         }
-        if(right === "}") {
+        if (right === "}") {
             right = "\\}";
         }
         return `{\\left${left}{${this.generateChildrenMathNode(node.children[1])}}\\right${right}}`;
-    }
-
-    // GenerateFormula
-    // Syntax Tree type: formula
-    generateFormula(node: Node): string {
-        var res = "\\[";
-        res += this.generateChildrenMathNode(node);
-        res += "\\]";
-        return res;
     }
 
     // GenerateMathNode: Assistant function to generateFormula
@@ -342,7 +444,7 @@ export class LatexGenerator extends Generator {
 
     generateChildrenMathNode(node: Node): string {
         let res = "";
-        for (var n of node.children) {
+        for (let n of node.children) {
             res += this.generateMathNode(n);
         }
         return res;
@@ -360,10 +462,6 @@ export class LatexGenerator extends Generator {
         }
     }
 
-    // generator of specific setting node
-
-    settingGeneratorTable: Map<string, (parameter: string) => string>;
-
     // GeneratePaperSetting
     // Syntax Tree type: setting
     generatePaperSetting(parameter: string): string {
@@ -379,7 +477,7 @@ export class LatexGenerator extends Generator {
 }
 
 /* function processLabel(name: string, onlyRead : boolean = false): [boolean, string] {
-    var res = "";
+    let res = "";
     switch (name) {
         case "section":
         case "subsection":
@@ -390,7 +488,7 @@ export class LatexGenerator extends Generator {
                 document += res;
             }
             
-            var subRes = content();
+            let subRes = content();
             if (subRes[0] === true) {
                 res += subRes[1];
                 res += "}";
@@ -416,7 +514,7 @@ export class LatexGenerator extends Generator {
             if(!onlyRead) {
                 document += res;
             }
-            var subRes = content(true);
+            let subRes = content(true);
             if(subRes[0]) {
                 introduction += "\\";
                 introduction += name;

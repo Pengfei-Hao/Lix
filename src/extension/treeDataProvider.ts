@@ -1,10 +1,10 @@
-import { Context } from "./context";
+import { LixContext } from "./lixContext";
 import * as vscode from 'vscode';
 
 export class LabelProvider implements vscode.TreeDataProvider<string> {
-    context: Context;
+    context: LixContext;
 
-    constructor(context: Context) {
+    constructor(context: LixContext) {
         this.context = context;
     }
 
@@ -33,9 +33,9 @@ export class LabelProvider implements vscode.TreeDataProvider<string> {
 
 
 export class MathLabelProvider implements vscode.TreeDataProvider<string> {
-    context: Context;
+    context: LixContext;
 
-    constructor(context: Context) {
+    constructor(context: LixContext) {
         this.context = context;
     }
 

@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { Parser } from '../parser/parser';
-import { Context } from './context';
+import { LixContext } from './lixContext';
 import { CompletionTriggerKind } from 'vscode-languageclient';
 import { Node } from '../sytnax-tree/node';
+import { start } from 'repl';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
-    context: Context;
+    context: LixContext;
 
-    constructor(context: Context) {
+    constructor(context: LixContext) {
         this.context = context;
     }
 
@@ -20,18 +21,35 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
 
         let res: vscode.CompletionItem[] = [];
         let parser = this.context.getParser(document)!;
-        if (this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
-            if (context.triggerCharacter == " " || context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
-                for (let item of parser.mathModule.symbols) {
-                    let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
-                    comp.insertText = item + " ";
-                    comp.detail = "math symbol from lix.";
-                    res.push(comp);
+        if (this.inMath(parser, parser.getIndex(position.line, position.character-1)!)) {
+            if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
+                let range = document.getWordRangeAtPosition(position);
+                if (range) {
+                    while (range.start.character > 0) {
+                        range = new vscode.Range(range.start.translate(0, -1), range.end);
+                        if (document.getText(range).substring(0, 1) != " ") {
+                            break;
+                        }
+                    }
+                    range = new vscode.Range(range.start.translate(0, 1), range.end)
                 }
-                parser.mathModule.symbolCharAndNotations.forEach((nota, name) => {
+                else {
+                    console.log("err");
+                }
+                
+
+                // for (let item of parser.mathModule.symbols) {
+                //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
+                //     comp.insertText = item + " ";
+                //     comp.detail = "math symbol from lix.";
+                //     comp.range = range;
+                //     res.push(comp);
+                // }
+                parser.mathModule.notationsToUnicodeSymbols.forEach((nota, name) => {
                     let comp = new vscode.CompletionItem(name, vscode.CompletionItemKind.Keyword);
                     comp.insertText = nota;
                     comp.detail = `Symbol char '${nota}'.`;
+                    comp.range = range;
                     res.push(comp);
                 })
 
@@ -39,6 +57,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
                     comp.insertText = item + " ";
                     comp.detail = "user-defined math symbol from lix.";
+                    comp.range = range;
                     res.push(comp);
                 }
                 

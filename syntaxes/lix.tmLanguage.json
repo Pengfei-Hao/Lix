@@ -2,15 +2,11 @@
     "name": "Lix Latex",
     "scopeName": "source.lix",
     "patterns": [
-        {
-            "include": "#comment"
-        },
-        {
-            "include": "#setting"
-        },
-        {
-            "include": "#content"
-        }
+    {
+        "include":"#comment"
+    }
+        
+        
     ],
 
     "repository": {
@@ -31,8 +27,17 @@
         "multiline-comment": {
             "begin": "\\/\\*",
             "end": "\\*\\/",
-            "name": "comment.block.lix"
+            "name": "comment.block.lix",
+            "patterns": [
+                {
+                    "include": "#multiline-comment"
+                },
+                {
+                    "match": "[\\s\\S]"
+                }
+            ]
         },
+
 
         "setting": {
             "match": "^\\s*(#)\\s*([a-zA-Z0-9-]+)\\s*:.*$",
