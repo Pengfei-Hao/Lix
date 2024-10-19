@@ -68,13 +68,15 @@ export class LatexGenerator extends Generator {
     hasMakedTitle: boolean;
 
     // Generator of specific type of node
-    nodeGeneratorTable: Map<string, (node: Node) => string>;
+    //nodeGeneratorTable: Map<string, (node: Node) => string>;
 
     // generator of specific math node
     mathSymbols: Map<string, string>;
 
     // generator of specific setting node
     settingGeneratorTable: Map<string, (parameter: string) => string>;
+
+    unicodeSymbolsToNotations: Map<string, string>;
 
 
 
@@ -128,13 +130,13 @@ export class LatexGenerator extends Generator {
 
 
         // Init node generator table
-        this.nodeGeneratorTable = new Map([
-            ["title", this.generateTitleAuthorDate],
-            ["author", this.generateTitleAuthorDate],
-            ["date", this.generateTitleAuthorDate],
-            ["section", this.generateSectionSubsection],
-            ["subsection", this.generateSectionSubsection],
-        ]);
+        // this.nodeGeneratorTable = new Map([
+        //     ["title", this.generateTitleAuthorDate],
+        //     ["author", this.generateTitleAuthorDate],
+        //     ["date", this.generateTitleAuthorDate],
+        //     ["section", this.generateSectionSubsection],
+        //     ["subsection", this.generateSectionSubsection],
+        // ]);
 
         // Init setting generator table
         this.settingGeneratorTable = new Map([
@@ -146,6 +148,14 @@ export class LatexGenerator extends Generator {
         let json: { map: [string, string] } = JSON.parse(config.get("latex"));
         for (let [key, value] of json.map) {
             this.mathSymbols.set(key, value);
+        }
+
+        let jsonMath = config.get("math");
+        let configMath: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(jsonMath);
+
+        this.unicodeSymbolsToNotations = new Map();
+        for (let tmp of configMath.UnicodeSymbolsAndNotations) {
+            this.unicodeSymbolsToNotations.set(tmp[0], tmp[1]);
         }
     }
 
@@ -162,6 +172,7 @@ export class LatexGenerator extends Generator {
         this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
         this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
         this.addIntrodunction(this.line(this.command("usepackage", "amsmath")));
+        this.addIntrodunction(this.line(this.command("usepackage", "amssymb")));
 
         this.addContent(this.generateDocument(this.syntaxTree));
 
@@ -241,6 +252,7 @@ export class LatexGenerator extends Generator {
                     break;
             }
         }
+        res += "\n\n";
         return res;
     }
 
@@ -266,200 +278,115 @@ export class LatexGenerator extends Generator {
                     break;
             }
         }
+        res += "\n";
         return res;
     }
-
-    // GenerateNode: Assistant function to generateParagraph
-    // Syntax Tree type: text | label | formula
-    // generateNode(node: Node): string {
-    //     if (node.type === this.textType) {
-    //         return node.content;
-    //     }
-    //     else if (node.type === this.formulaType) {
-    //         return this.generateFormula(node);
-    //     }
-    //     else if (node.type === this.labelType) {
-    //         let func = this.nodeGeneratorTable.get(node.content);
-    //         if (func !== undefined) {
-    //             return func.bind(this)(node);
-    //         }
-    //         else {
-    //             // todo
-    //             return "[[[failure]]]";
-    //         }
-    //     }
-    //     else {
-    //         return "[[[failure]]]";
-    //     }
-    // }
-
-    // generateChildrenNode(node: Node): string {
-    //     let res = "";
-    //     for (let n of node.children) {
-    //         res += this.generateNode(n);
-    //     }
-    //     return res;
-    // }
-
-    // GenerateTitleAuthorDate
-    // Syntax Tree type: title | author | date (Use label type and its content to represent temporarily)
-    // generateTitleAuthorDate(node: Node): string {
-    //     let t = this.generateChildrenNode(node);
-    //     let res = "";
-    //     if (!this.hasMakedTitle) {
-    //         res = this.line(this.command("maketitle"));
-    //         this.hasMakedTitle = !this.hasMakedTitle;
-    //     }
-    //     this.addIntrodunction(this.line(this.command(node.content, t)));
-    //     return res;
-    // }
-
-    // GenerateSectionSubsection
-    // Syntax Tree type: section | subsection (Use label type and its content to represent temporarily)
-    // generateSectionSubsection(node: Node): string {
-    //     return this.line(this.command(node.content, this.generateChildrenNode(node)));
-    // }
 
     // GenerateFormula
     // Syntax Tree type: formula
     generateFormula(node: Node, inline: boolean = false): string {
         let res = "\\[";
         if(node.children.at(-1)?.type === this.expressionType) {
-            res += this.generateChildrenMathNode(node);
+            res += this.generateExpression(node.children.at(-1)!);
         }
         res += "\\]";
-        return res;
-    }
-
-    // GenerateFraction
-    // Syntax Tree type: fraction
-    generateFraction(node: Node): string {
-        return `\\frac{${this.generateChildrenMathNode(node.children[0])}}{${this.generateChildrenMathNode(node.children[1])}}`;
-    }
-
-    // GenerateMatrix
-    // Syntax Tree type: matrix
-    generateMatrix(node: Node): string {
-        let res = "";
-        for (let subnode of node.children) {
-            for (let n of subnode.children) {
-                res += this.generateMathNode(n);
-                res += "&";
-            }
-            res = res.substring(0, res.length - 1);
-            res += "\\\\";
-        }
-        return `\\begin{matrix}${res}\\end{matrix}`;
-    }
-
-    // GenerateSqrt
-    // Syntax Tree type: sqrt
-    generateSqrt(node: Node): string {
-        return `\\sqrt{${this.generateChildrenMathNode(node)}}`;
-    }
-
-    // GenerateSum
-    // Syntax Tree type: sum
-    generateSum(node: Node): string {
-        return `\\sum_{${this.generateChildrenMathNode(node.children[0])}}^{${this.generateChildrenMathNode(node.children[1])}}{${this.generateChildrenMathNode(node.children[2])}}`;
-    }
-
-    // GenerateLimit
-    // Syntax Tree type: limit
-    generateLimit(node: Node): string {
-        return `\\lim_{${this.generateChildrenMathNode(node.children[0])}}{${this.generateChildrenMathNode(node.children[1])}}`;
-    }
-
-    // GenerateIntegral
-    // Syntax Tree type: integral
-    generateIntegral(node: Node): string {
-        return `\\int_{${this.generateChildrenMathNode(node.children[0])}}^{${this.generateChildrenMathNode(node.children[1])}}{${this.generateChildrenMathNode(node.children[2])}}`;
-    }
-
-    // GenerateScript
-    // Syntax Tree type: script
-    generateScript(node: Node): string {
-        return `{${this.generateChildrenMathNode(node.children[0])}}^{${this.generateChildrenMathNode(node.children[1])}}_{${this.generateChildrenMathNode(node.children[2])}}`;
-    }
-
-    // GenerateBrackets
-    // Syntax Tree type: brackets
-    generateBrackets(node: Node): string {
-        let left = node.children[0].content;
-        let right = node.children[2].content;
-        if (left === "{") {
-            left = "\\{";
-        }
-        if (right === "}") {
-            right = "\\}";
-        }
-        return `{\\left${left}{${this.generateChildrenMathNode(node.children[1])}}\\right${right}}`;
-    }
-
-    // GenerateMathNode: Assistant function to generateFormula
-    // Syntax Tree type: symbol | formula | fraction | ...
-    generateMathNode(node: Node): string {
-        if (node.type === this.symbolType) {
-            return this.generateSymbol(node.content);
-        }
-        else if (node.type === this.formulaType) {
-            let res = "\\{";
-            res += this.generateChildrenMathNode(node);
-            res += "\\}";
-            return res;
-        }
-        else {
-            let generate;
-            switch (node.type) {
-                case this.fractionType:
-                    generate = this.generateFraction;
-                    break;
-                case this.matrixType:
-                    generate = this.generateMatrix;
-                    break;
-                case this.sqrtType:
-                    generate = this.generateSqrt;
-                    break;
-                case this.sumType:
-                    generate = this.generateSum;
-                    break;
-                case this.limitType:
-                    generate = this.generateLimit;
-                    break;
-                case this.integralType:
-                    generate = this.generateIntegral;
-                    break;
-                case this.scriptType:
-                    generate = this.generateScript;
-                    break;
-                case this.bracketsType:
-                    generate = this.generateBrackets;
-                    break;
-                default:
-                    return "[[[failure]]]";
-            }
-            return generate.bind(this)(node);
-        }
-    }
-
-    generateChildrenMathNode(node: Node): string {
-        let res = "";
-        for (let n of node.children) {
-            res += this.generateMathNode(n);
+        if(!inline) {
+            res += "\n";
         }
         return res;
     }
 
-    // GenerateSymbol
-    // Syntax Tree type: symbol
-    generateSymbol(symbol: string): string {
-        let res = this.mathSymbols.get(symbol);
-        if (res !== undefined) {
-            return res;
+    generateExpression(node: Node): string {
+        let res = "";
+        for(let subnode of node.children) {
+            res += this.generateTermOrOperator(subnode);
         }
-        else {
-            return "[[[symbol failure]]]";
+        return res;
+    }
+
+    generateTerm(node: Node): string {
+        let res = "";
+
+        switch (node.type) {
+            case this.mathTextType:
+                res += `\\text{${node.content}} `;
+                break;
+
+            case this.termType:
+                let sym = this.unicodeSymbolsToNotations.get(node.content);
+                res += sym ? `\\${sym} ` : `${node.content} `;
+                break;
+
+            case this.expressionType:
+                res += `{${this.generateExpression(node)}} `;
+                break;
+
+            case this.prefixType:
+                switch (node.content) {
+                    case "lim":
+                        res += `{\\lim_{${this.generateExpression(node.children[0])}}${this.generateExpression(node.children[1])}}`;
+                        break;
+                    case "∑":
+                        res += `{\\sum_{${this.generateExpression(node.children[0])}}^{${this.generateExpression(node.children[1])}}${this.generateExpression(node.children[2])}}`;
+                        break;
+                    case "dot":
+                        res += `{\\dot ${this.generateTerm(node.children[0])}}`;
+                        break;
+                    case "√":
+                        res += `{\\sqrt ${this.generateTerm(node.children[0])}}`;
+                        break;
+                    case "cases":
+                        res += `{${this.generateTerm(node.children[0])}}`;
+                        break;
+                    case "norm":
+                        res += `{\\vert ${this.generateTerm(node.children[0])} \\vert}`;
+                        break;
+                    case "mat":
+                        res += `{${this.generateExpression(node.children[0])}}`;
+                        break;
+                    case "(":
+                        res += `{\\left(${this.generateExpression(node.children[0])}\\right)}`;
+                        break;
+                    case "{":
+                        res += `{\\left\\{${this.generateExpression(node.children[0])}\\right\\}}`;
+                        break;
+                    case "⟨":
+                        res += `\\left\\langle{${this.generateExpression(node.children[0])}\\right\\rangle}`;
+                        break;
+                }
         }
+
+        return res;
+    }
+
+    generateOperator(node: Node): string {
+        let res = "";
+
+        switch (node.type) {
+            case this.infixType:
+                switch (node.content) {
+                    case "⁄":
+                        res += `\\frac {${this.generateTermOrOperator(node.children[0])}} {${this.generateTermOrOperator(node.children[1])}}`;
+                        break;
+                    default:
+                        let i = 0;
+                        for (let sub of node.children) {
+                            res += `${this.generateTermOrOperator(sub)}`;
+                            res += (i < node.content.length) ? node.content[i] : "";
+                            i++;
+                        }
+                        break;
+
+                }
+        }
+        return res;
+    }
+
+    generateTermOrOperator(node: Node): string {
+        let res = "";
+        res += this.generateTerm(node);
+        res += this.generateOperator(node);
+        return res;
     }
 
     // GeneratePaperSetting
@@ -475,58 +402,3 @@ export class LatexGenerator extends Generator {
     }
 
 }
-
-/* function processLabel(name: string, onlyRead : boolean = false): [boolean, string] {
-    let res = "";
-    switch (name) {
-        case "section":
-        case "subsection":
-            res += "\\";
-            res += name;
-            res += "{"; 
-            if(!onlyRead) {
-                document += res;
-            }
-            
-            let subRes = content();
-            if (subRes[0] === true) {
-                res += subRes[1];
-                res += "}";
-                if(!onlyRead) {
-                    document += "}";
-                }
-            }
-            else {
-                res += subRes[1];
-                if(!onlyRead) {
-                    document += subRes[1];
-                }
-                return [false, res];
-            }
-            break;
-
-        case "title":
-        case "author":
-        case "date":
-            res += "\\";
-            res += name;
-            res += "\n";
-            if(!onlyRead) {
-                document += res;
-            }
-            let subRes = content(true);
-            if(subRes[0]) {
-                introduction += "\\";
-                introduction += name;
-                introduction += "{";
-                introduction += subRes[1];
-                introduction += "}\n";
-            }
-            else {
-                return [false, res];
-            }
-            
-    }
-
-    return [true, res];
-} */

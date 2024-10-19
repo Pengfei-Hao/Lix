@@ -164,7 +164,7 @@ async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) 
 	let line = locate(index, parser.syntaxTree)-1;
 	console.log(`index:${index};line:${pos.line},char:${pos.character}`);
 
-	let uri = getUri(doc);
+	let uri = getUri(doc, "parse");
 	vscode.workspace.openTextDocument(uri).then(doc => {
 		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
 		vscode.window.showTextDocument(doc, opt);
@@ -233,17 +233,13 @@ async function compile() {
 	if(!document) {
 		return;
 	}
-	let parser = parseDocument(document);
-	if(!parser) {
-		return;
-	}
 
-	let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
-	let latex = generator.generate();
+	let parser = parseDocument(document);
+	let generator = new LatexGenerator(parser.typeTable, config);
+	let latex = generator.generate(parser.syntaxTree);
 
 	let encoder = new TextEncoder();
 	let uri = vscode.window.activeTextEditor?.document.uri!;
-
 
 	let pat = uri.path;
 	let tem = pat.split("/").at(-1);
@@ -272,14 +268,12 @@ async function generate() {
 	}
 
 	let parser = parseDocument(document);
-	if(!parser) {
-		return;
-	}
+	let generator = new LatexGenerator(parser.typeTable, config);
+	let latex = generator.generate(parser.syntaxTree);
 
-	let generator = new LatexGenerator(parser.syntaxTree, parser.typeTable, config);
-	let latex = generator.generate();
+	documentProvider.updateContent(getUri(document, "generate"), latex);
 
-	//showFile(latex);
+	showFile(getUri(document, "generate"));
 }
 
 async function parse() {
@@ -288,7 +282,7 @@ async function parse() {
 		return;
 	}
 	parseDocument(document);
-	showFile(getUri(document));
+	showFile(getUri(document, "parse"));
 }
 
 function helloWorld() {
@@ -312,7 +306,7 @@ function helloWorld() {
 // **************** assistance ****************
 
 
-export function parseDocument(document: vscode.TextDocument): Parser | undefined {
+export function parseDocument(document: vscode.TextDocument): Parser {
 
 	let parser = lixContext.getParser(document);
 	parser.parse(document.getText());
@@ -335,7 +329,7 @@ export function parseDocument(document: vscode.TextDocument): Parser | undefined
 			st = "failing";
 			break;
 	}
-	documentProvider.updateContent(getUri(document), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+	documentProvider.updateContent(getUri(document, "parse"), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 
 	return parser;
 }
@@ -364,9 +358,9 @@ function showPDF(file: string) {
 	panel.webview.html = html;
 }
 
-function getUri(document: vscode.TextDocument): vscode.Uri {
+function getUri(document: vscode.TextDocument, flag: string): vscode.Uri {
 	let duri = document.uri;
-	return vscode.Uri.from({ scheme: "lix", path: duri.path, fragment: "parser" });
+	return vscode.Uri.from({ scheme: "lix", path: duri.path, fragment: flag });
 }
 
 function getDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document): vscode.TextDocument | undefined {

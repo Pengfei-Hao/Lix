@@ -31,7 +31,7 @@ Formula test. / a [b c]/
 [formula `func ↦ y` a b c]
 [formula `hello ↦ h` A epsilon ]
 
-Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp /
+Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp to : /
 
 /[min x∊X] F(x₁,x₂,…,x_s) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
 
@@ -62,3 +62,5 @@ Reference test. This is a reference @reference. [emph @refer].
 [text New line of words again. [bold A bold word. [emph Error: repeated.]]]
 
 / a [ b 错 c ] c d /* commit */ (t) * ↦ f ∑ 𝒜 h "hello"/ 
+
+/ a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp /

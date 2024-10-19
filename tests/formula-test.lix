@@ -8,7 +8,7 @@
 /[[] ^ b𝛗 _ c𝛔]/, /a _ b ^ c/ \\
 数字直接用/⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉/ ᵃᵇᶜ ᵈ ᵉ ᵍ ʰ ⁱ ʲ ᵏ ˡ ᵐ ⁿ ᵒ ᵖ ᵒ ʳ ˢ ᵗ ᵘ ᵛ ʷ ˣ ʸ ᙆ / x¹² /
 单字用 / 𝚽^k_t /
-复杂串用 / [(∫𝚽"d"x)]^[t_k]_["kkt"]/
+复杂串用 / (∫𝚽"d"x)^[t_k]_"kkt"/
 同样的表达式用latex.
 ${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
 
@@ -46,12 +46,28 @@ ${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
 
 /quad qquad/
 
+
+
 [text Example of Formulas]
 
 [formula 
 [lim norm h ↦ 0 : norm [f(x+h)-f(x)-Ah]_F ⁄ norm h_E]=0
-f(y) ⩾ f(x) +⟨x,y-x⟩ 
 ]
+
+[formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
+
+/𝛒(x,y) = norm [x-y]/, /𝛒(x,M) = norm [x-z]/  
+
+/[∑ i=1 to N: i × i]/
+
+/["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[12] x_2)/
+
+
+/ [lim i,j→∞ : ( [∑ i=1 to n : f(i)] ) ( [∑ j=1 to n: g(j)] )]
+= lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)/
+
+
+
 
 [formula 
 
@@ -74,8 +90,6 @@ f(y) ⩾ f(x) +⟨x,y-x⟩
 `r12 ↦r_1 2`
 `a1 ↦ alpha_1`
 `a2 ↦ alpha_2`
-["d" x1⁄"d" t]=x1 R (r1 - a1 x1 - r12 x2)
-["d" x1⁄"d" t] = x1 R ( r1 - a1 x1 - r12 x2)
 ]
 
 [formula
@@ -84,13 +98,11 @@ f(y) ⩾ f(x) +⟨x,y-x⟩
 `matrix ↦ [mat x x y;z z x;x y]`
 
 [lix^2]
-[∑ i=1 to N: i × i]
 [int x=1 to 3: log x]
 [lim x approx infty: [sin x/x]]
 [t^3_n]
 (f⁄g)
 lix[sigmoid/mat a]
 ]  
- 
-/𝛒(x,y) = ‖x-y‖/, /𝛒(x,M) = ‖x-z‖/  
+
 
