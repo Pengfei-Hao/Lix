@@ -30,12 +30,14 @@ export class LatexGenerator extends Generator {
 
     // Math Types
     formulaType: Type;
-    elementType: Type;
     definationType: Type;
-    mathTextType: Type;
+
+    elementType: Type;
+    //escapeElementType: Type;
+    inlineTextType: Type;
 
     expressionType: Type;
-    termType: Type;
+    //termType: Type;
     infixType: Type;
     prefixType: Type;
 
@@ -71,12 +73,12 @@ export class LatexGenerator extends Generator {
     //nodeGeneratorTable: Map<string, (node: Node) => string>;
 
     // generator of specific math node
-    mathSymbols: Map<string, string>;
+    latexFormula: Map<string, string>;
 
     // generator of specific setting node
     settingGeneratorTable: Map<string, (parameter: string) => string>;
 
-    unicodeSymbolsToNotations: Map<string, string>;
+    //unicodeSymbolsToNotations: Map<string, string>;
 
 
 
@@ -104,9 +106,9 @@ export class LatexGenerator extends Generator {
         this.formulaType = this.typeTable.get("formula")!;
         this.elementType = this.typeTable.get("element")!;
         this.definationType = this.typeTable.get("defination")!;
-        this.mathTextType = this.typeTable.get("math-text")!;
+        this.inlineTextType = this.typeTable.get("inline-text")!;
         this.expressionType = this.typeTable.get("expression")!;
-        this.termType = this.typeTable.get("term")!;
+        //this.termType = this.typeTable.get("term")!;
         this.infixType = this.typeTable.get("infix")!;
         this.prefixType = this.typeTable.get("prefix")!;
 
@@ -144,19 +146,19 @@ export class LatexGenerator extends Generator {
         ]);
 
         // Init math symbols
-        this.mathSymbols = new Map();
+        this.latexFormula = new Map();
         let json: { map: [string, string] } = JSON.parse(config.get("latex"));
         for (let [key, value] of json.map) {
-            this.mathSymbols.set(key, value);
+            this.latexFormula.set(key, value);
         }
 
-        let jsonMath = config.get("math");
-        let configMath: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(jsonMath);
+        // let jsonMath = config.get("math");
+        // let configMath: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(jsonMath);
 
-        this.unicodeSymbolsToNotations = new Map();
-        for (let tmp of configMath.UnicodeSymbolsAndNotations) {
-            this.unicodeSymbolsToNotations.set(tmp[0], tmp[1]);
-        }
+        // this.unicodeSymbolsToNotations = new Map();
+        // for (let tmp of configMath.UnicodeSymbolsAndNotations) {
+        //     this.unicodeSymbolsToNotations.set(tmp[0], tmp[1]);
+        // }
     }
 
 
@@ -233,6 +235,9 @@ export class LatexGenerator extends Generator {
     // GenerateParagraph
     // Syntax Tree type: paragraph
     generateParagraph(node: Node): string {
+        if(node.children.length == 0) {
+            return "[[empty par]]";
+        }
         let res = "";
         for (let n of node.children) {
             switch (n.type) {
@@ -247,23 +252,48 @@ export class LatexGenerator extends Generator {
                 case this.listType:
                 case this.tableType:
                 case this.codeType:
-                    res += "[[Basic Block]]";
+                    res += "[[Basic Block]]\n";
                     console.log("Unsupported basic block.");
                     break;
             }
+            res+="\n";
         }
-        res += "\n\n";
+        res += "\n\n\\hspace*{\\fill}\n\n";
         return res;
     }
 
     // GenerateText
     // Syntax Tree type: text | emph | bold | italic
-    generateText(node: Node): string {
+    generateText(node: Node, format = false): string {
         let res = "";
+        if(node.children.length == 0){
+            res += "[[empty text]]";
+            if(!format) {
+                res += "\n";
+            }
+            return res;
+        }
+        
         for (let n of node.children) {
             switch (n.type) {
                 case this.wordsType:
-                    res += n.content;
+                    if(res.startsWith(" ") && res.endsWith(" ")) {
+                        res += "[[blank start]]";
+                        res += n.content.split(" ")[1];
+                        res += "[[blank end]]";
+                    }
+                    else if(res.startsWith(" ")) {
+                        res += "[[blank start]]";
+                        res += n.content.split(" ")[1];
+
+                    }
+                    else if(res.endsWith(" ")) {
+                        res += n.content.split(" ")[0];
+                        res += "[[blank end]]";
+                    }
+                    else {
+                        res += n.content;
+                    }
                     break;
                 case this.referenceType:
                     res += `\ref{${n.content}}`;
@@ -274,11 +304,13 @@ export class LatexGenerator extends Generator {
                 case this.emphType:
                 case this.boldType:
                 case this.italicType:
-                    res += this.generateText(n);
+                    res += this.generateText(n, true);
                     break;
             }
         }
-        res += "\n";
+        if(!format) {
+            res += "\n";
+        }
         return res;
     }
 
@@ -308,13 +340,13 @@ export class LatexGenerator extends Generator {
         let res = "";
 
         switch (node.type) {
-            case this.mathTextType:
+            case this.inlineTextType:
                 res += `\\text{${node.content}} `;
                 break;
 
-            case this.termType:
-                let sym = this.unicodeSymbolsToNotations.get(node.content);
-                res += sym ? `\\${sym} ` : `${node.content} `;
+            case this.elementType:
+                let sym = this.latexFormula.get(node.content);
+                res += sym ?? `{[[${node.content}]]} `;
                 break;
 
             case this.expressionType:
@@ -339,7 +371,7 @@ export class LatexGenerator extends Generator {
                         res += `{${this.generateTerm(node.children[0])}}`;
                         break;
                     case "norm":
-                        res += `{\\vert ${this.generateTerm(node.children[0])} \\vert}`;
+                        res += `{\\vert ${this.generateTermOrOperator(node.children[0])} \\vert}`;
                         break;
                     case "mat":
                         res += `{${this.generateExpression(node.children[0])}}`;
@@ -371,7 +403,7 @@ export class LatexGenerator extends Generator {
                     default:
                         let i = 0;
                         for (let sub of node.children) {
-                            res += `${this.generateTermOrOperator(sub)}`;
+                            res += `{${this.generateTermOrOperator(sub)}}`;
                             res += (i < node.content.length) ? node.content[i] : "";
                             i++;
                         }

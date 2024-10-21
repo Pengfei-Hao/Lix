@@ -4,6 +4,10 @@
 
 This test is set for the basic blocks in lix.
 
+ \\
+
+$\Re\Im \ker\argmin\argmax\Vert$
+
 [text Free Paragraph Test]
 
 Free paragraph test. This is a free paragraph. [emph Empasize some words.] Some words. [bold: Make these words bold.] \\
@@ -27,15 +31,15 @@ A new line of words.
 
 [text Formula Test]
 
-Formula test. / a [b c]/
+Formula test. / a [b c]/, /a [b / c] d / 
 [formula `func ↦ y` a b c]
 [formula `hello ↦ h` A epsilon ]
 
 Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp to : /
 
-/[min x∊X] F(x₁,x₂,…,x_s) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
+/min_[x∊X] F(x₁,x₂,…,x_s) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
 
-/x^k_i = [min x_i∊X^k_i] { <g^k_i, x_i-[x^k-1]_i> + [L^[k-1] ⁄ 2] ‖x_i=x^[k-1]_i‖²₂+ r_i(x_i) }  / 
+/x^k_i = min_[x_i∊X^k_i] {⟨g^k_i, x_i-x^[k-1]_i⟩ + [L^[k-1] ⁄ 2] norm [x_i-x^[k-1]_i]²₂ + r_i(x_i) }  / 
 
 [text Comment Test]
 

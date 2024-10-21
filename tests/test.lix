@@ -2,12 +2,13 @@
 
 [text (center,large)  
 ]
-
+/sin𝛂 + beta, lim x→0:√ ≈ approx/
 math formula. 
+/dA dE fa sT⁰¹ /
 /a + b = c dot dot lim i : t/
-/∑a²+b²/
+/∑a²+b² to i @: j:/
 /∫f(x)"d"x =F(b)-F(a) /
 /𝛂𝛃𝔸 /
-/ [𝛂^𝛃_𝛄] [a b ⁄ c d] [∑^n_[i=0]]/
+/ [𝛂^𝛃_𝛄] [a b ⁄ c d] [∑a^n to [i=0] @: :]/
 
-[formula `abc ↦ a + b + c` abc sum x to i : t ]
+[formula `a ↦ a + b + c` a ∑ x to i : t ]

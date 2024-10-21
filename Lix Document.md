@@ -291,6 +291,7 @@ if (result.shouldTerminate) {
 }
 node...content...children
 highlight...
+guarantee...
 
 
 result.merge(this.skipBlank()); // skipBlank 不会出failing而无需判断
@@ -304,16 +305,12 @@ result.merge(res);
 if (result.shouldTerminate) {
     // 不需要错误信息, 因为 res 中已经有错误信息了.
 
-    // 如果需要skippable写在这
-    // 向后skip的代码
-    result.promote(ResultState.skippable);
-
-    // 如果能够判断出matched
-    result.promote(ResultState.matched);
+    // 一般不需要skip
     return;
 }
 node...content...children
 highlight...
+guarantee...
 
 #### 结束阶段
 
@@ -508,7 +505,7 @@ formula 部分会经历两次分析, 第一次是词法分析, 第二次是语�
 
 * formula: 数学公式的根结点, 也是公式中被括号[]括起来的部分的节点类型.
 * element: 公式中可以由字母组合和符号组成, 分别称为 notations 和 symbols, 例如 notations: lim, in, leq ...; symbols: * / - ↔ 𝒴 ..., 可以包含 unicode 符号. notations 和 symbols 统称为 elements.
-* math-text: 公式中还可以包含文字
+* inline-text: 公式中还可以包含文字
 * defination: 公式中还可以手工定义符号, 此节点仅允许出现在第一级formula 后.
 
 在随后的语法分析过程中, 有一下几类节点
@@ -684,18 +681,21 @@ element -> ( repeat([A-Za-z0-9]) end (*<repeat-failing>) ) | <element-char> | ( 
 - state: 
 - content: 
 
-inline-formula -> / <elements> /
-formula-block-handler -> <elements> ]
+inline-formula -> / <elements> + endWith /
+formula-block-handler -> <elements> + endWith ]
 
 
-elements -> repeat(<element> | <formula> | <defination> | <multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | !<not-end>) end (*EOF | EndWith...)
+elements -> repeat(<multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | <formula> | <defination> | <escape-element> | <inline-text> | <element> | !<not-end>) end (!EOF | EndWith...)
 defination -> ` <elements> `
 formula -> [ <elements> ]
 
-element -> <notation> | <symbol> | <math-text>
+escape-element -> @ <element>
+
+element -> <notation> | <symbol>
 notation -> repeat([A-Za-z0-9]) end (*<repeat-failing>)
 symbol -> Symbol... | UnicodeSymbol...
-math-text -> " repeat(<not-end>) end (!EOF | ")
+
+inline-text -> " repeat(<not-end>) end (!EOF | ")
 
 
 
@@ -703,16 +703,16 @@ math-text -> " repeat(<not-end>) end (!EOF | ")
 
 element-char ->
 
-math-text ->
+inline-text ->
 element ->
 formula ->
 
-term -> <math-text> | <element> + not operator | <formula> | <prefix>
-operator -> <element> + operator
+term -> <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator
+operator -> <element> + infix-operator
 
 prefix -> <operator> <expression> <operator> <expression> 
 infix -> <expression> <operator> <expression> 
-expression -> repeat (<term>) end (*<repeat-failing>)
+expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)
 
 
 ```
