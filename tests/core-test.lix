@@ -1,0 +1,9 @@
+[title Core Test]
+[author Lix]
+[date 2024.11.4]
+
+[section Figure Test]
+
+[figure(medium) [Multiple Figure /a^b/ Test] `./fig1.jpg`[A test /∑ i=1 to n :/ figure.] `./fig2.jpg`]
+
+[figure(small) [Single Figure Test] `./fig3.jpg`[Single test figure.] ]

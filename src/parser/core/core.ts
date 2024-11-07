@@ -14,7 +14,9 @@ export class Core extends Module {
     // types of syntax tree node
 
     figureType: Type;
-    figureInfoType: Type;
+    figureItemType: Type;
+    figureCaptionType: Type;
+    
     listType: Type;
     tableType: Type;
     codeType: Type;
@@ -56,7 +58,9 @@ export class Core extends Module {
 
         // Init syntax tree node type
         this.figureType = this.parser.typeTable.add("figure")!;
-        this.figureInfoType = this.parser.typeTable.add("figure-info")!;
+        this.figureItemType = this.parser.typeTable.add("figure-item")!;
+        this.figureCaptionType = this.parser.typeTable.add("figure-caption")!;
+
         this.listType = this.parser.typeTable.add("list")!;
         this.tableType = this.parser.typeTable.add("table")!;
         this.codeType = this.parser.typeTable.add("code")!;
@@ -247,72 +251,110 @@ export class Core extends Module {
     }
 
 
-    private figureBlockHandler(): Result<Node> {
+    figureBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.figureType));
         let preIndex = this.parser.index;
         this.parser.begin("figure-block-handler");
-        this.myFigureBlockHandler(result);
+        this.myFigureBlockHandler(result, args);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
         return result;
     }
 
-    private myFigureBlockHandler(result: Result<Node>) {
+    private myFigureBlockHandler(result: Result<Node>, args: Node) {
         let node = result.content;
         let msg = result.messages;
 
-        this.parser.skipMutilineBlank();
-
-        outer: while (this.parser.notEnd()) {
-            let figNode = new Node(this.figureInfoType, "");
-            if(this.parser.match("]").state === ResultState.successful) {
-                return;
+        for(let n of args.children) {
+            if(n.content == "small" || n.content == "medium" || n.content == "large") {
+                node.content = n.content;
             }
-            if(this.parser.match("`").state !== ResultState.successful) {
-                msg.push(this.parser.getMessage("Missing '`'."));
-                result.state = ResultState.matched;
-                return;
-            }
-            while(this.parser.notEnd()) {
-                if(this.parser.is("\n")) {
-                    msg.push(this.parser.getMessage("Figure path should not have line break."));
-                    result.state = ResultState.matched;
-                    return;
-                }
-                else if(this.parser.is("`")) {
-                    this.parser.move();
-                    this.parser.skipBlank();
-                    if(this.parser.match("[").state !== ResultState.successful) {
-                        msg.push(this.parser.getMessage("Missing '['."));
-                        result.state = ResultState.matched;
-                        return;
-                    }
+        }
+        this.parser.skipBlank();
 
-                    let tResult = this.parser.textBlockHandler();
-                    result.merge(tResult);
-                    if(tResult.state === ResultState.matched) {
-                        msg.push(this.parser.getMessage("Match caption failed."));
-                        return;
-                    }
-                    figNode.children.push(tResult.content);
-
-                    this.parser.skipMutilineBlank();
-                    node.children.push(figNode);
-
-                    continue outer;
-                }
-                else {
-                    figNode.content += this.parser.curChar();
-                    this.parser.move();
-                }
-            }
-            msg.push(this.parser.getMessage("Abruptly end."));
-            result.state = ResultState.matched;
+        result.merge(this.parser.match("["));
+        if (result.shouldTerminate) {
+            msg.push(this.parser.getMessage("Missing '['."));
             return;
         }
-        msg.push(this.parser.getMessage("Abruptly end."));
-        result.state = ResultState.matched;
-        return;
+
+        let ndRes = new Result(new Node(this.figureCaptionType));
+        this.parser.myTextLikeBlockHandler("figure", ndRes);
+        result.merge(ndRes);
+        if (result.shouldTerminate) {
+            msg.push(this.parser.getMessage("Match caption failed."));
+            return;
+        }
+        node.children.push(ndRes.content);
+
+        this.parser.skipBlank();
+
+        let symRes: Result<null>;
+
+        while (true) {
+            let itemNode = new Node(this.figureItemType, "");
+            if(this.parser.isEOF()) {
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage("Figure block ended abruptly."));
+                return;
+            }
+            else if((symRes = this.parser.match("]")).matched) {
+                result.merge(symRes);
+                return;
+            }
+
+            result.merge(this.parser.match("`"));
+            if(result.shouldTerminate) {
+                msg.push(this.parser.getMessage("Missing '`'."));
+                return;
+            }
+
+            while(true) {
+                if(this.parser.isEOF()) {
+                    msg.push(this.parser.getMessage("Abruptly end."));
+                    result.mergeState(ResultState.failing);
+                    return;
+                }
+                else if((symRes = this.parser.match("\n")).matched) {
+                    result.merge(symRes);
+                    msg.push(this.parser.getMessage("Figure path should not have line break."));
+                    return;
+                }
+                else if((symRes = this.parser.match("`")).matched) {
+                    result.merge(symRes);
+                    break;
+                }
+                else {
+                    itemNode.content += this.parser.curChar();
+                    this.parser.move();
+                }
+            }
+            node.children.push(itemNode);
+
+            this.parser.skipBlank();
+
+            if ((symRes = this.parser.match("[")).matched) {
+                result.merge(symRes);
+                // if (result.shouldTerminate) {
+                //     msg.push(this.parser.getMessage("Missing '['."));
+                //     return;
+                // }
+
+                let ndRes = new Result(new Node(this.figureCaptionType));
+                this.parser.myTextLikeBlockHandler("figure", ndRes);
+                result.merge(ndRes);
+                if (result.shouldTerminate) {
+                    msg.push(this.parser.getMessage("Match caption failed."));
+                    return;
+                }
+                itemNode.children.push(ndRes.content);
+            }
+
+            this.parser.skipBlank();
+        }
     }
 }

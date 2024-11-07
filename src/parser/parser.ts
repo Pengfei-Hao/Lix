@@ -15,6 +15,7 @@ import { Message, MessageType } from "../foundation/message";
 import { notebooks } from "vscode";
 import { format } from "path";
 import { Core } from "./core/core";
+import { Article } from "./article/article";
 
 
 export type MatchResult = Result<Node>;
@@ -101,7 +102,7 @@ export class Parser {
 
         this.mathModule = new Math(this);
         this.coreModule = new Core(this);
-        this.modules = [this.mathModule, this.coreModule];
+        this.modules = [this.mathModule, this.coreModule, new Article(this)];
 
         this.text = "";
         this.index = 0;
@@ -362,7 +363,22 @@ export class Parser {
         return result;
     }
 
-    private myParagraphBlockHandler(result: Result<Node>, args: Node) {
+
+    paragraphLikeBlockHandler(blockName: string, args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = new Result<Node>(new Node(this.paragraphType));
+        let preIndex = this.index;
+        this.begin(`${blockName}-block-handler`);
+        this.myParagraphBlockHandler(result, args);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    private myParagraphBlockHandler(result: Result<Node>, args: Node, blockName: string = "paragraph") {
         let node = result.content;
         let msg = result.messages;
 
@@ -678,7 +694,7 @@ export class Parser {
                 }
                 result.GuaranteeMatched();
                 result.merge(ndRes);
-                this.move();
+                //this.move();
 
                 if (result.shouldTerminate) {
                     //msg.push(this.getMessage("Match embeded formula failed."));
@@ -844,7 +860,7 @@ export class Parser {
                 }
                 result.GuaranteeMatched();
                 result.merge(ndRes);
-                this.move();
+                //this.move();
 
                 if (result.shouldTerminate) {
                     //msg.push(this.getMessage("Match embeded formula failed."));
@@ -894,6 +910,10 @@ export class Parser {
             this.index = preIndex;
         }
         return result;
+    }
+
+    myTextLikeBlockHandler(blockName: string, result: Result<Node>, args: Node = new Node(this.argumentsType)) {
+        this.myTextBlockHandler(result, args);
     }
 
     private myTextBlockHandler(result: Result<Node>, args: Node) {
@@ -1000,7 +1020,7 @@ export class Parser {
                     text = "";
                 }
                 result.merge(ndRes);
-                this.move();
+                //this.move();
 
                 if (result.shouldTerminate) {
                     //msg.push(this.getMessage("Match embeded formula failed."));

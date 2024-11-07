@@ -1,9 +1,16 @@
+[title Formula Test]
 
-[text 1. math accent, vec, hat, arrow]
+[author Lix]
+
+[date 2024.11.3]
+
+[section Introduction]
+
+[subsection math accent, vec, hat, arrow]
 
 有 Unicode 字符的直接打出来, 如: Â â ȧ; 没有的用指令: /dot A /,
 
-[text 2. sub \/ superscript]
+[subsection sub \/ superscript]
 
 /[[] ^ b𝛗 _ c𝛔]/, /a _ b ^ c/ \\
 数字直接用/⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉/ ᵃᵇᶜ ᵈ ᵉ ᵍ ʰ ⁱ ʲ ᵏ ˡ ᵐ ⁿ ᵒ ᵖ ᵒ ʳ ˢ ᵗ ᵘ ᵛ ʷ ˣ ʸ ᙆ / x¹² /
@@ -12,46 +19,46 @@
 同样的表达式用latex.
 ${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
 
-[text 3. brackets]
+[subsection brackets]
 
 /[{ case1  case2 }] /, /(1 2 3)/ 
 配对的括号直接输入, /() {} <>/
 
 
-[text 4. frac]
+[subsection frac]
 
 / [a b ⁄ c d] /, / a ⁄ b/ 
 单字用 / a /, /b/
 复杂字用 / [a b] ⁄ [c d]/
 
 
-[text 5. sqrt]
+[subsection sqrt]
 
 /  √ [ 2  a]/, / √ a /
 / 3 √ [ a ^ 3]/
 
-[text 6. sum, int, pi, lim, binom]
+[subsection sum, int, pi, lim, binom]
 
 /∑ a to b: c/
 
-[text 7. mat]
+[subsection mat]
 
 /mat [a b]/
 
-[text 8. cases]
+[subsection cases]
 
 /[cases a ; b]/
 
-[text 9. quad, qquad \ \;\,]
+[subsection quad, qquad \ \;\,]
 
 /quad qquad/
 
 
 
-[text Example of Formulas]
+[section Example of Formulas]
 
 [formula 
-[lim norm h ↦ 0 : norm [f(x+h)-f(x)-Ah]_F ⁄ norm h_E]=0
+[lim norm h ↦ 0 : norm [f(x+h)-f(x)-A h]_F ⁄ norm h_E]=0
 ]
 
 [formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
@@ -60,14 +67,14 @@ ${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
 
 /[∑ i=1 to N: i × i]/
 
-/["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[12] x_2)/
+/["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[1 2] x_2)/
 
 
 / [lim i,j→∞ : ( [∑ i=1 to n : f(i)] ) ( [∑ j=1 to n: g(j)] )]
 = lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)/
 
 
-
+[section Other]
 
 [formula 
 
