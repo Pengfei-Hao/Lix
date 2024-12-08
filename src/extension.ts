@@ -93,7 +93,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// completion provider
 
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", " ")
+		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[")
 	);
 
 	// semantic token provider
@@ -152,9 +152,15 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
+let showParser = false;
+
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	let doc = getDocument(change.textEditor.document);
 	if(!doc) {
+		return;
+	}
+
+	if(!showParser) {
 		return;
 	}
 	
@@ -233,13 +239,14 @@ async function compile() {
 	if(!document) {
 		return;
 	}
-
+	
 	let parser = parseDocument(document);
 	let generator = new LatexGenerator(parser.typeTable, config);
-	let latex = generator.generate(parser.syntaxTree);
+	let latex = await generator.generate(parser.syntaxTree);
 
 	let encoder = new TextEncoder();
 	let uri = vscode.window.activeTextEditor?.document.uri!;
+	vscode.workspace.saveAll();
 
 	let pat = uri.path;
 	let tem = pat.split("/").at(-1);
@@ -253,11 +260,11 @@ async function compile() {
 	//vscode.workspace.fs.writeFile(vscode.Uri.file('./temp.tex'), encoder.encode(latex));
 
 	let terminal = vscode.window.createTerminal("Latex Compiler");
-	terminal.sendText("cd " + vscode.Uri.joinPath(uri, "../").fsPath);
-	terminal.sendText("xelatex -synctex=1 -interaction=nonstopmode \"" + uri.fsPath + "\"");
+	terminal.sendText(`cd "${vscode.Uri.joinPath(uri, "../").fsPath}"`);
+	terminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${uri.fsPath}"`);
 	turi = vscode.Uri.joinPath(turi, tem + ".pdf");
 	//terminal.sendText("start msedge \"" + turi.fsPath + "\"");
-	terminal.sendText(`open -a safari ${turi.fsPath}`);
+	terminal.sendText(`open -a safari "${turi.fsPath}"`);
 	//showPDF(turi.fsPath);
 }
 
@@ -269,7 +276,7 @@ async function generate() {
 
 	let parser = parseDocument(document);
 	let generator = new LatexGenerator(parser.typeTable, config);
-	let latex = generator.generate(parser.syntaxTree);
+	let latex = await generator.generate(parser.syntaxTree);
 
 	documentProvider.updateContent(getUri(document, "generate"), latex);
 
@@ -286,21 +293,7 @@ async function parse() {
 }
 
 function helloWorld() {
-	//test1();
-	console.log("hello world!");
-	let h = new Heap<number>();
-	h.push(1);
-	h.push(2);
-	h.push(3);
-	h.pop();
-	h.pop();
-	let y = h.top();
-
-	let i = new Ref<number>(0);
-	i.value = 10086;
-	let j = i;
-	j.value =123;
-	console.log(i.value);
+	showParser = !showParser;
 }
 
 // **************** assistance ****************
@@ -310,7 +303,7 @@ export function parseDocument(document: vscode.TextDocument): Parser {
 
 	let parser = lixContext.getParser(document);
 	parser.parse(document.getText());
-	console.log(`Document '${document.fileName}' parsered.`);
+	//console.log(`Document '${document.fileName}' parsered.`);
 
 	updateDiagnostic(document, lixContext);
 

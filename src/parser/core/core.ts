@@ -38,7 +38,7 @@ export class Core extends Module {
         this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this);
         this.parser.blockHandlerTable.add("list", this.parser.textBlockHandler, this.parser);
         this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
-        this.parser.blockHandlerTable.add("code", this.parser.textBlockHandler, this.parser);
+        this.parser.blockHandlerTable.add("code", this.codeBlockHandler, this);
 
         // format blocks
         this.parser.formatBlocks.add("emph");
@@ -220,7 +220,7 @@ export class Core extends Module {
                     text = "";
                 }
                 result.merge(ndRes);
-                this.parser.move();
+                //this.parser.move();
 
                 if (result.shouldTerminate) {
                     //msg.push(this.parser.getMessage("Match embeded formula failed."));
@@ -355,6 +355,79 @@ export class Core extends Module {
             }
 
             this.parser.skipBlank();
+        }
+    }
+
+    codeBlockHandler(args: Node): Result<Node> {
+        let result = new Result<Node>(new Node(this.codeType));
+        let preIndex = this.parser.index;
+        this.parser.begin("code-block-handler");
+        this.myCodeBlockHandler(result, args);
+        this.parser.end();
+        result.content.begin = preIndex;
+        result.content.end = this.parser.index;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
+        return result;
+    }
+
+    private myCodeBlockHandler(result: Result<Node>, args: Node) {
+        let node = result.content;
+        let msg = result.messages;
+
+        for(let n of args.children) {
+            if(n.content == "small" || n.content == "medium" || n.content == "large") {
+                node.content = n.content;
+            }
+        }
+        result.merge(this.parser.skipBlank());
+
+        let symRes: Result<null>;
+        let count = 0;
+        while((symRes = this.parser.match("`")).matched) {
+            result.merge(symRes);
+            count++;
+        }
+        result.merge(this.parser.skipBlank());
+
+        result.merge(this.parser.match("\n"));
+        if(result.shouldTerminate) {
+            msg.push(this.parser.getMessage("First line should not have codes."));
+            return;
+        }
+
+        let occur = 0;
+        while (true) {
+            if(this.parser.isEOF()) {
+                
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage("Code block ended abruptly."));
+                return;
+            }
+            else if((symRes = this.parser.match("]")).matched) {
+                result.merge(symRes);
+                if(occur == count) {
+                    node.content = node.content.slice(0, -occur);
+                    return;
+                }
+                occur=0;
+                node.content += "]";
+            }
+
+            else if((symRes = this.parser.match("`")).matched) {
+                result.merge(symRes);
+                occur++;
+                node.content += "`";
+            }
+
+            else {
+                result.mergeState(ResultState.successful);
+                occur = 0;
+                node.content += this.parser.curChar();
+                this.parser.move();
+            }
+
         }
     }
 }

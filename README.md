@@ -14,6 +14,8 @@ npm install
 ```
 安装所需的依赖库, 然后按`F5`或在`Run and Debug`中点击绿色箭头即可运行.
 
+在成功安装后, 在VSCode 的配置 Font Family 中添加 `STIX Two Math`, 并禁用 `Ambiguous Characters`.
+
 ## 使用
 
 新建（或打开`./tests/`目录中）拓展名为 `lix` 的文件, 即可使用 Lix.

@@ -7,3 +7,15 @@
 [figure(medium) [Multiple Figure /a^b/ Test] `./fig1.jpg`[A test /∑ i=1 to n :/ figure.] `./fig2.jpg`]
 
 [figure(small) [Single Figure Test] `./fig3.jpg`[Single test figure.] ]
+
+[section Code Test]
+
+[code `
+Latex Code.
+\begin{document}
+$\frac{1}{2}=0.5$
+\end{document}
+
+Lix Code.
+/[1⁄2] = 0.5/
+` `]

@@ -14,5 +14,5 @@ export abstract class Generator {
         this.syntaxTree = new Node(doc);
     }
 
-    abstract generate(syntaxTree: Node): string;
+    abstract generate(syntaxTree: Node): Promise<string>;
 }
