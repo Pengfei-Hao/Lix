@@ -8,7 +8,7 @@ import { TypeTable } from "../sytnax-tree/type-table";
 import { BlockHandlerTable, HandlerFunction } from "./block-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
-import { Config } from "../foundation/config";
+import { VSCodeConfig } from "../extension/vscode-config";
 import { Highlight, HighlightType, Result, ResultState } from "../foundation/result";
 import { off, send } from "process";
 import { Message, MessageType } from "../foundation/message";
@@ -16,6 +16,7 @@ import { notebooks } from "vscode";
 import { format } from "path";
 import { Core } from "./core/core";
 import { Article } from "./article/article";
+import { Config } from "../compiler/config";
 
 
 export type MatchResult = Result<Node>;
@@ -61,7 +62,7 @@ export class Parser {
 
     // Message list
     messageList: Message[];
-    lineRanges: [number, number][];
+    lineRanges: number[];
     process: string[];
 
     // Highlights
@@ -1775,34 +1776,6 @@ export class Parser {
         }
     }
 
-    // Match: failing | successful, non-msg
-
-    match(text: string): Result<null> {
-        let result = new Result<null>(null);
-        let preIndex = this.index;
-        this.begin(`match'${text}'`);
-        this.myMatch(text, result);
-        this.end();
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
-    }
-
-    private myMatch(text: string, result: Result<null>) {
-        let length = text.length;
-        if (!this.notEnd(length - 1)) {
-            return;
-        }
-        result.mergeState(ResultState.successful);
-        for (let i = 0; i < length; i++, this.move()) {
-            if (this.curChar() != text[i]) {
-                result.mergeState(ResultState.failing);
-                break;
-            }
-        }
-    }
-
     // MatchSinglelineBlank: failing | skippable | successful
 
     matchSinglelineBlank(): Result<null> {
@@ -2044,36 +2017,120 @@ export class Parser {
         return result;
     }
 
+    // **************** Terminal Token ****************
+
+    // Match: failing | successful, non-msg
+
+    match(text: string): Result<null> {
+        let result = new Result<null>(null);
+        let preIndex = this.index;
+        this.begin(`match'${text}'`);
+        this.myMatch(text, result);
+        this.end();
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    private myMatch(text: string, result: Result<null>) {
+        let length = text.length;
+        if (!this.notEnd(length - 1)) {
+            return;
+        }
+        result.mergeState(ResultState.successful);
+        for (let i = 0; i < length; i++, this.move()) {
+            if (this.curChar() != text[i]) {
+                result.mergeState(ResultState.failing);
+                break;
+            }
+        }
+    }
+
+    // **************** 'is' series functions ****************
+
+    static nameChar = /[A-Za-z0-9-]/;
+    static blank = /[\t \v\f]/;
+    static newline = /[\r\n]/;
+
+    isEOF(): boolean {
+        return !this.notEnd();
+    }
+
+    is(text: string): boolean;
+    is(exp: RegExp): boolean;
+    is(condition: string | RegExp): boolean;
+    is(condition: string | RegExp): boolean {
+        if (typeof (condition) === "string") {
+            let length = condition.length;
+            if (!this.notEnd(length - 1)) {
+                return false;
+            }
+            for (let i = 0; i < length; i++, this.move()) {
+                if (this.curChar() !== condition[i]) {
+                    this.move(-i);
+                    return false;
+                }
+            }
+            this.move(-length);
+            return true;
+        }
+        else {
+            if (this.isEOF()) {
+                return false;
+            }
+            return condition.exec(this.curChar()) !== null;
+        }
+    }
+
+    // Deprecated
+    // isUnicode(char: string): boolean {
+    //     return this.text.codePointAt(this.index) === char.codePointAt(0);
+    // }
+
+    // nextIs(char: string): boolean;
+    // nextIs(exp: RegExp): boolean;
+    // nextIs(condition: string | RegExp) {
+    //     if (this.notEnd(1)) {
+    //         this.move();
+    //         var res = this.is(condition);
+    //         this.move(-1);
+    //         return res;
+    //     }
+    //     else {
+    //         return false;
+    //     }
+    // }
+
     // **************** line number & message generate ****************
 
     // Line and character
 
     generateLineRanges() {
-        let range: [number, number] = [0, 0]; // [begin, end)
+        this.lineRanges.push(0);
         for (let i = 0; i <= this.text.length; i++, this.move()) {
             if (this.isEOF() || this.is(Parser.newline)) {
-                range[1] = i + 1;
-                this.lineRanges.push(range);
-                range = [0, 0];
-                range[0] = i + 1;
+                this.lineRanges.push(i + 1);
             }
         }
         this.index = 0;
     }
 
     getLineAndCharacter(index: number = this.index): { line: number, character: number } | undefined {
-        for (let i = 0; i <= this.lineRanges.length; i++) {
-            if (this.lineRanges[i][0] <= index && index < this.lineRanges[i][1]) {
-                return { line: i, character: index - this.lineRanges[i][0] };
+        // Use binary search to accerlate
+        // this.lineRanges starts with 0 and ends with length+1
+        for (let i = 0; i < this.lineRanges.length - 1; i++) {
+            if (this.lineRanges[i] <= index && index < this.lineRanges[i + 1]) {
+                return { line: i, character: index - this.lineRanges[i] };
             }
         }
         return undefined;
     }
 
     getIndex(line: number, character: number): number | undefined {
-        if (0 <= line && line < this.lineRanges.length) {
-            if (character >= 0 && character + this.lineRanges[line][0] < this.lineRanges[line][1]) {
-                return character + this.lineRanges[line][0];
+        if (0 <= line && line < this.lineRanges.length - 1) {
+            if (character >= 0 && character + this.lineRanges[line] < this.lineRanges[line + 1]) {
+                return character + this.lineRanges[line];
             }
         }
         return undefined;
@@ -2111,58 +2168,10 @@ export class Parser {
         }
     }
 
-    // **************** 'is' series functions ****************
-
-    static nameChar = /[A-Za-z0-9-]/;
-    static blank = /[\t \v\f]/;
-    static newline = /[\r\n]/;
-    static eof = 0;
-
-    isEOF(): boolean {
-        return !this.notEnd();
-    }
-
-    // must ensure not end.
-    is(char: string): boolean;
-    is(exp: RegExp): boolean;
-    is(eof: number): boolean;
-    is(condition: string | RegExp | number): boolean;
-    is(condition: string | RegExp | number): boolean {
-        if (this.isEOF()) {
-            return false;
-        }
-        if (typeof (condition) === "string") {
-            return this.curChar() === condition;
-        }
-        else if (typeof (condition) === "number") {
-            return !this.notEnd();
-        }
-        else {
-            return condition.exec(this.curChar()) !== null;
-        }
-
-    }
-
-    isUnicode(char: string): boolean {
-        return this.text.codePointAt(this.index) === char.codePointAt(0);
-    }
-
-    nextIs(char: string): boolean;
-    nextIs(exp: RegExp): boolean;
-    nextIs(condition: string | RegExp) {
-        if (this.notEnd(1)) {
-            this.move();
-            var res = this.is(condition);
-            this.move(-1);
-            return res;
-        }
-        else {
-            return false;
-        }
-    }
 
     // **************** index control ****************
 
+    // Deprecated
     notEnd(offset: number = 0): boolean {
         return this.index + offset < this.text.length;
     }
@@ -2181,8 +2190,6 @@ export class Parser {
             this.move();
         }
     }
-
-
 
     curChar(): string {
         return this.text[this.index];

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { LixContext } from './lixContext';
+import { LixContext } from './lix-context';
 import { HighlightType } from '../foundation/result';
-import { parseDocument } from '../extension';
+import { parseFromDocument } from '../extension';
 
 export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
@@ -16,12 +16,12 @@ export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvide
   provideDocumentSemanticTokens(document: vscode.TextDocument): vscode.ProviderResult<vscode.SemanticTokens> {
     
     // analyze the document and return semantic tokens
-    parseDocument(document);
+    parseFromDocument(document);
 
     const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend);
     // on line 1, characters 1-5 are a class declaration
     
-    let parser = this.context.getParser(document);
+    let parser = this.context.getCompiler(document.uri).parser;
     let highlights = parser.highlights;
     for (let hlt of highlights) {
       let type = "";

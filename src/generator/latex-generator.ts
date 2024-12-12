@@ -2,17 +2,13 @@
  * Latex generator: translate syntax tree to latex source
  */
 
-import { TextDecoder } from "util";
-import { Config } from "../foundation/config";
-import { Result } from "../foundation/result";
-import { Parser } from "../parser/parser";
 import { Node } from "../sytnax-tree/node";
 import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
 import { Generator } from "./generator";
-
-import * as vscode from 'vscode';
-import { FileSystem } from "vscode-languageserver/lib/node/files";
+import { Compiler } from "../compiler/compiler";
+import { FileOperation } from "../compiler/file-operation";
+import { Config } from "../compiler/config";
 
 // latex generate
 
@@ -68,16 +64,6 @@ export class LatexGenerator extends Generator {
     subsectionType: Type;
     subsubsectionType: Type;
 
-
-    // fractionType: Type;
-    // matrixType: Type;
-    // sqrtType: Type;
-    // sumType: Type;
-    // limitType: Type;
-    // integralType: Type;
-    // scriptType: Type;
-    // bracketsType: Type;
-
     // Introduction & Document
     introduction: string;
     document: string;
@@ -95,10 +81,14 @@ export class LatexGenerator extends Generator {
 
     //unicodeSymbolsToNotations: Map<string, string>;
 
+    config: Config;
+    fileOperation: FileOperation;
 
 
-    constructor(typeTable: TypeTable, config: Config) {
-        super(typeTable, config);
+    constructor(typeTable: TypeTable, compiler: Compiler) {
+        super(typeTable, compiler);
+        this.config = compiler.config;
+        this.fileOperation = compiler.fileOperation;
 
         this.introduction = "";
         this.document = "";
@@ -153,7 +143,6 @@ export class LatexGenerator extends Generator {
         // this.bracketsType = this.typeTable.get("brackets")!;
         // this.matrixType = this.typeTable.get("matrix")!;
 
-
         // Init node generator table
         // this.nodeGeneratorTable = new Map([
         //     ["title", this.generateTitleAuthorDate],
@@ -170,30 +159,23 @@ export class LatexGenerator extends Generator {
 
         // Init math symbols
         this.latexFormula = new Map();
-        let json: { map: [string, string] } = JSON.parse(config.get("latex"));
+        let json: { map: [string, string] } = JSON.parse(this.config.get("latex"));
         for (let [key, value] of json.map) {
             this.latexFormula.set(key, value);
         }
-
-        // let jsonMath = config.get("math");
-        // let configMath: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(jsonMath);
-
-        // this.unicodeSymbolsToNotations = new Map();
-        // for (let tmp of configMath.UnicodeSymbolsAndNotations) {
-        //     this.unicodeSymbolsToNotations.set(tmp[0], tmp[1]);
-        // }
     }
 
 
     // generate
 
-    async generate(syntaxTree: Node): Promise<string> {
+    async generate(syntaxTree: Node) {
         this.syntaxTree = syntaxTree;
 
         this.introduction = "";
         this.document = "";
         this.hasMakedTitle = false;
 
+        this.output = "";
 
         this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
         this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
@@ -206,7 +188,7 @@ export class LatexGenerator extends Generator {
         
         this.addContent(await this.generateDocument(this.syntaxTree));
 
-        return `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
+        this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
 
     }
 
@@ -454,13 +436,6 @@ export class LatexGenerator extends Generator {
         return res;
     }
 
-    async copyFile(name: string) {
-        let uri = vscode.window.activeTextEditor?.document.uri!;
-        let suri = vscode.Uri.joinPath(uri, "..", name);
-        let turi = vscode.Uri.joinPath(uri, "..", "lix_temp", name);
-        vscode.workspace.fs.copy(suri,turi, {overwrite:true});
-    }
-
     // GenerateFigure
     // Syntax Tree type: figure
     async generateFigure(node: Node): Promise<string> {
@@ -494,18 +469,16 @@ export class LatexGenerator extends Generator {
         }
         else if(node.children.length == 2) {
             let path = node.children[1].content;
-            if(path.split(".").at(-1) === "tikz") {
-                this.copyFile(path);
-                let uri = vscode.window.activeTextEditor?.document.uri!;
-                let file = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(uri, "..", path))
-                let decoder = new TextDecoder();
-                text += decoder.decode(file);
+            //if(path.split(".").at(-1) === "tikz") {
+            if(this.fileOperation.getFileExtension(path) === "tikz") {
+                await this.fileOperation.copyFile(path, "./.lix/");
+                let file = await this.fileOperation.readFile(path);
+                text += file ?? "";
                 text += "\n";
-                
             } 
             else {
                 text += `\\includegraphics[width = ${size}\\linewidth]{${path}}\n`;
-                this.copyFile(path);
+                await this.fileOperation.copyFile(path, "./.lix/");
             }
         }
         else {
@@ -514,7 +487,7 @@ export class LatexGenerator extends Generator {
                     continue;
                 }
                 text += `\\subcaptionbox{${n.children.length > 0 ? this.generateText(n.children[0], true) : ""}}{\n\\includegraphics[width = ${size}\\linewidth]{${n.content}}}\n`;
-                this.copyFile(n.content);
+                await this.fileOperation.copyFile(n.content, "./.lix/");
             }
         }
         let caption = node.children[0];
@@ -576,7 +549,7 @@ export class LatexGenerator extends Generator {
                         res += `{\\sum_${this.generateExpression(node.children[0])}^${this.generateExpression(node.children[1])}${this.generateExpression(node.children[2])}}`;
                         break;
                     case "dot":
-                        res += `{\\dot ${this.generateTerm(node.children[0])}}`;
+                        res += `{\\dot{${this.generateTerm(node.children[0])}}}`;
                         break;
                     case "√":
                         res += `{\\sqrt ${this.generateTerm(node.children[0])}}`;
@@ -588,7 +561,7 @@ export class LatexGenerator extends Generator {
                         res += `{\\Vert ${this.generateTermOrOperator(node.children[0])} \\Vert}`;
                         break;
                     case "tilde":
-                            res += `{\\widetilde ${this.generateTermOrOperator(node.children[0])}}`;
+                            res += `{\\widetilde{${this.generateTermOrOperator(node.children[0])}}}`;
                             break;
                     case "mat":
                         res += `{${this.generateExpression(node.children[0])}}`;
@@ -600,7 +573,7 @@ export class LatexGenerator extends Generator {
                         res += `{\\left\\{${this.generateExpression(node.children[0])}\\right\\}}`;
                         break;
                     case "⟨":
-                        res += `\\left\\langle{${this.generateExpression(node.children[0])}\\right\\rangle}`;
+                        res += `{\\left\\langle${this.generateExpression(node.children[0])}\\right\\rangle}`;
                         break;
                 }
         }
@@ -632,90 +605,6 @@ export class LatexGenerator extends Generator {
         }
         return res;
     }
-
-    // generateTerm(node: Node): string {
-    //     let res = "";
-
-    //     switch (node.type) {
-    //         case this.inlineTextType:
-    //             res += `\\text{${node.content}} `;
-    //             break;
-
-    //         case this.elementType:
-    //             let sym = this.latexFormula.get(node.content);
-    //             res += sym ?? `{[[${node.content}]]} `;
-    //             break;
-
-    //         case this.expressionType:
-    //             res += `{${this.generateExpression(node)}} `;
-    //             break;
-
-    //         case this.prefixType:
-    //             switch (node.content) {
-    //                 case "lim":
-    //                     res += `{\\lim_{${this.generateExpression(node.children[0])}}${this.generateExpression(node.children[1])}}`;
-    //                     break;
-    //                 case "⋃":
-    //                     res += `{\\bigcup_{${this.generateExpression(node.children[0])}}^{${this.generateExpression(node.children[1])}}${this.generateExpression(node.children[2])}}`;
-    //                     break;
-    //                 case "⋂":
-    //                     res += `{\\bigcap_{${this.generateExpression(node.children[0])}}^{${this.generateExpression(node.children[1])}}${this.generateExpression(node.children[2])}}`;
-    //                     break;
-    //                 case "∑":
-    //                     res += `{\\sum_{${this.generateExpression(node.children[0])}}^{${this.generateExpression(node.children[1])}}${this.generateExpression(node.children[2])}}`;
-    //                     break;
-    //                 case "dot":
-    //                     res += `{\\dot ${this.generateTerm(node.children[0])}}`;
-    //                     break;
-    //                 case "√":
-    //                     res += `{\\sqrt ${this.generateTerm(node.children[0])}}`;
-    //                     break;
-    //                 case "cases":
-    //                     res += `{${this.generateTerm(node.children[0])}}`;
-    //                     break;
-    //                 case "norm":
-    //                     res += `{\\Vert ${this.generateTermOrOperator(node.children[0])} \\Vert}`;
-    //                     break;
-    //                 case "mat":
-    //                     res += `{${this.generateExpression(node.children[0])}}`;
-    //                     break;
-    //                 case "(":
-    //                     res += `{\\left(${this.generateExpression(node.children[0])}\\right)}`;
-    //                     break;
-    //                 case "{":
-    //                     res += `{\\left\\{${this.generateExpression(node.children[0])}\\right\\}}`;
-    //                     break;
-    //                 case "⟨":
-    //                     res += `\\left\\langle{${this.generateExpression(node.children[0])}\\right\\rangle}`;
-    //                     break;
-    //             }
-    //     }
-
-    //     return res;
-    // }
-
-    // generateOperator(node: Node): string {
-    //     let res = "";
-
-    //     switch (node.type) {
-    //         case this.infixType:
-    //             switch (node.content) {
-    //                 case "⁄":
-    //                     res += `\\frac {${this.generateTermOrOperator(node.children[0])}} {${this.generateTermOrOperator(node.children[1])}}`;
-    //                     break;
-    //                 default:
-    //                     let i = 0;
-    //                     for (let sub of node.children) {
-    //                         res += `{${this.generateTermOrOperator(sub)}}`;
-    //                         res += (i < node.content.length) ? node.content[i] : "";
-    //                         i++;
-    //                     }
-    //                     break;
-
-    //             }
-    //     }
-    //     return res;
-    // }
 
     generateTermOrOperator(node: Node): string {
         let res = "";

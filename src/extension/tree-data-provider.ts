@@ -1,4 +1,4 @@
-import { LixContext } from "./lixContext";
+import { LixContext } from "./lix-context";
 import * as vscode from 'vscode';
 
 export class LabelProvider implements vscode.TreeDataProvider<string> {
@@ -15,7 +15,7 @@ export class LabelProvider implements vscode.TreeDataProvider<string> {
         }
         if(!element) {
             let res = [];
-            for(let label of this.context.getParser(document).blockHandlerTable.blockHandlers.keys()) {
+            for(let label of this.context.getCompiler(document.uri).parser.blockHandlerTable.blockHandlers.keys()) {
                 res.push(label);
             }
             return res;
@@ -44,7 +44,7 @@ export class MathLabelProvider implements vscode.TreeDataProvider<string> {
         if(!document) {
             return [];
         }
-        let parser = this.context.getParser(document);
+        let parser = this.context.getCompiler(document.uri).parser;
         if(!element) {
             let res = [];
             for(let label of parser.mathModule.blockHandlerTable.definations.keys()) {

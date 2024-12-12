@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { LixContext } from './lixContext';
+import { LixContext } from './lix-context';
 import { MessageType } from '../foundation/message';
 import { ResultState } from '../foundation/result';
 import { diagnosticCollection } from '../extension';
@@ -7,7 +7,7 @@ import { diagnosticCollection } from '../extension';
 
 export function updateDiagnostic(document: vscode.TextDocument, context: LixContext) {
 
-    let parser = context.getParser(document)!;
+    let parser = context.getCompiler(document.uri).parser;
     let messageList = parser.messageList;
 	let state = parser.state;
 

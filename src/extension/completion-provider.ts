@@ -1,9 +1,7 @@
 import * as vscode from 'vscode';
 import { Parser } from '../parser/parser';
-import { LixContext } from './lixContext';
-import { CompletionTriggerKind } from 'vscode-languageclient';
+import { LixContext } from './lix-context';
 import { Node } from '../sytnax-tree/node';
-import { start } from 'repl';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
     context: LixContext;
@@ -20,7 +18,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         }
 
         let res: vscode.CompletionItem[] = [];
-        let parser = this.context.getParser(document)!;
+        let parser = this.context.getCompiler(document.uri).parser;
 
         if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
             //if (this.inMath(parser, parser.getIndex(position.line, position.character-1)!)) {
@@ -60,14 +58,6 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                         res.push(comp);
                     }
                 })
-
-                // for (let item of parser.mathModule.blockHandlerTable.definations.keys()) {
-                //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Keyword);
-                //     comp.insertText = item + " ";
-                //     comp.detail = "user-defined math symbol from lix.";
-                //     comp.range = range;
-                //     res.push(comp);
-                // }
             }
         }
 
@@ -103,29 +93,6 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
             }
             node = undefined;
         }
-
-        /*
-        for(let i = 0; i < syntax.children.length; i++) {
-            if(syntax.children[i].begin <= pos && pos < syntax.children[i].end) {
-                node = syntax.children[i];
-                break;
-            }
-        }
-        if(!node) {
-            return false;
-        }
-
-        for(let i = 0; i < node.children.length; i++) {
-            if(node.children[i].begin <= pos && pos < node.children[i].end) {
-                node = node.children[i];
-                break;
-            }
-        }
-        if(node && node.type === parser.mathModule.formulaType) {
-            return true;
-        }
-        return false;
-        */
     }
 
 }

@@ -3,4 +3,6 @@
 node_modules
 out
 tests/lix_temp
+tests/.lix
+tests/*.pdf
 package-lock.json

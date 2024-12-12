@@ -197,10 +197,10 @@ match 函数的基本模式是顺序匹配, 按照从左到右的顺序挨个匹
 #### 准备阶段
 
 * 记录当前的index为preIndex, 用于state 为failing时恢复.
-* node 堆栈begin
-* state 设为failing
+* node 堆栈 begin
+* state 设为 failing
 * new Node
-* node 的range begin 设为当前的index.
+* node 的 range begin 设为当前的index.
 
 ```
 let result = new Result<Node>(new Node(this.xxxType));
@@ -517,17 +517,30 @@ formula 部分会经历两次分析, 第一次是词法分析, 第二次是语�
 
 ### Rules
 
-**Foundation**
+#### Foundation
 
-状态不使用 matched,
-不产生 message,
-只使用 result 中的 state, content, preIndex
+* result
+  * state: f, m, sk, s
+  * content
+    * type: type
+    * content: ""
+    * children: [type, content, children, range]
+    * range: [begin, end]
+  * messages: [pos: type, msg]
+  * highlight: [begin, end: type]
 
 ```
 name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)
-= matchName(): Result<string>
-- state: 只要匹配到就是successful, 否则failing
-- content: 
+[matchName]
+* result
+  * state: f, s
+  * content
+    * type: nameType
+    * content: "name..."
+    * children: []
+    * range: [begin, end]
+  * messages: [pos: type, msg]
+  * highlight: [begin, end: type]
 
 newline -> [\r\n]
 blankchar -> [\t \v\f]

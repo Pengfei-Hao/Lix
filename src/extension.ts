@@ -4,17 +4,17 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { workspace } from 'vscode';
 
-import { TextEncoder } from 'util';
+import { TextDecoder, TextEncoder } from 'util';
 import { Parser } from './parser/parser';
 import { Generator } from './generator/generator';
 import { LatexGenerator } from './generator/latex-generator';
-import { Config } from './foundation/config';
-import { LixCompletionProvider } from './extension/completionProvider';
-import { LixContext } from './extension/lixContext';
-import { LabelProvider, MathLabelProvider } from './extension/treeDataProvider';
-import { LatexProvider } from './extension/documentProvider';
-import { LixSemanticProvider } from './extension/semanticProvider';
-import { updateDiagnostic } from './extension/diagnosticProvider';
+import { VSCodeConfig } from './extension/vscode-config';
+import { LixCompletionProvider } from './extension/completion-provider';
+import { LixContext } from './extension/lix-context';
+import { LabelProvider, MathLabelProvider } from './extension/tree-data-provider';
+import { LatexProvider } from './extension/document-provider';
+import { LixSemanticProvider } from './extension/semantic-provider';
+import { updateDiagnostic } from './extension/diagnostic-provider';
 import { ResultState } from './foundation/result';
 import { Heap } from './foundation/heap';
 import { Ref } from './foundation/ref';
@@ -22,7 +22,7 @@ import { DocumentFilter, DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
 
 
-let config: Config;
+let config: VSCodeConfig;
 let lixContext: LixContext;
 
 let documentProvider = new LatexProvider();
@@ -53,6 +53,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.debug', debug)
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.test', async () => {
 			let msg = "";
 			if(workspace.name) {
@@ -77,9 +81,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// load configs
 
-	config = new Config(context.extensionUri);
+	config = new VSCodeConfig(context.extensionUri);
 	let success = await config.readAll();
-	console.log(`Configs loading success: ${success}`);
+	//console.log(`Configs loading success: ${success}`);
 
 	// lix contexts
 
@@ -116,6 +120,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// events
 
+	context.subscriptions.push(
+		vscode.window.onDidCloseTerminal(onTerminalClosed)
+	);
+
 	// context.subscriptions.push(
 	// 	vscode.workspace.onDidOpenTextDocument(onOpen)
 	// );
@@ -138,7 +146,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Successfully init
 
-	console.log('Congratulations, your extension "lix" is now active!');
+	console.log('Lix started successfully!');
+	//vscode.window.showInformationMessage("Lix started successfully!");
 }
 
 // This method is called when your extension is deactivated
@@ -152,25 +161,25 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let showParser = false;
+let isDebugging = false;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
-	let doc = getDocument(change.textEditor.document);
-	if(!doc) {
+	if(!isDebugging) {
 		return;
 	}
 
-	if(!showParser) {
+	let doc = change.textEditor.document;
+	if(vscode.languages.match(docSel, doc) !== 10) {
 		return;
 	}
 	
-	let parser = lixContext.getParser(doc);
+	let parser = lixContext.getCompiler(doc.uri).parser;
 	let pos = change.selections[0].start;
 	let index = parser.getIndex(pos.line, pos.character)!;
 	let line = locate(index, parser.syntaxTree)-1;
 	console.log(`index:${index};line:${pos.line},char:${pos.character}`);
 
-	let uri = getUri(doc, "parse");
+	let uri = getUri(doc.uri, "parse");
 	vscode.workspace.openTextDocument(uri).then(doc => {
 		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
 		vscode.window.showTextDocument(doc, opt);
@@ -203,6 +212,11 @@ function locate(pos: number, node: Node, skip = false): number {
 
 }
 
+function onTerminalClosed(terminal: vscode.Terminal) {
+	if(terminal === compileTerminal) {
+		compileTerminal = undefined;
+	}
+}
 // async function onOpen(document: vscode.TextDocument) {
 // 	return;
 // 	console.log(`Document '${document.fileName}' opened.`);
@@ -234,38 +248,60 @@ function locate(pos: number, node: Node, skip = false): number {
 
 // **************** commands ****************
 
+let compileTerminal: vscode.Terminal | undefined;
+
 async function compile() {
 	let document = getDocument();
 	if(!document) {
 		return;
 	}
-	
-	let parser = parseDocument(document);
-	let generator = new LatexGenerator(parser.typeTable, config);
-	let latex = await generator.generate(parser.syntaxTree);
+	await vscode.workspace.saveAll();
 
-	let encoder = new TextEncoder();
-	let uri = vscode.window.activeTextEditor?.document.uri!;
-	vscode.workspace.saveAll();
+	let compiler = lixContext.getCompiler(document.uri);
+	await compiler.compile("latex");
 
-	let pat = uri.path;
-	let tem = pat.split("/").at(-1);
-	console.log(tem);
-	uri = vscode.Uri.joinPath(uri, "../lix_temp");
+	updateDiagnostic(document, lixContext);
+	let st = "";
+	switch(compiler.parser.state) {
+		case ResultState.successful:
+			st = "successful";
+			break;
+		case ResultState.skippable:
+			st = "skippable";
+			break;
+		case ResultState.matched:
+			st = "matched";
+			break;
+		case ResultState.failing:
+			st = "failing";
+			break;
+	}
+	documentProvider.updateContent(getUri(document.uri, "parse"), compiler.parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+	documentProvider.updateContent(getUri(document.uri, "generate"), compiler.curGenerator.output);
 
-	await vscode.workspace.fs.createDirectory(uri);
-	let turi = uri;
-	uri = vscode.Uri.joinPath(uri, tem + ".tex");
-	await vscode.workspace.fs.writeFile(uri, encoder.encode(latex));
-	//vscode.workspace.fs.writeFile(vscode.Uri.file('./temp.tex'), encoder.encode(latex));
 
-	let terminal = vscode.window.createTerminal("Latex Compiler");
-	terminal.sendText(`cd "${vscode.Uri.joinPath(uri, "../").fsPath}"`);
-	terminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${uri.fsPath}"`);
-	turi = vscode.Uri.joinPath(turi, tem + ".pdf");
-	//terminal.sendText("start msedge \"" + turi.fsPath + "\"");
-	terminal.sendText(`open -a safari "${turi.fsPath}"`);
-	//showPDF(turi.fsPath);
+	let generator = await generateLatexFromDocument(document);
+	let latex = generator.output;
+
+	//let uri = vscode.window.activeTextEditor?.document.uri!;
+	let uri = document.uri;
+	let fileName = compiler.fileOperation.fileName;
+
+	let dirUri = vscode.Uri.joinPath(uri, "../.lix/");
+	let latexUri = vscode.Uri.joinPath(dirUri, fileName + ".tex");
+	let pdfUri = vscode.Uri.joinPath(dirUri, fileName + ".pdf");
+	let newPdfUri = vscode.Uri.joinPath(dirUri, "..", fileName + ".pdf");
+
+	if(compileTerminal === undefined) {
+		compileTerminal = vscode.window.createTerminal({name: "Lix Compiler", hideFromUser : true});
+		//compileTerminal.hide();
+	}
+
+	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
+	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
+	compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
+	compileTerminal.sendText(`open -a safari "${newPdfUri.fsPath}"`);
+
 }
 
 async function generate() {
@@ -273,14 +309,8 @@ async function generate() {
 	if(!document) {
 		return;
 	}
-
-	let parser = parseDocument(document);
-	let generator = new LatexGenerator(parser.typeTable, config);
-	let latex = await generator.generate(parser.syntaxTree);
-
-	documentProvider.updateContent(getUri(document, "generate"), latex);
-
-	showFile(getUri(document, "generate"));
+	await generateLatexFromDocument(document);
+	showFile(getUri(document.uri, "generate"));
 }
 
 async function parse() {
@@ -288,21 +318,40 @@ async function parse() {
 	if(!document) {
 		return;
 	}
-	parseDocument(document);
-	showFile(getUri(document, "parse"));
+	parseFromDocument(document);
+	showFile(getUri(document.uri, "parse"));
 }
 
 function helloWorld() {
-	showParser = !showParser;
+	
+}
+
+async function debug() {
+	isDebugging = !isDebugging;
+	if(isDebugging) {
+		compileTerminal?.show();
+	}
+	else {
+		compileTerminal?.hide();
+	}
 }
 
 // **************** assistance ****************
 
+export async function generateLatexFromDocument(document: vscode.TextDocument): Promise<Generator> {
+	let compiler = lixContext.getCompiler(document.uri);
+	let generator = compiler.curGenerator; // latex
+	await compiler.generateFromText(document.getText(), generator);
 
-export function parseDocument(document: vscode.TextDocument): Parser {
+	documentProvider.updateContent(getUri(document.uri, "generate"), generator.output);
+	return generator;
+}
 
-	let parser = lixContext.getParser(document);
-	parser.parse(document.getText());
+export function parseFromDocument(document: vscode.TextDocument): Parser {
+
+	let compiler = lixContext.getCompiler(document.uri);
+	compiler.parseFromText(document.getText());
+	let parser = compiler.parser;
 	//console.log(`Document '${document.fileName}' parsered.`);
 
 	updateDiagnostic(document, lixContext);
@@ -322,7 +371,7 @@ export function parseDocument(document: vscode.TextDocument): Parser {
 			st = "failing";
 			break;
 	}
-	documentProvider.updateContent(getUri(document, "parse"), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+	documentProvider.updateContent(getUri(document.uri, "parse"), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 
 	return parser;
 }
@@ -333,27 +382,25 @@ function showFile(uri: vscode.Uri) {
 		vscode.window.showTextDocument(doc,opt);
 		
 	});
-
 }
 
-function showPDF(file: string) {
-	let html = `<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta charset="UTF-8">
-	</head>
-	<body>
-		<iframe src="/web/viewer.html?file=${file}" width="100%" height="100%"/>
-	</body>
-	</html>`;
-	let panel = vscode.window.createWebviewPanel("lix-pdf-preview", "Lix PDF", vscode.ViewColumn.Two, {});
+// function showPDF(file: string) {
+// 	let html = `<!DOCTYPE html>
+// 	<html lang="en">
+// 	<head>
+// 		<meta charset="UTF-8">
+// 	</head>
+// 	<body>
+// 		<iframe src="/web/viewer.html?file=${file}" width="100%" height="100%"/>
+// 	</body>
+// 	</html>`;
+// 	let panel = vscode.window.createWebviewPanel("lix-pdf-preview", "Lix PDF", vscode.ViewColumn.Two, {});
 	
-	panel.webview.html = html;
-}
+// 	panel.webview.html = html;
+// }
 
-function getUri(document: vscode.TextDocument, flag: string): vscode.Uri {
-	let duri = document.uri;
-	return vscode.Uri.from({ scheme: "lix", path: duri.path, fragment: flag });
+function getUri(uri: vscode.Uri, flag: string): vscode.Uri {
+	return vscode.Uri.from({ scheme: "lix", path: uri.path, fragment: flag });
 }
 
 function getDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document): vscode.TextDocument | undefined {

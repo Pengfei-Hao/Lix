@@ -1,7 +1,8 @@
 import { TextDecoder, TextEncoder } from 'util';
 import * as vscode from 'vscode';
 import { workspace } from 'vscode';
-export class Config {
+
+export class VSCodeConfig {
     uri: vscode.Uri;
 
     configs: Map<string, string>;

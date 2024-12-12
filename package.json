@@ -1,6 +1,6 @@
 {
   "name": "lix",
-  "displayName": "LiX",
+  "displayName": "Lix",
   "description": "Lix is a Light Latex.",
   "version": "0.0.1",
   "engines": {
@@ -15,29 +15,47 @@
     "commands": [
       {
         "command": "lix.helloWorld",
-        "title": "Hello World"
+        "title": "Hello World",
+        "category": "Lix"
       },
       {
         "command": "lix.generate",
-        "title": "Generate"
+        "title": "Generate target (LaTeX, Markdown...) code",
+        "shortTitle": "Generate",
+        "category": "Lix",
+        "icon": "$(file-code)"
       },
       {
         "command": "lix.compile",
-        "title": "Compile"
+        "title": "Compile Lix file to PDF",
+        "category": "Lix",
+        "icon" : "$(preview)"
       },
       {
         "command": "lix.parse",
-        "title": "Parse"
+        "title": "Parse the file and generate syntax tree",
+        "shortTitle": "Parse",
+        "category": "Lix",
+        "icon": "$(list-tree)"
       },
       {
         "command": "lix.test",
-        "title": "Test Lix"
+        "title": "Test Lix",
+        "category": "Lix"
+      },
+      {
+        "command": "lix.debug",
+        "title": "Enable/Disable debug mode",
+        "shortTitle": "Debug",
+        "category": "Lix"
       }
     ],
     "languages": [
       {
         "id": "lix",
-        "aliases": ["LiX"],
+        "aliases": [
+          "Lix"
+        ],
         "extensions": [
           ".lix"
         ],
@@ -74,7 +92,7 @@
       "activitybar": [
         {
           "id": "lix-navigator",
-          "title": "LiX Navigator",
+          "title": "Lix Navigator",
           "icon": "/icons/icon-light.svg"
         }
       ]
