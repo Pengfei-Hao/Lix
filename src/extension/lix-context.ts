@@ -8,11 +8,13 @@ import { VSCodeFileOperation } from "./vscode-file-operation";
 export class LixContext {
 
     compilers: Map<string, Compiler>;
-    config: VSCodeConfig; 
+    config: VSCodeConfig;
+    fileList: Map<string, string[]>;
 
     constructor(config: VSCodeConfig) {
         this.compilers = new Map();
         this.config = config;
+        this.fileList = new Map();
     }
 
     getCompiler(docUri: Uri): Compiler {
@@ -25,5 +27,21 @@ export class LixContext {
         else {
             return res;
         }
+    }
+
+    getFileList(docUri: Uri): string[] {
+        let res = this.fileList.get(docUri.path);
+        if(res == undefined) {
+            let newFile: string[] = [];
+            this.fileList.set(docUri.path, newFile);
+            return newFile;
+        }
+        else {
+            return res;
+        }
+    }
+
+    setFileList(docUri: Uri, list: string[]) {
+        this.fileList.set(docUri.path, list);
     }
 }

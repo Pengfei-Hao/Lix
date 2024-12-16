@@ -1,11 +1,9 @@
-
 import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
-import { MatchResult, Parser } from "../parser";
-import { HighlightType, Result, ResultState } from "../../foundation/result";
+import { Parser } from "../parser";
+import { Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
-import { Message } from "../../foundation/message";
 
 export class Article extends Module {
 
@@ -17,9 +15,6 @@ export class Article extends Module {
     sectionType: Type;
     subsectionType: Type;
     subsubsectionType: Type;
-
-    // boldType: Type;
-    // italicType: Type;
 
     constructor(parser: Parser) {
         super(parser);
@@ -47,9 +42,6 @@ export class Article extends Module {
         this.sectionType = this.parser.typeTable.add("section")!;
         this.subsectionType = this.parser.typeTable.add("subsection")!;
         this.subsubsectionType = this.parser.typeTable.add("subsubsection")!;
-
-        // this.boldType = this.parser.typeTable.add("bold")!;
-        // this.italicType = this.parser.typeTable.add("italic")!;
 
     }
 

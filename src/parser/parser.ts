@@ -5,30 +5,24 @@
 import { Type } from "../sytnax-tree/type";
 import { Node } from "../sytnax-tree/node";
 import { TypeTable } from "../sytnax-tree/type-table";
-import { BlockHandlerTable, HandlerFunction } from "./block-handler-table";
+import { BlockHandlerTable, BlockHandler } from "./block-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
-import { VSCodeConfig } from "../extension/vscode-config";
 import { Highlight, HighlightType, Result, ResultState } from "../foundation/result";
-import { off, send } from "process";
 import { Message, MessageType } from "../foundation/message";
-import { notebooks } from "vscode";
-import { format } from "path";
 import { Core } from "./core/core";
 import { Article } from "./article/article";
 import { Config } from "../compiler/config";
-
+import { InsertionHandlerTable } from "./insertion-handler-table";
 
 export type MatchResult = Result<Node>;
 
 export class Parser {
 
-    // Text and index of the source text.
-    private text: string;
-    index: number;
+    // **************** Environment ****************
 
-    // Generated syntax tree will be storaged here, type table holds all the type of node.
-    syntaxTree: Node;
+    // Configs
+    configs: Config;
 
     // Types in type table
     typeTable: TypeTable;
@@ -38,6 +32,7 @@ export class Parser {
     textType: Type;
     wordsType: Type;
     nameType: Type;
+    escapeCharType: Type;
     referenceType: Type;
     settingType: Type;
     settingParameterType: Type;
@@ -52,18 +47,31 @@ export class Parser {
     formatBlocks: Set<string>;
     otherBlocks: Set<string>;
 
+    // insertion table
+    insertionHandlerTable: InsertionHandlerTable;
+
     // Modules
     modules: Module[];
     mathModule: Math;
     coreModule: Core;
 
-    // Configs
-    configs: Config;
+    // **************** Parsing ****************
+
+    // Text and index of the source text.
+    private text: string;
+    index: number;
+
+    // Ranges of every line
+    lineRanges: number[];
+
+    // Stack of 'match' function
+    process: string[];
+
+    // Generated syntax tree will be storaged here, type table holds all the type of node.
+    syntaxTree: Node;
 
     // Message list
     messageList: Message[];
-    lineRanges: number[];
-    process: string[];
 
     // Highlights
     highlights: Highlight[];
@@ -81,6 +89,7 @@ export class Parser {
         this.textType = this.typeTable.add("text")!;
         this.wordsType = this.typeTable.add("words")!;
         this.nameType = this.typeTable.add("name")!;
+        this.escapeCharType = this.typeTable.add("escape-char")!;
         this.referenceType = this.typeTable.add("reference")!;
         this.settingType = this.typeTable.add("setting")!;
         this.settingParameterType = this.typeTable.add("setting-parameter")!;
@@ -89,7 +98,7 @@ export class Parser {
         this.argumentsType = this.typeTable.add("arguments")!;
         this.argumentItemType = this.typeTable.add("argument-item")!;
 
-        this.blockHandlerTable = new BlockHandlerTable(this);
+        this.blockHandlerTable = new BlockHandlerTable();
 
         // other blocks
         this.otherBlocks = new Set(["paragraph"]);
@@ -100,6 +109,11 @@ export class Parser {
         this.blockHandlerTable.add("text", this.textBlockHandler, this);
 
         this.formatBlocks = new Set();
+
+        this.insertionHandlerTable = new InsertionHandlerTable();
+        this.insertionHandlerTable.add("@", this.matchReference, this);
+        //this.insertionHandlerTable.add("&", () => {let r = new Result<Node>(new Node(this.referenceType)); r.state = ResultState.matched ; r.highlights.push(this.getHighlight(HighlightType.operator, 0, 1)); return r });
+        // inline formula is added in math moudle
 
         this.mathModule = new Math(this);
         this.coreModule = new Core(this);
@@ -170,7 +184,11 @@ export class Parser {
 
     private myMatchDocument(result: Result<Node>) {
         let tmpRes: Result<Node>;
-
+        // if(this.isEOF()) {
+        //     result.mergeState(ResultState.successful);
+        //     return;
+        // }
+        result.mergeState(ResultState.successful);
         while (true) {
             if (this.isEOF()) {
                 break;
@@ -203,7 +221,7 @@ export class Parser {
             else {
                 // failed
                 result.mergeState(ResultState.failing);
-                result.messages.push(this.getMessage("Match paragraph, setting and Block failed."));
+                result.messages.push(this.getMessage("[[Logical Error]] Matching paragraph, setting and block failed."));
                 return;
             }
         }
@@ -282,11 +300,15 @@ export class Parser {
         node.children.push(new Node(this.settingParameterType, command));
     }
 
+    isSetting(): boolean {
+        return this.is("#");
+    }
+
     // **************** Text & Paragraph ****************
 
-    // MatchFreeParagraph: failing | matched | skippable | successful
+    // MatchFreeParagraph: failing | skippable | successful
 
-    private matchFreeParagraph(): Result<Node> {
+    matchFreeParagraph(): Result<Node> {
         let result = new Result<Node>(new Node(this.paragraphType));
         let preIndex = this.index;
         this.begin("free-paragraph");
@@ -313,257 +335,42 @@ export class Parser {
             }
             else if ((nullRes = this.matchMultilineBlankGeThanOne()).matched) {
                 result.merge(nullRes);
+                result.GuaranteeMatched();
                 break;
             }
             else if (this.isOtherBlock()) {
                 break;
             }
-            else if (this.is("#")) {
+            else if (this.isSetting()) {
                 break;
             }
 
             else if ((ndRes = this.matchFreeText()).matched) {
-                result.GuaranteeMatched();
                 result.merge(ndRes);
+                result.GuaranteeMatched();
                 if (result.shouldTerminate) {
                     return;
                 }
                 node.children.push(ndRes.content);
+                
             }
 
-            else if (this.isBasicBlock()) { // match par free text 中检测过
-                result.GuaranteeMatched();
-                ndRes = this.matchBlock();
+            else if ((ndRes = this.matchBasicBlock()).matched) {
                 result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    return;
-                }
+                result.GuaranteeMatched();
+                // match block 不会失败
                 node.children.push(ndRes.content);
+                
             }
             else {
-                msg.push(this.getMessage("[logic error].Unintended branch. Free paragraph match failed."));
+                msg.push(this.getMessage("[[Logical Error]]Unintended 'else'. Free paragraph match failed."));
                 result.mergeState(ResultState.failing);
                 return;
             }
         }
     }
 
-    // ParagraphBlockHandler: failing | skippable | successful
-
-    paragraphBlockHandler(args: Node = new Node(this.argumentsType)): Result<Node> {
-        let result = new Result<Node>(new Node(this.paragraphType));
-        let preIndex = this.index;
-        this.begin("paragraph-block-handler");
-        this.myParagraphBlockHandler(result, args);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
-    }
-
-
-    paragraphLikeBlockHandler(blockName: string, args: Node = new Node(this.argumentsType)): Result<Node> {
-        let result = new Result<Node>(new Node(this.paragraphType));
-        let preIndex = this.index;
-        this.begin(`${blockName}-block-handler`);
-        this.myParagraphBlockHandler(result, args);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
-    }
-
-    private myParagraphBlockHandler(result: Result<Node>, args: Node, blockName: string = "paragraph") {
-        let node = result.content;
-        let msg = result.messages;
-
-        let ndRes: Result<Node>;
-        let nullRes: Result<null>;
-
-        node.children.push(args);
-
-        while (true) {
-            if (this.isEOF()) {
-                msg.push(this.getMessage("In paragraph text ends abruptly.", MessageType.warning));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
-                return;
-            }
-            else if ((nullRes = this.match("]")).matched) {
-                result.merge(nullRes);
-                result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
-                break;
-            }
-            else if (this.isOtherBlock()) {
-                msg.push(this.getMessage("Paragraph block should not have other block."));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
-                this.skipByBrackets();
-                return;
-            }
-
-            else if ((ndRes = this.matchParFreeText()).matched) {
-                result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-            else if (this.isBasicBlock()) { // match par free text 中检测过
-                ndRes = this.matchBlock();
-                result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    return;
-                }
-
-                node.children.push(ndRes.content);
-            }
-
-            else {
-                msg.push(this.getMessage("[logic error].Unintended branch. Free paragraph match failed."));
-                result.mergeState(ResultState.failing);
-                return;
-            }
-        }
-    }
-
-    /*
-        private myMatchParagraph(result: Result<Node>, inner: boolean = false) {
-            let node = result.content;
-            let msg = result.messages;
-    
-            let free = !inner;
-    
-            let ndRes: Result<Node>;
-    
-            while (true) {
-                if (this.isEOF()) {
-                    if (inner) {
-                        msg.push(this.getMessage("Unexpected end.", MessageType.warning));
-                        result.mergeState(ResultState.skippable);
-                    }
-                    break;
-                }
-                else if (free && this.isMultilineBlankGeThanOne()) {
-                    result.merge(this.matchMultilineBlank());
-                    // if (inner) {
-                    //     msg.push(this.getMessage("Inner paragraph should not have more than one line breaks."));
-                    //     result.mergeState(ResultState.skippable);
-                    // }
-                    break;
-                }
-                else if (free && this.isBlock(Parser.otherBlocks)) {
-                    // if (inner) {
-                    //     msg.push(this.getMessage("Inner paragraph should not have other blocks."));
-                    //     result.mergeState(ResultState.matched);
-                    // }
-                    break;
-                }
-                else if (free && this.is("#")) {
-                    break;
-                }
-                else if (inner && this.is("]")) {
-                    this.move();
-                    result.mergeState(ResultState.successful);
-                    break;
-                }
-    
-                else if (free && (ndRes = this.matchFreeText()).matched) {
-                    result.merge(ndRes);
-                    if (result.shouldTerminate) {
-                        return;
-                    }
-                    node.children.push(ndRes.content);
-                }
-                else if (inner && (ndRes = this.matchParFreeText()).matched) {
-                    result.merge(ndRes);
-                    if (result.shouldTerminate) {
-                        return;
-                    }
-                    node.children.push(ndRes.content);
-                }
-                // if (ndRes.state !== ResultState.failing) {
-                //     //result.success = true;
-                //     succ = true;
-                //     result.merge(ndRes);
-                //     if(result.state === ResultState.matched) {
-                //         return;
-                //     }
-                //     node.children.push(ndRes.content);
-                //     continue;
-                // }
-                //this.discard(ndRes);
-    
-                else if (this.isBlock(Parser.basicBlocks)) { // match par free text 中检测过
-                    ndRes = this.matchBlock();
-                    result.merge(ndRes);
-                    if (result.shouldTerminate) {
-                        return;
-                    }
-                    node.children.push(ndRes.content);
-                }
-                // if (this.is("[")) {
-                //     let nResult = this.matchBlockName();
-                //     this.discard(nResult);
-                //     if (nResult.state === ResultState.successful) {
-                //         if (Parser.basicBlocks.has(nResult.content)) {
-                //             //result.success = true;
-                //             succ = true;
-                //             let mResult = this.matchBlock();
-                //             result.merge(mResult);
-                //             node.children.push(mResult.content);
-                //             if (result.state === ResultState.matched) {
-                //                 //msg.push(this.getMessage("Match block failed."));
-                //                 return;
-                //             }
-                //         }
-                //         else {
-                //             if (inner) {
-                //                 //result.success = false;
-                //                 msg.push(this.getMessage("Inner paragraph should not have other block."));
-                //                 result.state = ResultState.matched;
-                //             }
-                //             if(!succ) {
-                //                 result.state = ResultState.failing;
-                //             }
-                //             return;
-                //         }
-                //     }
-                //     else {
-                //         //result.success = false;
-                //         if(inner) {
-                //             msg.push(this.getMessage("Inner paragraph should not have other block."));
-                //             result.state = ResultState.matched;
-                //         }
-                //         //msg.push(this.getMessage("Match block name failed."));
-                //         if(!succ) {
-                //             result.state = ResultState.failing;
-                //         }
-                //         return;
-                //     }
-                // }
-    
-                else {
-                    //result.success = false;
-                    // if(!succ) {
-                    //     result.state = ResultState.failing;
-                    // }
-                    msg.push(this.getMessage("Free paragraph match failed."));
-                    result.mergeState(ResultState.matched);
-                    break;
-                }
-            }
-        }
-            */
-
-    // MatchFreeText: failing | matched | skippable | successful
+    // MatchFreeText: failing | skippable | successful
 
     matchFreeText(): Result<Node> {
         let result = new Result<Node>(new Node(this.textType));
@@ -585,7 +392,7 @@ export class Parser {
 
         let text = "";
         let symRes: Result<null>;
-        let blnRes: Result<number>;
+        //let blnRes: Result<number>;
         let ndRes: Result<Node>;
 
         let preIndex = 0, curIndex;
@@ -610,9 +417,9 @@ export class Parser {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
+                result.merge(symRes);
                 result.GuaranteeMatched();
                 result.highlights.push(this.getHighlight(HighlightType.operator, -2, 0));
-                result.merge(symRes);
                 break;
             }
             else if (this.isBasicBlock()) {
@@ -629,93 +436,111 @@ export class Parser {
                 }
                 break;
             }
-            else if (this.is("#")) {
+            else if (this.isSetting()) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
                     text = "";
                 }
-                return;
+                break;
             }
 
 
-            else if ((curIndex = this.index, blnRes = this.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+            else if ((curIndex = this.index, symRes = this.matchMultilineBlankLeThanOrEqOne()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
                 if (text === "") {
                     preIndex = curIndex;
                 }
+                result.merge(symRes);
                 result.GuaranteeMatched();
-                result.merge(blnRes);
                 text += " ";
             }
 
-            else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
+                result.merge(ndRes);
                 result.GuaranteeMatched();
-                result.merge(symRes);
-                if (this.notEnd()) {
-                    switch (this.curChar()) {
-                        case "(": case ")":
-                        case "[": case "]": case "/": case "#": case "@":
-                            text += this.curChar();
-                            result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-                            break;
-                        // 这里不需要判断 \\ 因为结束条件判断过
-                        default:
-                            text += "\\";
-                            text += this.curChar();
-                            msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-                    }
+                text += ndRes.content.content;
+            }
+
+            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            //     if (text === "") {
+            //         preIndex = curIndex;
+            //     }
+            //     result.GuaranteeMatched();
+            //     result.merge(symRes);
+            //     if (this.notEnd()) {
+            //         switch (this.curChar()) {
+            //             case "(": case ")":
+            //             case "[": case "]": case "/": case "#": case "@":
+            //                 text += this.curChar();
+            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
+            //                 break;
+            //             // 这里不需要判断 \\ 因为结束条件判断过
+            //             default:
+            //                 text += "\\";
+            //                 text += this.curChar();
+            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
+            //         }
+            //         this.move();
+            //     }
+            //     else {
+            //         text += "\\";
+            //     }
+            // }
+
+            else if (this.isInsertion()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    text = "";
+                }
+                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
+                ndRes = handler();
+                result.merge(ndRes);
+                result.GuaranteeMatched();
+                if (result.shouldTerminate) {
+                    result.promoteToSkippable();
                     this.move();
-                }
-                else {
-                    text += "\\";
-                }
-            }
-
-            else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.GuaranteeMatched();
-                result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match reference failed."));
-                    return;
+                    continue;
                 }
                 node.children.push(ndRes.content);
             }
 
-            else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.GuaranteeMatched();
-                result.merge(ndRes);
-                //this.move();
+            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            //     result.GuaranteeMatched();            
+            // }
 
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match embeded formula failed."));
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
+            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            //     result.GuaranteeMatched();                 
+            // }
 
-            else if ((curIndex = this.index, ndRes = this.matchBlock()).matched) {
+            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block  前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                result.GuaranteeMatched();
                 result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    return;
-                }
+                result.GuaranteeMatched();
+                // match block 不会失败
                 node.children.push(ndRes.content);
             }
 
@@ -723,15 +548,101 @@ export class Parser {
                 if (text === "") {
                     preIndex = this.index;
                 }
-                result.GuaranteeMatched();
                 result.mergeState(ResultState.successful);
+                result.GuaranteeMatched();
                 text += this.curChar();
                 this.move();
             }
         }
     }
 
-    // MatchParFreeText: failing | matched | skippable | successful
+    // ParagraphBlockHandler: failing | skippable | successful
+
+    paragraphBlockHandler(args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = new Result<Node>(new Node(this.paragraphType));
+        let preIndex = this.index;
+        this.begin("paragraph-block-handler");
+        this.myParagraphBlockHandler(result, args);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    paragraphLikeBlockHandler(blockName: string, args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = new Result<Node>(new Node(this.paragraphType));
+        let preIndex = this.index;
+        this.begin(`${blockName}-block-handler`);
+        this.myParagraphBlockHandler(result, args);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    private myParagraphBlockHandler(result: Result<Node>, args: Node, blockName: string = "paragraph") {
+        let node = result.content;
+        let msg = result.messages;
+
+        let ndRes: Result<Node>;
+        let nullRes: Result<null>;
+
+        node.children.push(args);
+
+        result.mergeState(ResultState.successful);
+
+        while (true) {
+            if (this.isEOF()) {
+                msg.push(this.getMessage("Paragraph block ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+            if (this.isMultilineBlankGeThanOne()) {
+                msg.push(this.getMessage("Paragraph block ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+            else if (this.is("]")) {
+                break;
+            }
+            // else if ((nullRes = this.match("]")).matched) {
+            //     result.merge(nullRes);
+            //     result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+            //     break;
+            // }
+            else if (this.isOtherBlock()) {
+                msg.push(this.getMessage("Paragraph block should not have other block."));
+                result.mergeState(ResultState.skippable);
+                this.skipByBrackets();
+                continue;
+            }
+
+            else if ((ndRes = this.matchParFreeText()).matched) {
+                result.merge(ndRes);
+                // match par free text 不会失败
+                node.children.push(ndRes.content);
+            }
+
+            else if ((ndRes = this.matchBasicBlock()).matched) { // par free text 中检测过 format block
+                result.merge(ndRes);
+                // match block 不会失败
+                node.children.push(ndRes.content);
+            }
+            else {
+                msg.push(this.getMessage("[[Logical Error]]Unintended 'else'. Matching paragraph block failed."));
+                result.mergeState(ResultState.failing);
+                return;
+            }
+        }
+    }
+
+    // MatchParFreeText: failing | skippable | successful
 
     matchParFreeText(): Result<Node> {
         let result = new Result<Node>(new Node(this.textType));
@@ -760,6 +671,13 @@ export class Parser {
 
         while (true) {
             if (this.isEOF()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                }
+                break;
+            }
+
+            else if(this.isMultilineBlankGeThanOne()) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
                 }
@@ -802,86 +720,104 @@ export class Parser {
                 if (text === "") {
                     preIndex = curIndex;
                 }
-                result.GuaranteeMatched();
                 result.merge(blnRes);
+                result.GuaranteeMatched();
                 text += " ";
+
                 if (blnRes.content > 1) {
-                    msg.push(this.getMessage("Inpar paragraph text cannot contain linebreak."));
-                    result.mergeState(ResultState.failing);
-                    result.promoteToSkippable();
+                    msg.push(this.getMessage("Text in paragraph block cannot contain linebreaks more than 1.", MessageType.warning));
+                    //result.mergeState(ResultState.skippable);
                 }
             }
 
-            else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
+                result.merge(ndRes);
                 result.GuaranteeMatched();
-                result.merge(symRes);
-                if (this.notEnd()) {
-                    switch (this.curChar()) {
-                        case "(": case ")":
-                        case "[": case "]": case "/": case "#": case "@":
-                            text += this.curChar();
-                            result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-                            break;
-                        // 这里不需要判断 \\ 因为结束条件判断过
-                        default:
-                            text += "\\";
-                            text += this.curChar();
-                            msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-                    }
+                text += ndRes.content.content;
+            }
+
+            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            //     if (text === "") {
+            //         preIndex = curIndex;
+            //     }
+            //     result.GuaranteeMatched();
+            //     result.merge(symRes);
+            //     if (this.notEnd()) {
+            //         switch (this.curChar()) {
+            //             case "(": case ")":
+            //             case "[": case "]": case "/": case "#": case "@":
+            //                 text += this.curChar();
+            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
+            //                 break;
+            //             // 这里不需要判断 \\ 因为结束条件判断过
+            //             default:
+            //                 text += "\\";
+            //                 text += this.curChar();
+            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
+            //         }
+            //         this.move();
+            //     }
+            //     else {
+            //         text += "\\";
+            //         continue; // 借用isEOF
+            //     }
+            // }
+
+            else if (this.isInsertion()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    text = "";
+                }
+                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
+                ndRes = handler();
+                result.merge(ndRes);
+                result.GuaranteeMatched();
+                if (result.shouldTerminate) {
+                    result.promoteToSkippable();
                     this.move();
-                }
-                else {
-                    text += "\\";
-                    continue; // 借用isEOF
-                }
-            }
-
-            else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.GuaranteeMatched();
-                result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match reference failed."));
-                    return;
+                    continue;
                 }
                 node.children.push(ndRes.content);
             }
 
-            else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.GuaranteeMatched();
-                result.merge(ndRes);
-                //this.move();
+            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            //     result.GuaranteeMatched();            
+            // }
 
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match embeded formula failed."));
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
+            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            //     result.GuaranteeMatched();            
+            // }
 
-            else if ((curIndex = this.index, ndRes = this.matchBlock()).matched) {
+            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                result.GuaranteeMatched();
                 result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    return;
-                }
+                result.GuaranteeMatched();
+                // match block 不会失败
                 node.children.push(ndRes.content);
             }
 
@@ -889,10 +825,10 @@ export class Parser {
                 if (text === "") {
                     preIndex = this.index;
                 }
-                result.GuaranteeMatched();
                 result.mergeState(ResultState.successful);
+                result.GuaranteeMatched();
                 text += this.curChar();
-                this.move();
+                this.move();           
             }
         }
     }
@@ -930,38 +866,56 @@ export class Parser {
 
         node.children.push(args);
 
+        result.mergeState(ResultState.successful);
+
         while (true) {
             if (this.isEOF()) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
                 }
-                msg.push(this.getMessage("Inner text ends abruptly.", MessageType.warning));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
-
-                break;
+                msg.push(this.getMessage("Text block ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
             }
 
-            else if ((symRes = this.match("]")).matched) {
+            else if(this.is("]")) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
                     text = "";
                 }
-                result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
-                result.merge(symRes);
                 return;
             }
 
-            else if ((blnRes = this.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+            // else if ((symRes = this.match("]")).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+            //         text = "";
+            //     }
+            //     result.merge(symRes);
+            //     result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+            //     return;
+            // }
+
+            else if(this.isMultilineBlankGeThanOne()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    text = "";
+                }
+                msg.push(this.getMessage("Text block ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+
+            else if ((blnRes = this.matchMultilineBlank()).matched) {
                 if (text === "") {
                     preIndex = this.index;
                 }
                 result.merge(blnRes);
                 text += " ";
+
                 if (blnRes.content > 1) {
-                    msg.push(this.getMessage("Inner text should not have multiline breaks."));
-                    result.mergeState(ResultState.failing);
-                    result.promoteToSkippable();
+                    msg.push(this.getMessage("Text block cannot contain linebreaks more than 1.", MessageType.warning));
+                    //result.mergeState(ResultState.skippable);
                 }
             }
 
@@ -969,66 +923,84 @@ export class Parser {
                 if (text === "") {
                     preIndex = curIndex;
                 }
-                msg.push(this.getMessage("Inner text should not have \\\\."));
+                msg.push(this.getMessage("Text block should not have \\\\.", MessageType.warning));
                 text += "\\\\";
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
+                //result.mergeState(ResultState.skippable);
             }
 
-            else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
-                result.merge(symRes);
-                if (this.notEnd()) {
-                    switch (this.curChar()) {
-                        case "(": case ")":
-                        case "[": case "]": case "/": case "#": case "@":
-                            text += this.curChar();
-                            result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-                            break;
-                        // 这里不需要判断 \\ 因为结束条件判断过
-                        default:
-                            text += "\\";
-                            text += this.curChar();
-                            msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-                    }
+                result.merge(ndRes);
+                text += ndRes.content.content;
+            }
+
+            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
+            //     if (text === "") {
+            //         preIndex = curIndex;
+            //     }
+            //     result.merge(symRes);
+            //     if (this.notEnd()) {
+            //         switch (this.curChar()) {
+            //             case "(": case ")":
+            //             case "[": case "]": case "/": case "#": case "@":
+            //                 text += this.curChar();
+            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
+            //                 break;
+            //             // 这里不需要判断 \\ 因为结束条件判断过
+            //             default:
+            //                 text += "\\";
+            //                 text += this.curChar();
+            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
+            //         }
+            //         this.move();
+            //     }
+            //     else {
+            //         text += "\\";
+            //         continue; // 借用isEOF
+            //     }
+            // }
+
+            else if (this.isInsertion()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    text = "";
+                }
+                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
+                ndRes = handler();
+                result.merge(ndRes);
+                if (result.shouldTerminate) {
+                    result.promoteToSkippable();
                     this.move();
-                }
-                else {
-                    text += "\\";
-                    continue; // 借用isEOF
-                }
-            }
-
-            else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match reference failed."));
                     return;
                 }
                 node.children.push(ndRes.content);
             }
 
-            else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
-                //this.move();
+            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            // }
 
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match embeded formula failed."));
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
+            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
+            //     if (text !== "") {
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+            //         text = "";
+            //     }
+            //     result.merge(ndRes);
+            //     if (result.shouldTerminate) {
+            //         return;
+            //     }
+            //     node.children.push(ndRes.content);
+            // }
 
             else if (this.isBasicBlock()) {
                 if (text !== "") {
@@ -1036,11 +1008,9 @@ export class Parser {
                     text = "";
                 }
 
-                msg.push(this.getMessage("Inner text should not have basic block."));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
+                msg.push(this.getMessage("Text block should not have basic block"));
+                result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
-
             }
 
             else if (this.isOtherBlock()) {
@@ -1048,23 +1018,19 @@ export class Parser {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
                     text = "";
                 }
-                msg.push(this.getMessage("Inner text should not have other block."));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
+                msg.push(this.getMessage("Text block should not have other block"));
+                result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
             }
 
-            else if ((curIndex = this.index, ndRes = this.matchBlock()).matched) {
+            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    return;
-                }
+                // match block 不会失败
                 node.children.push(ndRes.content);
             }
 
@@ -1079,275 +1045,55 @@ export class Parser {
         }
     }
 
-    /*
-    private myMatchText(result: Result<Node>, inner: boolean = false, inpar = false) {
+    // MatchEscapeChar: failing | successful
+
+    matchEscapeChar(): Result<Node> {
+        let result = new Result<Node>(new Node(this.escapeCharType));
+        let preIndex = this.index;
+        this.begin("escape-char");
+        this.myMatchEscapeChar(result);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    private myMatchEscapeChar(result: Result<Node>) {
         let node = result.content;
         let msg = result.messages;
 
-        let free = !inner && !inpar;
+        result.merge(this.match("\\"));
+        if (result.shouldTerminate) {
+            msg.push(this.getMessage("Missing '\\'."));
+            return;
+        }
+        result.GuaranteeMatched();
 
-        let text = "";
-        let symRes: Result<null>;
-        let blnRes: Result<number>;
-        let ndRes: Result<Node>;
-
-        while (true) {
-            if (this.isEOF()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                }
-                if (inner) {
-                    msg.push(this.getMessage("Inner text ends abruptly.", MessageType.warning));
-                    result.mergeState(ResultState.skippable);
-                }
-                if (inpar) {
-                    msg.push(this.getMessage("In paragraph text ends abruptly.", MessageType.warning));
-                    result.mergeState(ResultState.skippable);
-                }
-                break;
-            }
-
-            else if (inner && this.is("]")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                this.move();
-                return;
-            }
-
-            else if (inpar && this.is("]")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                // if(!succ) {
-                //     result.state = ResultState.failing;
-                // }
-                return;
-            }
-
-            else if (this.isMultilineBlankGeThanOne()) {
-                if (free) {
-                    if (text !== "") {
-                        node.children.push(new Node(this.wordsType, text));
-                        text = "";
-                    }
+        if (!this.isEOF()) {
+            switch (this.curChar()) {
+                case "(": case ")":
+                case "[": case "]": case "/": case "#": case "@":
+                    node.content += this.curChar();
+                    result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
                     break;
-                }
-                result.merge(this.skipMutilineBlank());
-                if (inner) {
-                    msg.push(this.getMessage("Inner text should ended with ]."));
-                }
-                if (inpar) {
-                    msg.push(this.getMessage("Inpar paragraph text cannot contain linebreak."));
-                }
-                text += " ";
-                result.mergeState(ResultState.skippable);
+                default:
+                    node.content += "\\";
+                    node.content += this.curChar();
+                    msg.push(this.getMessage(`\\${this.curChar()} is not an escape char.`, MessageType.warning));
             }
-
-            else if ((symRes = this.match("\\\\")).matched) {
-                if (free || inpar) {
-                    if (text !== "") {
-                        node.children.push(new Node(this.wordsType, text));
-                        text = "";
-                    }
-                    result.merge(symRes);
-                    break;
-                }
-                if (inner) {
-                    msg.push(this.getMessage("Inner text should not have \\\\."));
-                    //result.success = false;
-                    text += "\\\\";
-                    result.mergeState(ResultState.successful);
-                }
-
-            }
-            else if (this.isBlock(Parser.basicBlocks)) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                if (inner) {
-                    msg.push(this.getMessage("Inner text should not have basic block."));
-                    result.mergeState(ResultState.matched);
-                }
-                break;
-            }
-
-            else if (this.isBlock(Parser.otherBlocks)) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                if (inner) {
-                    msg.push(this.getMessage("Inner text should not have other block."));
-                    result.mergeState(ResultState.matched);
-                }
-                if (inpar) {
-                    msg.push(this.getMessage("Inpar text should not have other block."));
-                    result.mergeState(ResultState.matched);
-                }
-                break;
-            }
-
-            else if (free && this.is("#")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                // if(!succ) {
-                //     result.state = ResultState.failing;
-                // }
-                return;
-
-            }
-
-
-            else if ((blnRes = this.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
-                result.merge(blnRes);
-                text += " ";
-            }
-
-            else if ((symRes = this.match("\\")).matched) {
-                result.merge(symRes);
-                this.move();
-                if (this.notEnd()) {
-                    switch (this.curChar()) {
-                        case "(": case ")":
-                        case "[": case "]": case "/": case "#": case "@":
-                            text += this.curChar();
-                            break;
-                        // 这里不需要判断 \\ 因为结束条件判断过
-                        default:
-                            text += "\\";
-                            text += this.curChar();
-                            msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-                    }
-                    this.move();
-                }
-                else {
-                    text += "\\";
-                    if (inner) {
-                        msg.push(this.getMessage("Inner text ends abruptly.", MessageType.warning));
-                        result.mergeState(ResultState.skippable);
-                    }
-                    if (inpar) {
-                        msg.push(this.getMessage("In paragraph text ends abruptly.", MessageType.warning));
-                        result.mergeState(ResultState.skippable);
-                    }
-                }
-            }
-
-            else if ((ndRes = this.matchReference()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match reference failed."));
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-            else if ((ndRes = this.mathModule.matchInlineFormula()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                result.merge(ndRes);
-                this.move();
-
-                if (result.shouldTerminate) {
-                    //msg.push(this.getMessage("Match embeded formula failed."));
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-            //else if(this.isBlock(Parser.formatBlocks)) {
-            //}
-
-            else if ((ndRes = this.matchBlock()).matched) {
-                // 只能是 format block 前边判断过
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                result.merge(ndRes);
-                this.move();
-
-                if (result.shouldTerminate) {
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-
-
-            /*
-            else if (this.is("[")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text));
-                    text = "";
-                }
-                let nResult = this.matchBlockName();
-                this.discard(nResult);
-
-                if (nResult.state === ResultState.successful) {
-                    if (Parser.formatBlocks.has(nResult.content)) {
-                        //result.success = true;
-                        succ = true;
-
-                        let tResult = this.matchBlock();
-                        result.merge(tResult);
-                        if (result.state === ResultState.matched) {
-                            msg.push(this.getMessage("Match format block failed."));
-                            return;
-                        }
-                        node.children.push(tResult.content);
-                    }
-                    else {
-                        if (inner) {
-                            //result.success = false;
-                            msg.push(this.getMessage("Inner text should not have other block."));
-                            result.state = ResultState.matched;
-                        }
-                        if(!succ) {
-                            result.state = ResultState.failing;
-                        }
-                        return;
-                    }
-                }
-
-                else {
-                    if(inner) {
-                        msg.push(this.getMessage("Inner text should not have other block."));
-                        result.state = ResultState.matched;
-                    }
-                    //msg.push(this.getMessage("Name of block not found."));
-                    //result.success = false;
-                    if(!succ) {
-                        result.state = ResultState.failing;
-                    }
-                    return;
-                }
-                
-            }
-            
-            else {
-                result.mergeState(ResultState.successful);
-                text += this.curChar();
-                this.move();
-            }
+            this.move();
+            result.mergeState(ResultState.successful);
+        }
+        else {
+            node.content = "\\";
+            msg.push(this.getMessage(`Escape char ended abruptly.`, MessageType.warning));
         }
     }
-    */
 
-    // MatchReference: failing | matched | skippable | successful
+    // MatchReference: failing | skippable | successful
 
     matchReference(): Result<Node> {
         let result = new Result<Node>(new Node(this.referenceType));
@@ -1380,20 +1126,31 @@ export class Parser {
         let name = this.matchName();
         result.merge(name);
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing name."));
+            msg.push(this.getMessage("Missing reference name."));
+            result.promoteToSkippable();
             return;
         }
         node.content = name.content.content;
         result.highlights.push(this.getHighlight(HighlightType.keyword, name.content));
 
-
         result.merge(this.skipBlank());
+    }
+
+    // Assistant Function
+
+    isInsertion(): boolean {
+        if(this.isEOF()) {
+            return false;
+        }
+        if(this.insertionHandlerTable.has(this.curChar())) {
+            return true;
+        }
+        return false;
     }
 
     // **************** Block ****************
 
-
-    // MatchBlock: failing | (matched) | skippable | successful
+    // MatchBlock: failing | skippable | successful
 
     matchBlock(): Result<Node> {
         let result = new Result<Node>(new Node(this.blockType));
@@ -1422,22 +1179,19 @@ export class Parser {
 
         result.merge(this.skipBlank());
 
-        let handle: HandlerFunction | undefined;
-
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
             msg.push(this.getMessage("Missing name."));
-
-            result.promoteToSkippable();
-            this.skipByBrackets(1);
+            // Do not skip because it may not be a block.
             return;
         }
         node.content = nameRes.content.content;
 
+        let handle: BlockHandler | undefined;
         handle = this.blockHandlerTable.getHandler(nameRes.content.content);
         if (handle === undefined) {
-            msg.push(this.getMessage(`Block name '${nameRes.content}' not found.`));
+            msg.push(this.getMessage(`Block name '${nameRes.content.content}' not found.`));
             result.mergeState(ResultState.failing);
             return;
         }
@@ -1448,11 +1202,7 @@ export class Parser {
 
         let argRes = this.matchArguments();
         result.merge(argRes);
-        if (result.shouldTerminate) {
-            result.promoteToSkippable();
-            this.skipByBrackets(1);
-            return;
-        }
+        // matchArguments will not be failing
         result.content.children.push(argRes.content);
 
         let nResult = handle!(argRes.content);
@@ -1462,10 +1212,22 @@ export class Parser {
             this.skipByBrackets(1);
             return;
         }
+        //result.content.children.push(nResult.content);
         result.content = nResult.content;
+
+        if (this.isEOF()) {
+            return;
+        }
+        result.merge(this.match("]"));
+        if (result.shouldTerminate) {
+            msg.push(this.getMessage("Missing ']'."));
+            result.promoteToSkippable();
+            return;
+        }
+        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
     }
 
-    // MatchArguments: failing | skippable | successful
+    // MatchArguments: skippable | successful
 
     matchArguments(): Result<Node> {
         let result = new Result<Node>(new Node(this.argumentsType));
@@ -1496,8 +1258,8 @@ export class Parser {
             let nmRes: Result<Node>;
 
             if (this.isEOF()) {
-                msg.push(this.getMessage(`Argument ended unexpectedly.`));
-                result.mergeState(ResultState.failing);
+                msg.push(this.getMessage(`Argument ended abruptly.`));
+                result.mergeState(ResultState.skippable);
                 return;
             }
             else if ((nullRes = this.match(")")).matched) {
@@ -1510,11 +1272,13 @@ export class Parser {
                 nmRes.content.type = this.argumentItemType;
                 node.children.push(nmRes.content);
 
+                result.merge(this.skipBlank());
+
                 while (true) {
                     if (this.isEOF()) {
-                        msg.push(this.getMessage(`Argument ended unexpectedly.`));
-                        result.mergeState(ResultState.failing);
-                        return;
+                        msg.push(this.getMessage(`Argument ended abruptly.`));
+                        result.mergeState(ResultState.skippable);
+                        break;
                     }
                     else if ((nullRes = this.match(")")).matched) {
                         result.merge(nullRes);
@@ -1526,7 +1290,7 @@ export class Parser {
                     if (result.shouldTerminate) {
                         msg.push(this.getMessage(`Missing ','.`));
                         result.promoteToSkippable();
-                        this.skipTo(")");
+                        this.skipToBehind(")");
                         return;
                     }
                     result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
@@ -1538,7 +1302,7 @@ export class Parser {
                     if (result.shouldTerminate) {
                         msg.push(this.getMessage(`Matching argument name failed.`));
                         result.promoteToSkippable();
-                        this.skipTo(")");
+                        this.skipToBehind(")");
                         return;
                     }
                     result.highlights.push(this.getHighlight(HighlightType.keyword, nmRes.content));
@@ -1550,7 +1314,8 @@ export class Parser {
             }
             else {
                 msg.push(this.getMessage(`Unrecognized argument.`));
-                result.mergeState(ResultState.failing);
+                result.mergeState(ResultState.skippable);
+                this.skipToBehind(")");
                 return;
             }
         }
@@ -1562,7 +1327,7 @@ export class Parser {
         }
     }
 
-    // GetBlockName: failing | successful
+    // Assistant: GetBlockName: failing | successful
 
     private getBlockName(): Result<string> {
         let result = new Result<string>("");
@@ -1581,21 +1346,6 @@ export class Parser {
         result.content = nameRes.content.content;
         return result;
     }
-
-    /*
-    isBlock(type: Set<string> | null): boolean {
-        if(type === null) {
-            return this.is("[");
-        }
-        let preIndex = this.index;
-        let blcRes = this.matchBlockName();
-        this.index = preIndex;
-        if (blcRes.matched && type.has(blcRes.content)) {
-            return true;
-        }
-        return false;
-    }
-    */
 
     isBlock(): boolean {
         let preIndex = this.index;
@@ -1694,7 +1444,7 @@ export class Parser {
         return result;
     }
 
-    // **************** Skippable ****************
+    // **************** Skipping ****************
 
     skipByBrackets(count: number = 0): boolean {
         while (this.notEnd()) {
@@ -1729,12 +1479,13 @@ export class Parser {
         }
     }
 
-    skipTo(char: string): boolean {
+    skipToBehind(char: string): boolean {
         while (true) {
             if (this.isEOF()) {
                 return true;
             }
             else if (this.is(char)) {
+                this.move();
                 return true;
             }
 
@@ -1747,7 +1498,7 @@ export class Parser {
 
     // **************** Foundation ****************
 
-    // MatchName: failing | successful, non-msg
+    // MatchName: failing | successful
 
     matchName(): Result<Node> {
         let result = new Result<Node>(new Node(this.nameType));
@@ -1768,7 +1519,6 @@ export class Parser {
                 result.content.content += this.curChar();
                 this.move();
                 result.mergeState(ResultState.successful);
-
             }
             else {
                 break;
@@ -1792,12 +1542,8 @@ export class Parser {
 
     private myMatchSinglelineBlank(result: Result<null>) {
         let comRes: Result<null>;
-        let preIndex: number;
         while (true) {
-            if (this.isEOF()) {
-                break;
-            }
-            else if ((preIndex = this.index, comRes = this.matchSinglelineComment()).matched) {
+            if ((comRes = this.matchSinglelineComment()).matched) {
                 result.merge(comRes);
                 break;
             }
@@ -1806,7 +1552,7 @@ export class Parser {
                 result.mergeState(ResultState.successful);
                 this.move();
             }
-            else if ((preIndex = this.index, comRes = this.matchMultilineComment()).matched) {
+            else if ((comRes = this.matchMultilineComment()).matched) {
                 result.merge(comRes);
             }
             else {
@@ -1831,12 +1577,8 @@ export class Parser {
 
     private myMatchMultilineBlank(result: Result<number>) {
         let comRes: Result<null>;
-        let preIndex: number;
         while (true) {
-            if (this.isEOF()) {
-                break;
-            }
-            else if (this.is(Parser.blank)) {
+            if (this.is(Parser.blank)) {
                 result.mergeState(ResultState.successful);
                 this.move();
             }
@@ -1845,11 +1587,10 @@ export class Parser {
                 result.mergeState(ResultState.successful);
                 this.move();
             }
-            else if ((preIndex = this.index, comRes = this.matchSinglelineComment()).matched) {
+            else if ((comRes = this.matchSinglelineComment()).matched) {
                 result.merge(comRes);
-
             }
-            else if ((preIndex = this.index, comRes = this.matchMultilineComment()).matched) {
+            else if ((comRes = this.matchMultilineComment()).matched) {
                 result.merge(comRes);
             }
             else {
@@ -1857,6 +1598,8 @@ export class Parser {
             }
         }
     }
+
+    // Arguments
 
     isMultilineBlankGeThanOne(): boolean {
         let preIndex = this.index;
@@ -1966,8 +1709,7 @@ export class Parser {
         let tmpRes: Result<null>;
         while (true) {
             if (this.isEOF()) {
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
+                result.mergeState(ResultState.skippable);
                 result.messages.push(this.getMessage("Multiline comment ended abruptly.", MessageType.warning));
                 return;
             }
@@ -2046,8 +1788,6 @@ export class Parser {
             }
         }
     }
-
-    // **************** 'is' series functions ****************
 
     static nameChar = /[A-Za-z0-9-]/;
     static blank = /[\t \v\f]/;

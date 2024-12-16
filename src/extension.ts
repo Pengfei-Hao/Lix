@@ -11,7 +11,7 @@ import { LatexGenerator } from './generator/latex-generator';
 import { VSCodeConfig } from './extension/vscode-config';
 import { LixCompletionProvider } from './extension/completion-provider';
 import { LixContext } from './extension/lix-context';
-import { LabelProvider, MathLabelProvider } from './extension/tree-data-provider';
+import { blockProvider, formulaProvider } from './extension/tree-data-provider';
 import { LatexProvider } from './extension/document-provider';
 import { LixSemanticProvider } from './extension/semantic-provider';
 import { updateDiagnostic } from './extension/diagnostic-provider';
@@ -97,7 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// completion provider
 
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[")
+		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", "`")
 	);
 
 	// semantic token provider
@@ -112,10 +112,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	// tree data provider
 
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-label-list", new LabelProvider(lixContext))
+		vscode.window.registerTreeDataProvider("lix-label-list", new blockProvider(lixContext))
 	);
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-math-list", new MathLabelProvider(lixContext))
+		vscode.window.registerTreeDataProvider("lix-math-list", new formulaProvider(lixContext))
 	);
 
 	// events
@@ -322,8 +322,15 @@ async function parse() {
 	showFile(getUri(document.uri, "parse"));
 }
 
+function test() {
+	vscode.window.showInformationMessage("abcd");
+}
+
+function bu(f : ()=>void, thisArg?: unknown) {
+	return f.bind(thisArg)
+}
 function helloWorld() {
-	
+	bu(test)();
 }
 
 async function debug() {
@@ -349,6 +356,8 @@ export async function generateLatexFromDocument(document: vscode.TextDocument): 
 
 export function parseFromDocument(document: vscode.TextDocument): Parser {
 
+	updateFileList(document);
+	
 	let compiler = lixContext.getCompiler(document.uri);
 	compiler.parseFromText(document.getText());
 	let parser = compiler.parser;
@@ -374,6 +383,23 @@ export function parseFromDocument(document: vscode.TextDocument): Parser {
 	documentProvider.updateContent(getUri(document.uri, "parse"), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 
 	return parser;
+}
+
+async function updateFileList(document: vscode.TextDocument) {
+	let compiler = lixContext.getCompiler(document.uri);
+	let list = await compiler.fileOperation.getFilesInDirectory(".");
+	let figlist: string[] = [];
+	for (let item of list) {
+		if(item.includes(".lix")) {
+			continue;
+		}
+		let ext = compiler.fileOperation.getFileExtension(item);
+		if (ext === "jpg" || ext === "png" || ext === "eps" || ext === "tikz") {
+			figlist.push(item);
+		}
+
+	}
+	lixContext.setFileList(document.uri, figlist);
 }
 
 function showFile(uri: vscode.Uri) {

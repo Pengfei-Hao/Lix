@@ -8,6 +8,8 @@ export abstract class FileOperation {
 
     abstract createDirectory (relativePath: string): Promise<void>;
 
+    abstract getFilesInDirectory(relativeDirectory: string): Promise<string[]>;
+
     abstract getFileName(relativePath: string): string;
 
     abstract getFileExtension (relativePath: string): string;

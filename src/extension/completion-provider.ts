@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { Parser } from '../parser/parser';
 import { LixContext } from './lix-context';
 import { Node } from '../sytnax-tree/node';
+import * as file from 'fs';
+import { Type } from '../sytnax-tree/type';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
     context: LixContext;
@@ -62,7 +64,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         }
 
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "[") {
-            if (this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
+            if (!this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
                 for (let item of parser.blockHandlerTable.blockHandlers.keys()) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Function);
                     comp.insertText = item + " ";
@@ -72,28 +74,76 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         }
+        else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
+            if (this.in(parser.coreModule.figureType, parser, parser.getIndex(position.line, position.character)!)) {
+                let list = this.context.getFileList(document.uri);
+                for (let item of list) {
+                    let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
+                    res.push(comp);
+                }
+            }
+        }
         return res;
     }
 
     inMath(parser: Parser, pos: number): boolean {
-        let node: Node | undefined = parser.syntaxTree;
-
-        outer: while (true) {
-            if (node === undefined) {
-                return false;
-            }
-            else if (node.type === parser.mathModule.formulaType) {
+        let node = parser.syntaxTree;
+        outer: while(true) {
+            if (node.type === parser.mathModule.formulaType) {
                 return true;
             }
-            for (let i = 0; i < node!.children.length; i++) {
-                if (node!.children[i].begin <= pos && pos < node!.children[i].end) {
-                    node = node!.children[i];
+            for (let sub of node.children) {
+                if (sub.begin <= pos && pos < sub.end) {
+                    node = sub;
                     continue outer;
                 }
             }
-            node = undefined;
+            break;
+        }
+        // 这两种情况是不同的, 上边是指针位于formula内部,下边是formula位于foumula结尾位置.
+        node = parser.syntaxTree;
+        outer: while(true) {
+            if (node.type === parser.mathModule.formulaType) {
+                return true;
+            }
+            for (let sub of node.children) {
+                if (sub.begin <= pos && pos <= sub.end) {
+                    node = sub;
+                    continue outer;
+                }
+            }
+            return false;
         }
     }
 
+    in(type: Type, parser: Parser, pos: number): boolean {
+        let node = parser.syntaxTree;
+        outer: while(true) {
+            if (node.type === type) {
+                return true;
+            }
+            for (let sub of node.children) {
+                if (sub.begin <= pos && pos < sub.end) {
+                    node = sub;
+                    continue outer;
+                }
+            }
+            break;
+        }
+        // 这两种情况是不同的, 上边是指针位于formula内部,下边是formula位于foumula结尾位置.
+        node = parser.syntaxTree;
+        outer: while(true) {
+            if (node.type === type) {
+                return true;
+            }
+            for (let sub of node.children) {
+                if (sub.begin <= pos && pos <= sub.end) {
+                    node = sub;
+                    continue outer;
+                }
+            }
+            return false;
+        }
+    }
 }
 

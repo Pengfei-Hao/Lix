@@ -12,7 +12,7 @@ git clone https://github.com/Pengfei-Hao/Lix
 ```
 npm install
 ```
-安装所需的依赖库, 然后按`F5`或在`Run and Debug`中点击绿色箭头即可运行.
+安装所需的依赖库, 然后按 `F5` 或在 `Run and Debug` 中点击绿色箭头即可运行.
 
 在成功安装后, 在VSCode 的配置 Font Family 中添加 `STIX Two Math`, 并禁用 `Ambiguous Characters`.
 
@@ -20,11 +20,11 @@ npm install
 
 新建（或打开`./tests/`目录中）拓展名为 `lix` 的文件, 即可使用 Lix.
 
-在打开后的页面右上角有几个选项, 分别是
+在打开后的页面右上角有几个选项, 从左到右分别是
 
-* Parse: 将 Lix 文档进行词法语法分析并展示语法树.
-* Generate: 展示将 Lix 文件编译后生成的 Latex 源代码.
-* Compile: 将生成的 Latex 文档编译为PDF, PDF文件位于文档所在目录下的`lix_temp`目录内.
+* Compile: 将生成的 Latex 文档编译为PDF, PDF文件位于文档所在的相同目录下.
+* Generate: (Debug) 展示将 Lix 文件编译后生成的 Latex 源代码.
+* Parse: (Debug) 将 Lix 文档进行词法语法分析并展示语法树.
 
 ## 原理
 

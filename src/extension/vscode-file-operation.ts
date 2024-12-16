@@ -62,6 +62,40 @@ export class VSCodeFileOperation extends FileOperation {
         }
     }
 
+    async getFilesInDirectory(relativeDirectory: string): Promise<string[]> {
+        let directory = vscode.Uri.joinPath(this.workingDirectory, relativeDirectory);
+        return this.myGetFilesInDirectory(directory);
+    }
+
+    private async myGetFilesInDirectory(directory: vscode.Uri): Promise<string[]> {
+        let res: string[] = [];
+        try {
+            let list = await vscode.workspace.fs.readDirectory(directory);
+            for(let item of list) {
+                let path = vscode.Uri.joinPath(directory, item[0]);
+                if(item[1] === vscode.FileType.Directory) {
+                    let nres = await this.myGetFilesInDirectory(path);
+                    for(let it of nres) {
+                        res.push(it);
+                    }
+                }
+                else if(item[1] === vscode.FileType.File) {
+                    res.push(this.convertToRelativePath(path));
+                }
+            }
+            return res;
+        } catch (error) {
+            console.log(error);
+            vscode.window.showErrorMessage(`Encountered an error when reading directory "${directory.fsPath}".`);
+            return [];
+        }
+    }
+
+    // path 必须位于 workingDirectory 之内
+    private convertToRelativePath(path: vscode.Uri): string {
+        return "." + path.path.slice(this.workingDirectory.path.length);
+    }
+
     getFileName(relativePath: string): string {
         let fileName = relativePath.split("/").at(-1)!;
         let dotIndex = fileName.lastIndexOf(".");

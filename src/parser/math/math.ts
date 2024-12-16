@@ -15,7 +15,7 @@ import { Ref } from "../../foundation/ref";
 
 export class Math extends Module {
 
-    blockHandlerTable: SymbolTable;
+    //blockHandlerTable: SymbolTable;
 
     operatorTable: OperatorTable;
 
@@ -32,17 +32,6 @@ export class Math extends Module {
     infixType: Type;
     prefixType: Type;
 
-    /*
-    fractionType: Type;
-    matrixType: Type;
-    sqrtType: Type;
-    sumType: Type;
-    limitType: Type;
-    integralType: Type;
-    scriptType: Type;
-    bracketsType: Type;
-    */
-
     notationsToUnicodeSymbols: Map<string, string>;
 
     symbols: Set<string>; // 符号, 包括 Symbols 字段和 Unicode Symbols 的 Symbol
@@ -51,9 +40,11 @@ export class Math extends Module {
     constructor(parser: Parser) {
         super(parser);
 
-        // Init label handle function
+        // Init block handler & insertion handler
         this.parser.basicBlocks.add("formula");
         this.parser.blockHandlerTable.add("formula", this.formulaBlockHandler, this);
+
+        this.parser.insertionHandlerTable.add("/", this.matchInlineFormula, this);
 
         // Init syntax tree node type
         this.formulaType = this.parser.typeTable.add("formula")!;
@@ -68,17 +59,9 @@ export class Math extends Module {
         this.prefixType = this.parser.typeTable.add("prefix")!;
 
         // Init math block handle function and init syntax tree node
-        this.blockHandlerTable = new SymbolTable(parser);
-        /*
-        this.fractionType = this.blockHandlerTable.addBlock("fraction", this.frac, this)!;
-        this.sqrtType = this.blockHandlerTable.addBlock("sqrt", this.sqrt, this)!;
-        this.sumType = this.blockHandlerTable.addBlock("sum", this.sum, this)!;
-        this.limitType = this.blockHandlerTable.addBlock("limit", this.limit, this)!;
-        this.integralType = this.blockHandlerTable.addBlock("integral", this.integral, this)!;
-        this.scriptType = this.blockHandlerTable.addBlock("script", this.script, this)!;
-        this.bracketsType = this.blockHandlerTable.addBlock("brackets", this.brackets, this)!;
-        this.matrixType = this.blockHandlerTable.addBlock("matrix", this.matrix, this)!;
-        */
+        //this.blockHandlerTable = new SymbolTable(parser);
+
+        // **************** Notations & Symbols ****************
 
         this.notations = new Set();
         this.symbols = new Set();
@@ -90,23 +73,22 @@ export class Math extends Module {
 
         // 字母组合
         for (let notation of config.Notations) {
-            this.blockHandlerTable.addSymbol(notation);
+            //this.blockHandlerTable.addSymbol(notation);
             this.notations.add(notation);
         }
 
         // 键盘上能打出来的符号
         for (let sym of config.Symbols) {
             this.symbols.add(sym);
-            this.blockHandlerTable.addSymbol(sym);
+            //this.blockHandlerTable.addSymbol(sym);
         }
 
-        // vscode 中要关闭 DisableHighlightingOfAmbiguousCharacters 这个选项
         // Unicode 特殊字符
         for (let tmp of config.UnicodeSymbolsAndNotations) {
             this.symbols.add(tmp[0]);
             this.notations.add(tmp[1]);
-            this.blockHandlerTable.addSymbol(tmp[0]);
-            this.blockHandlerTable.addSymbol(tmp[1]);
+            // this.blockHandlerTable.addSymbol(tmp[0]);
+            // this.blockHandlerTable.addSymbol(tmp[1]);
             this.notationsToUnicodeSymbols.set(tmp[1], tmp[0]);
         }
 
@@ -134,7 +116,7 @@ export class Math extends Module {
     }
 
     init() {
-        this.blockHandlerTable.definations = new Map();
+        //this.blockHandlerTable.definations = new Map();
     }
 
     // FormulaBlockHandler: failing | skippable | successful
@@ -143,17 +125,16 @@ export class Math extends Module {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
         this.parser.begin("formula-block-handler");
-        this.myMatchFormula(result);
+        this.myFormulaBlockHandler(result);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
         if (result.failed) {
             this.parser.index = preIndex;
+        }
+        if(result.shouldTerminate) {
             return result;
         }
-        // if (!result.succeeded) {
-        //     return result;
-        // }
 
         this.parser.begin("analysis");
         let analysisResult = this.analyse(result.content);
@@ -163,32 +144,33 @@ export class Math extends Module {
         return result;
     }
 
+    private myFormulaBlockHandler(result: Result<Node>) {
+
+        let msg = result.messages;
+
+        let nodeRes: Result<Node>;
+
+        nodeRes = this.matchElements("]", true);
+        result.merge(nodeRes);
+        result.content = nodeRes.content;
+    }
+
     // MatchInlineFormula: failing | matched | skippable | successful
 
     matchInlineFormula(): MatchResult {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
         this.parser.begin("inline-formula");
-        result.merge(this.parser.match("/"));
-        if (result.shouldTerminate) {
-            this.parser.end();
-            return result;
-        }
-        result.GuaranteeMatched();
-        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
-        this.myMatchFormula(result, true);
-
+        this.myMatchInlineFormula(result);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
-
         if (result.failed) {
             this.parser.index = preIndex;
+        }
+        if(result.shouldTerminate) {
             return result;
         }
-        // if (!result.succeeded) {
-        //     return result;
-        // }
 
         this.parser.begin("analysis");
         let analysisResult = this.analyse(result.content);
@@ -196,6 +178,36 @@ export class Math extends Module {
         result.merge(analysisResult);
         result.content.children.push(analysisResult.content);
         return result;
+    }
+
+    private myMatchInlineFormula(result: Result<Node>) {
+
+        let msg = result.messages;
+
+        let nodeRes: Result<Node>;
+        
+        result.merge(this.parser.match("/"));
+        if (result.shouldTerminate) {
+            return;
+        }
+        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+        result.GuaranteeMatched();
+
+        nodeRes = this.matchElements("/", false);
+        result.merge(nodeRes);
+        // 不会失败
+        result.content = nodeRes.content;
+
+        if(this.parser.isEOF()) {
+            return;
+        }
+        result.merge(this.parser.match("/"));
+        if (result.shouldTerminate) {
+            msg.push(this.parser.getMessage(`Missing '/' in inline formula.`));
+            result.promoteToSkippable();
+            return;
+        }
+        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
     }
 
     // **************** Match ****************
@@ -208,34 +220,6 @@ export class Math extends Module {
     // escapeElement
 
     static nameChar = /[0-9a-zA-Z]/;
-
-    private myMatchFormula(result: Result<Node>, inline = false) {
-
-        let msg = result.messages;
-
-        let nodeRes: Result<Node>;
-        let nullRes: Result<null>;
-
-
-        if (inline) {
-            nodeRes = this.matchElements("/");
-        }
-        else {
-            nodeRes = this.matchElements("]");
-        }
-        result.merge(nodeRes);
-        if (result.shouldTerminate) {
-            result.promoteToSkippable();
-            if (inline) {
-                this.skipByBracketsEndWith("/");
-            }
-            else {
-                this.skipByBracketsEndWith("]");
-            }
-            return;
-        }
-        result.content = nodeRes.content;
-    }
 
     /*
     private myMatchFormula(result: MatchResult, inline = false) {
@@ -329,13 +313,123 @@ export class Math extends Module {
     }
     */
 
+    // matchElements(endWith: string = "]"): Result<Node> {
+    //     let result = new Result<Node>(new Node(this.formulaType));
+    //     let preIndex = this.parser.index;
+    //     this.parser.begin("elements");
+    //     this.myMatchElements(result, endWith);
+    //     this.parser.end();
+    //     result.content.begin = preIndex;
+    //     result.content.end = this.parser.index;
+    //     if (result.failed) {
+    //         this.parser.index = preIndex;
+    //     }
+    //     return result;
+    // }
+
+    // private myMatchElements(result: Result<Node>, endWith: string) {
+
+    //     let node = result.content;
+    //     let msg = result.messages;
+
+    //     let blnRes: Result<number>;
+    //     let ndRes: Result<Node>;
+    //     let nullRes: Result<null>;
+
+    //     result.mergeState(ResultState.successful);
+
+    //     while (true) {
+
+    //         if (this.parser.isEOF()) {
+    //             result.mergeState(ResultState.failing);
+    //             msg.push(this.parser.getMessage(`Formula ended abruptly.`));
+
+    //             return;
+    //         }
+    //         else if ((nullRes = this.parser.match(endWith)).matched) {
+    //             result.merge(nullRes);
+    //             // if (result.shouldTerminate) {
+    //             //     msg.push(this.parser.getMessage(`Missing '${endWith}' in formula.`));
+    //             //     return;
+    //             // }
+    //             if (endWith != "]") {
+    //                 result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+    //             }
+    //             break;
+    //         }
+
+    //         else if ((blnRes = this.parser.matchMultilineBlank()).matched) {
+    //             result.merge(blnRes);
+    //             if (blnRes.content >= 2) {
+    //                 result.messages.push(this.parser.getMessage("Formula should not have two or more newline.", MessageType.warning));
+    //                 result.mergeState(ResultState.failing);
+    //                 result.promoteToSkippable();
+    //             }
+    //         }
+
+    //         else if ((nullRes = this.parser.match("[")).matched) {
+    //             result.merge(nullRes);
+
+    //             ndRes = this.matchElements("]");
+    //             result.merge(ndRes);
+    //             if (result.shouldTerminate) {
+    //                 return;
+    //             }
+    //             node.children.push(ndRes.content);
+    //         }
+
+    //         else if ((nullRes = this.parser.match("`")).matched) {
+    //             result.merge(nullRes);
+    //             result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+
+    //             ndRes = this.matchElements("`");
+    //             result.merge(ndRes);
+    //             if (result.shouldTerminate) {
+    //                 return;
+    //             }
+    //             ndRes.content.type = this.definationType;
+    //             node.children.push(ndRes.content);
+    //         }
+
+    //         else if ((ndRes = this.matchEscapeElement()).matched) {
+    //             result.merge(ndRes);
+    //             if (result.shouldTerminate) {
+    //                 return;
+    //             }
+    //             node.children.push(ndRes.content);
+    //         }
+
+    //         else if ((ndRes = this.matchInlineText()).matched) {
+    //             result.merge(ndRes);
+    //             if (result.shouldTerminate) {
+    //                 return;
+    //             }
+    //             node.children.push(ndRes.content);
+    //         }
+
+    //         else if ((ndRes = this.matchElement()).matched) {
+    //             result.merge(ndRes);
+    //             if (result.shouldTerminate) {
+    //                 return;
+    //             }
+    //             node.children.push(ndRes.content);
+    //         }
+
+    //         else {
+    //             result.mergeState(ResultState.failing);
+    //             console.log("[[logic error]].");
+    //             return;
+    //         }
+    //     }
+    // }
+
     // MatchElements: failing | skippable | successful
 
-    matchElements(endWith: string = "]"): Result<Node> {
+    matchElements(endWith: string = "]", hasDefination = false): Result<Node> {
         let result = new Result<Node>(new Node(this.formulaType));
         let preIndex = this.parser.index;
         this.parser.begin("elements");
-        this.myMatchElements(result, endWith);
+        this.myMatchElements(result, endWith, hasDefination);
         this.parser.end();
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
@@ -345,7 +439,7 @@ export class Math extends Module {
         return result;
     }
 
-    private myMatchElements(result: Result<Node>, endWith: string) {
+    private myMatchElements(result: Result<Node>, endWith: string, hasDefination: boolean) {
 
         let node = result.content;
         let msg = result.messages;
@@ -354,92 +448,107 @@ export class Math extends Module {
         let ndRes: Result<Node>;
         let nullRes: Result<null>;
 
+        result.mergeState(ResultState.successful);
+
         while (true) {
 
             if (this.parser.isEOF()) {
-                result.mergeState(ResultState.failing);
+                result.mergeState(ResultState.skippable);
                 msg.push(this.parser.getMessage(`Formula ended abruptly.`));
-
                 return;
             }
-            else if ((nullRes = this.parser.match(endWith)).matched) {
-                result.merge(nullRes);
-                // if (result.shouldTerminate) {
-                //     msg.push(this.parser.getMessage(`Missing '${endWith}' in formula.`));
-                //     return;
-                // }
-                if (endWith != "]") {
-                    result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
-                }
+
+            else if ((ndRes = this.matchEscapeElement()).matched) {
+                result.merge(ndRes);
+                // 不会失败
+                node.children.push(ndRes.content);
+            }
+
+            else if (this.parser.is(endWith)) {
                 break;
+            }
+
+            else if (this.parser.isMultilineBlankGeThanOne()) {
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage(`Formula ended abruptly.`));
+                return;
             }
 
             else if ((blnRes = this.parser.matchMultilineBlank()).matched) {
                 result.merge(blnRes);
-                if (blnRes.content >= 2) {
-                    result.messages.push(this.parser.getMessage("Formula should not have two or more newline.", MessageType.warning));
-                    result.mergeState(ResultState.failing);
-                    result.promoteToSkippable();
-                }
+                // if (blnRes.content >= 2) {
+                //     result.messages.push(this.parser.getMessage("Formula should not have two or more line breaks.", MessageType.warning));
+                //     //result.mergeState(ResultState.skippable);
+                // }
             }
 
             else if ((nullRes = this.parser.match("[")).matched) {
                 result.merge(nullRes);
 
-                ndRes = this.matchElements("]");
+                ndRes = this.matchElements("]", false);
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
                     return;
                 }
                 node.children.push(ndRes.content);
+
+                if(this.parser.isEOF()) {
+                    return;
+                }
+                result.merge(this.parser.match("]"));
+                if (result.shouldTerminate) {
+                    msg.push(this.parser.getMessage(`Missing ']' in formula.`));
+                    result.promoteToSkippable();
+                    return;
+                }
             }
 
-            else if ((nullRes = this.parser.match("`")).matched) {
+            else if (hasDefination && (nullRes = this.parser.match("`")).matched) {
                 result.merge(nullRes);
                 result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
 
-                ndRes = this.matchElements("`");
+                ndRes = this.matchElements("`", false);
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
                     return;
                 }
                 ndRes.content.type = this.definationType;
                 node.children.push(ndRes.content);
-            }
 
-            else if ((ndRes = this.matchEscapeElement()).matched) {
-                result.merge(ndRes);
-                if (result.shouldTerminate) {
+                if(this.parser.isEOF()) {
                     return;
                 }
-                node.children.push(ndRes.content);
+                result.merge(this.parser.match("`"));
+                if (result.shouldTerminate) {
+                    msg.push(this.parser.getMessage(`Missing '\`' in formula.`));
+                    result.promoteToSkippable();
+                    return;
+                }
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
             }
 
             else if ((ndRes = this.matchInlineText()).matched) {
                 result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    return;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
 
             else if ((ndRes = this.matchElement()).matched) {
                 result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    return;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
 
             else {
-                result.mergeState(ResultState.failing);
-                console.log("[[logic error]].");
-                return;
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage(`Unrecognizable character '${this.parser.curUnicodeChar()}' in formula.`));
+                this.parser.moveUnicode();
+                continue;
             }
         }
     }
 
-    // MatchElement: failing | (matched) | skippable | successful
+    // MatchElement: successful
 
     matchElement(): Result<Node> {
         let result = new Result<Node>(new Node(this.elementType));
@@ -463,14 +572,9 @@ export class Math extends Module {
             return;
         }
 
-        result.GuaranteeMatched();
         if (this.parser.is(Math.nameChar)) {
-
             while (true) {
-                if (this.parser.isEOF()) {
-                    break;
-                }
-                else if (this.parser.is(Math.nameChar)) {
+                if (this.parser.is(Math.nameChar)) {
                     result.mergeState(ResultState.successful);
                     node.content += this.parser.curChar();
                     this.parser.move();
@@ -483,12 +587,14 @@ export class Math extends Module {
         else {
             // 数学的特殊符号属于 0x10000 平面, ts 使用 utf16 编码, 因而占两个字符的位置, 要使用 curUnicodeChar
             node.content = this.parser.curUnicodeChar();
-            result.mergeState(ResultState.successful);
-            this.parser.moveUnicode();
+            if(this.symbols.has(node.content)) {
+                result.mergeState(ResultState.successful);
+                this.parser.moveUnicode();                
+            }
         }
     }
 
-    // MatchEscapeElement: failing | (matched) | skippable | successful
+    // MatchEscapeElement: failing | skippable | successful
 
     matchEscapeElement(): Result<Node> {
         let result = new Result<Node>(new Node(this.escapeElementType));
@@ -510,28 +616,45 @@ export class Math extends Module {
         let msg = result.messages;
 
         let nodeRes: Result<Node>;
-
-        result.merge(this.parser.match("@"));
-        if (result.shouldTerminate) {
-            result.messages.push(this.parser.getMessage("Missing '@' in formula."));
-            return;
+        let symRes: Result<null>;
+        if((symRes = this.parser.match("@")).matched) {
+            result.merge(symRes);
+            result.GuaranteeMatched();
+    
+            nodeRes = this.matchElement();
+            result.merge(nodeRes);
+            if (result.shouldTerminate) {
+                result.promoteToSkippable();
+    
+                result.content.type = this.elementType;
+                result.content.content = "@";
+                result.messages.push(this.parser.getMessage("'@' must be followed by an element."));
+                return;
+            }
+            result.content.content = nodeRes.content.content;
         }
-        result.GuaranteeMatched();
-
-        nodeRes = this.matchElement();
-        result.merge(nodeRes);
-        if (result.shouldTerminate) {
-            result.promoteToSkippable();
+        else if((symRes = this.parser.match("\\")).matched) {
+            result.merge(symRes);
+            result.GuaranteeMatched();
             result.content.type = this.elementType;
-            result.content.content = "@";
-            result.messages.push(this.parser.getMessage("'@' must have element."));
-            return;
+    
+            nodeRes = this.matchElement();
+            result.merge(nodeRes);
+            if (result.shouldTerminate) {
+                result.promoteToSkippable();
+    
+                result.content.content = "\\";
+                result.messages.push(this.parser.getMessage("'\\' must be followed by an element."));
+                return;
+            }
+            result.content.content = nodeRes.content.content;
         }
-        result.content.content = nodeRes.content.content;
-
+        else {
+            result.messages.push(this.parser.getMessage("Missing '@' or '\\' in formula."));
+        }
     }
 
-    // MatchInlineText: failing | (matched) | skippable | successful
+    // MatchInlineText: failing | skippable | successful
 
     matchInlineText(): Result<Node> {
         let result = new Result<Node>(new Node(this.inlineTextType));
@@ -559,16 +682,16 @@ export class Math extends Module {
         }
         result.GuaranteeMatched();
 
+        let nullRes: Result<null>;
+
         while (true) {
             if (this.parser.isEOF()) {
-                msg.push(this.parser.getMessage("Formula ended abruptly."));
-                result.mergeState(ResultState.failing);
-                result.promoteToSkippable();
+                msg.push(this.parser.getMessage("Formula inline text ended abruptly."));
+                result.mergeState(ResultState.skippable);
                 return;
             }
-            else if (this.parser.is("\"")) {
-                result.mergeState(ResultState.successful);
-                this.parser.move();
+            else if ((nullRes = this.parser.match("\"")).matched) {
+                result.merge(nullRes);
                 break;
             }
             else {
@@ -577,10 +700,9 @@ export class Math extends Module {
                 result.mergeState(ResultState.successful);
             }
         }
-
-
-
     }
+
+    // **************** Skipping ****************
 
     skipByBracketsEndWith(endWith: string) {
         let count = 1;

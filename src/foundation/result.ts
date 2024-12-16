@@ -76,57 +76,56 @@ export class Result<T> implements IResult<Result<T>> {
         return this.state === ResultState.successful;
     }
 
-    promote(state: ResultState) {
-        if(this.state === ResultState.failing && (state === ResultState.matched || state === ResultState.skippable)) {
-            this.state = state;
-            return;
-        }
-        console.log("result.promote has logic error");
-    }
-
     promoteToSkippable() {
-        if(this.state === ResultState.failing) {
+        if(this.promotedToMatched) {
+            if(this.state !== ResultState.matched) {
+                console.log("result.promote has logic error");
+            }
             this.state = ResultState.skippable;
-            return;
         }
-        console.log("result.promote has logic error");
+        else {
+            if(this.state !== ResultState.failing) {
+                console.log("result.promote has logic error");
+            }
+            this.state = ResultState.skippable;
+        }
+        
     }
 
     GuaranteeMatched() {
         this.promotedToMatched = true;
+        if(this.state === ResultState.failing) {
+            this.state = ResultState.matched;
+            //console.log("guarantee");
+        }
     }
 
     mergeState(state: ResultState) {
-        switch(this.state) {
-            case ResultState.skippable:
-                switch(state) {
-                    case ResultState.successful:
-                    case ResultState.skippable:
-                        this.state = ResultState.skippable;
-                        break;
-                    case ResultState.matched:
-                    case ResultState.failing:
-                        this.state = ResultState.failing;
-                        break;
-                }
-                break;
-            case ResultState.successful:
-            case ResultState.failing:
-                switch(state) {
-                    case ResultState.matched:
-                        this.state = ResultState.failing;
-                        break;
-                    default:
-                        this.state = state;
-                        break;
-                }
-                break;
-            case ResultState.matched:
+        // successful = 3,
+        // skippable = 2,
+        // matched = 1,
+        // failing = 0
+        if (this.promotedToMatched) {
+            const table = [[-1, -1, -1, -1], [1, 1, 2, 3], [1, 1, 2, 2], [1, 1, 2, 3]]
+            let res = table[this.state][state];
+            if (res === -1) {
                 console.log("result.merge has logic error");
                 return;
+            }
+            else {
+                this.state = res;
+            }
         }
-        if(this.promotedToMatched && this.state === ResultState.failing) {
-            this.state = ResultState.matched;
+        else {
+            const table = [[0, 0, 2, 3], [-1, -1, -1, -1], [0, 0, 2, 2], [0, 0, 2, 3]]
+            let res = table[this.state][state];
+            if (res === -1) {
+                console.log("result.merge has logic error");
+                return;
+            }
+            else {
+                this.state = res;
+            }
         }
     }
 
