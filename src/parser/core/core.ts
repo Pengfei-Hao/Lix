@@ -44,6 +44,11 @@ export class Core extends Module {
         this.parser.blockHandlerTable.add("bold", this.boldBlockHandler, this);
         this.parser.blockHandlerTable.add("italic", this.italicBlockHandler, this);
 
+        this.parser.insertionHandlerTable.add("`", this.inlineCodeHandler, this);
+        // 有问题暂时不用
+        // this.parser.insertionHandlerTable.add("*", this.inlineBoldHandler, this);
+        // this.parser.insertionHandlerTable.add("~", this.inlineEmphHandler, this);
+
         // Init syntax tree node type
         this.figureType = this.parser.typeTable.add("figure")!;
         this.figureItemType = this.parser.typeTable.add("figure-item")!;
@@ -63,6 +68,62 @@ export class Core extends Module {
         
     }
 
+    // cleanup(node: Node) {
+    //     if(node.children.length === 0) {
+    //         return;
+    //     }
+
+    //     // 将 word 连起来
+    //     let preIsWord = false;
+    //     for(let i = 0; i < node.children.length; i++) {
+    //         let ch = node.children[i];
+    //         if(preIsWord && ch.type === this.parser.wordsType) {
+    //             let pre = node.children[i-1];
+    //             if(pre.content.endsWith(" ") && ch.content.startsWith(" ")) {
+    //                 ch.content = ch.content.slice(1);
+    //             }
+    //             pre.content = pre.content.concat(ch.content);
+    //             node.children.splice(i, 1);
+    //             i--;
+    //             continue;
+    //         }
+
+    //         if(ch.type === this.parser.wordsType) {
+    //             preIsWord = true;
+    //         }
+    //         else {
+    //             preIsWord = false;
+    //         }
+    //     }
+
+    //     // 去除首尾空格
+    //     let i = 0;
+    //     let ch = node.children[0];
+    //     if(ch.type === this.parser.argumentsType) {
+    //         if(node.children.length <= 1) {
+    //             return;
+    //         }
+    //         i = 1;
+    //         ch = node.children[1];
+    //     }
+    //     if(ch.type === this.parser.wordsType && ch.content.startsWith(" ")) {
+    //         ch.content = ch.content.slice(1);
+    //         if(ch.content.length === 0) {
+    //             node.children.splice(i, 1);
+    //         }
+    //     }
+    //     if(node.children.length === 0) {
+    //         return;
+    //     }
+    //     ch = node.children.at(-1)!;
+    //     if(ch.type === this.parser.wordsType && ch.content.endsWith(" ")) {
+    //         ch.content = ch.content.slice(0, -1);
+    //         if(ch.content.length === 0) {
+    //             node.children.splice(-1, 1);
+    //         }
+    //     }
+    // }
+
     emphBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.parser.textType));
         let preIndex = this.parser.index;
@@ -72,6 +133,7 @@ export class Core extends Module {
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
         result.content.type = this.emphType;
+        this.parser.cleanupText(result.content);
         if (result.failed) {
             this.parser.index = preIndex;
         }
@@ -87,6 +149,7 @@ export class Core extends Module {
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
         result.content.type = this.boldType;
+        this.parser.cleanupText(result.content);
         if (result.failed) {
             this.parser.index = preIndex;
         }
@@ -102,6 +165,7 @@ export class Core extends Module {
         result.content.begin = preIndex;
         result.content.end = this.parser.index;
         result.content.type = this.italicType;
+        this.parser.cleanupText(result.content);
         if (result.failed) {
             this.parser.index = preIndex;
         }
@@ -124,9 +188,11 @@ export class Core extends Module {
         result.mergeState(ResultState.successful);
 
         while (true) {
+            curIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
                 }
                 msg.push(this.parser.getMessage("Format block ended abruptly."));
                 result.mergeState(ResultState.skippable);
@@ -135,7 +201,7 @@ export class Core extends Module {
 
             else if (this.parser.is("]")) {
                 if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 return;
@@ -143,10 +209,146 @@ export class Core extends Module {
 
             else if(this.parser.isMultilineBlankGeThanOne()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex,curIndex));
                     text = "";
                 }
                 msg.push(this.parser.getMessage("Format block ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+
+            else if ((blnRes = this.parser.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+                if(text === "") {
+                    preIndex = curIndex;
+                }
+                result.merge(blnRes);
+                text += " ";
+                if (blnRes.content > 1) {
+                    msg.push(this.parser.getMessage("Format block cannot contain linebreaks more than 1.", MessageType.warning));
+                    //result.mergeState(ResultState.skippable);
+                }
+            }
+
+            else if ((symRes = this.parser.match("\\\\")).matched) {
+                if(text === "") {
+                    preIndex = curIndex;
+                }
+                msg.push(this.parser.getMessage("Format block should not have \\\\.", MessageType.warning));
+                text += "\\\\";
+                //result.mergeState(ResultState.skippable);
+            }
+
+            else if((ndRes = this.parser.matchEscapeChar()).matched) {
+                if (text === "") {
+                    preIndex = curIndex;
+                }
+                result.merge(ndRes);
+                text += ndRes.content.content;
+            }
+
+            else if ((ndRes = this.parser.matchInsertion()).matched) {
+                if (text !== "") {
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                    text = "";
+                }
+                result.merge(ndRes);
+                // 不会失败
+                node.children.push(ndRes.content);
+            }
+
+            else if (this.parser.isBlock()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                    text = "";
+                }
+                msg.push(this.parser.getMessage("Format block should not have block."));
+                result.mergeState(ResultState.skippable);
+                this.parser.skipByBrackets();
+            }
+
+            else {
+                if(text === "") {
+                    preIndex = curIndex;
+                }
+                result.mergeState(ResultState.successful);
+                text += this.parser.curChar();
+                this.parser.move();
+            }
+        }
+    }
+
+    inlineEmphHandler(): Result<Node> {
+        let result = new Result<Node>(new Node(this.emphType));
+        let preIndex = this.parser.index;
+        this.parser.begin("inline-emph-handler");
+        this.myInlineFormatHandler(result, "~");
+        this.parser.end();
+        result.content.begin = preIndex;
+        result.content.end = this.parser.index;
+        result.content.type = this.emphType;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
+        return result;
+    }
+
+    inlineBoldHandler(): Result<Node> {
+        let result = new Result<Node>(new Node(this.boldType));
+        let preIndex = this.parser.index;
+        this.parser.begin("inline-bold-handler");
+        this.myInlineFormatHandler(result, "*");
+        this.parser.end();
+        result.content.begin = preIndex;
+        result.content.end = this.parser.index;
+        result.content.type = this.boldType;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
+        return result;
+    }
+
+    private myInlineFormatHandler(result: Result<Node>, endWith: string) {
+        let node = result.content;
+        let msg = result.messages;
+
+        let text = "";
+        let symRes: Result<null>;
+        let blnRes: Result<number>;
+        let ndRes: Result<Node>;
+
+        let preIndex = 0, curIndex;
+
+        result.merge(this.parser.match(endWith));
+        if(result.shouldTerminate) {
+            msg.push(this.parser.getMessage(`Missing '${endWith}' in inline format.`));
+            return;
+        }
+        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+
+        while (true) {
+            if (this.parser.isEOF()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                }
+                msg.push(this.parser.getMessage("Inline format ended abruptly."));
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+
+            else if (this.parser.is(endWith)) {
+                if (text !== "") {
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    text = "";
+                }
+                break;
+            }
+
+            else if(this.parser.isMultilineBlankGeThanOne()) {
+                if (text !== "") {
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    text = "";
+                }
+                msg.push(this.parser.getMessage("Inline format ended abruptly."));
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -158,7 +360,7 @@ export class Core extends Module {
                 result.merge(blnRes);
                 text += " ";
                 if (blnRes.content > 1) {
-                    msg.push(this.parser.getMessage("Format block cannot contain linebreaks more than 1.", MessageType.warning));
+                    msg.push(this.parser.getMessage("Inline format cannot contain linebreaks more than 1.", MessageType.warning));
                     //result.mergeState(ResultState.skippable);
                 }
             }
@@ -167,7 +369,7 @@ export class Core extends Module {
                 if(text === "") {
                     preIndex = curIndex;
                 }
-                msg.push(this.parser.getMessage("Format block should not have \\\\.", MessageType.warning));
+                msg.push(this.parser.getMessage("Inline format should not have \\\\.", MessageType.warning));
                 text += "\\\\";
                 //result.mergeState(ResultState.skippable);
             }
@@ -180,83 +382,22 @@ export class Core extends Module {
                 text += ndRes.content.content;
             }
 
-            // else if ((curIndex = this.parser.index, symRes = this.parser.match("\\")).matched) {
-            //     if(text === "") {
-            //         preIndex = curIndex;
-            //     }
-            //     result.merge(symRes);
-            //     if (this.parser.notEnd()) {
-            //         switch (this.parser.curChar()) {
-            //             case "(": case ")":
-            //             case "[": case "]": case "/": case "#": case "@":
-            //                 text += this.parser.curChar();
-            //                 break;
-            //             // 这里不需要判断 \\ 因为结束条件判断过
-            //             default:
-            //                 text += "\\";
-            //                 text += this.parser.curChar();
-            //                 msg.push(this.parser.getMessage(`\\${this.parser.curChar()} do not represent any char.`, MessageType.warning));
-            //         }
-            //         this.parser.move();
-            //     }
-            //     else {
-            //         text += "\\";
-            //         msg.push(this.parser.getMessage("Format text ends abruptly.", MessageType.warning));
-            //         result.mergeState(ResultState.skippable);
-            //     }
-            // }
-
-            else if (this.parser.isInsertion()) {
+            else if ((curIndex = this.parser.index, ndRes = this.parser.matchInsertion()).matched) {
                 if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
+                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                let handler = this.parser.insertionHandlerTable.getHandler(this.parser.curChar())!;
-                ndRes = handler();
                 result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    result.promoteToSkippable();
-                    this.parser.move();
-                    return;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
-
-            // else if ((curIndex = this.parser.index, ndRes = this.parser.matchReference()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-
-            //     if (result.shouldTerminate) {
-            //         //msg.push(this.parser.getMessage("Match reference failed."));
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            // }
-
-            // else if ((curIndex = this.parser.index, ndRes = this.parser.mathModule.matchInlineFormula()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     //this.parser.move();
-
-            //     if (result.shouldTerminate) {
-            //         //msg.push(this.parser.getMessage("Match embeded formula failed."));
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            // }
 
             else if (this.parser.isBlock()) {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                     text = "";
                 }
-                msg.push(this.parser.getMessage("Format block should not have block."));
+                msg.push(this.parser.getMessage("Inline format should not have block."));
                 result.mergeState(ResultState.skippable);
                 this.parser.skipByBrackets();
             }
@@ -270,8 +411,14 @@ export class Core extends Module {
                 this.parser.move();
             }
         }
-    }
 
+        result.merge(this.parser.match(endWith));
+        if(result.shouldTerminate) {
+            msg.push(this.parser.getMessage(`Missing '${endWith}' in inline format.`));
+            return;
+        }
+        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
+    }
 
     figureBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.figureType));
@@ -402,6 +549,71 @@ export class Core extends Module {
             this.parser.index = preIndex;
         }
         return result;
+    }
+
+    inlineCodeHandler(): Result<Node> {
+        let result = new Result<Node>(new Node(this.codeType));
+        let preIndex = this.parser.index;
+        this.parser.begin("inline-code-handler");
+        this.myInlineCodeHandler(result);
+        this.parser.end();
+        result.content.begin = preIndex;
+        result.content.end = this.parser.index;
+        if (result.failed) {
+            this.parser.index = preIndex;
+        }
+        return result;
+    }
+
+    private myInlineCodeHandler(result: Result<Node>) {
+        let node = result.content;
+        let msg = result.messages;
+
+        let symRes: Result<null>;
+        let count = 0;
+        while((symRes = this.parser.match("`")).matched) {
+            result.merge(symRes);
+            count++;
+        }
+        if(count !== 0) {
+            result.highlights.push(this.parser.getHighlight(HighlightType.operator, -count, 0));
+        }
+
+        let occur = 0;
+        while (true) {
+            if(this.parser.isEOF()) {
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage("Inline code ended abruptly."));
+                return;
+            }
+
+            else if(this.parser.isMultilineBlankGeThanOne()) {
+                result.mergeState(ResultState.skippable);
+                msg.push(this.parser.getMessage("Inline code ended abruptly."));
+                return;
+            }
+
+            else if((symRes = this.parser.match("`")).matched) {
+                result.merge(symRes);
+                occur++;
+                node.content += "`";
+                if(occur == count) {
+                    if(count !== 0) {
+                        node.content = node.content.slice(0, -count);
+                        result.highlights.push(this.parser.getHighlight(HighlightType.operator, -count, 0));
+                    }
+                    return;
+                }
+            }
+
+            else {
+                result.mergeState(ResultState.successful);
+                occur = 0;
+                node.content += this.parser.curChar();
+                this.parser.move();
+            }
+
+        }
     }
 
     codeBlockHandler(args: Node): Result<Node> {

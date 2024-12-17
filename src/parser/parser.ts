@@ -30,6 +30,7 @@ export class Parser {
     documentType: Type;
     paragraphType: Type;
     textType: Type;
+    insertionType: Type;
     wordsType: Type;
     nameType: Type;
     escapeCharType: Type;
@@ -87,6 +88,7 @@ export class Parser {
         this.documentType = this.typeTable.add("document")!;
         this.paragraphType = this.typeTable.add("paragraph")!;
         this.textType = this.typeTable.add("text")!;
+        this.insertionType = this.typeTable.add("insertion")!;
         this.wordsType = this.typeTable.add("words")!;
         this.nameType = this.typeTable.add("name")!;
         this.escapeCharType = this.typeTable.add("escape-char")!;
@@ -370,6 +372,65 @@ export class Parser {
         }
     }
 
+    cleanupText(node: Node) {
+        
+        // word node 的begin end 没改
+        if(node.children.length === 0) {
+            return;
+        }
+
+        // 将 word 连起来
+        let preIsWord = false;
+        for(let i = 0; i < node.children.length; i++) {
+            let ch = node.children[i];
+            if(preIsWord && ch.type === this.wordsType) {
+                let pre = node.children[i-1];
+                if(pre.content.endsWith(" ") && ch.content.startsWith(" ")) {
+                    ch.content = ch.content.slice(1);
+                }
+                pre.content = pre.content.concat(ch.content);
+                pre.end = ch.end;
+                node.children.splice(i, 1);
+                i--;
+                continue;
+            }
+
+            if(ch.type === this.wordsType) {
+                preIsWord = true;
+            }
+            else {
+                preIsWord = false;
+            }
+        }
+
+        // 去除首尾空格
+        let i = 0;
+        let ch = node.children[0];
+        if(ch.type === this.argumentsType) {
+            if(node.children.length <= 1) {
+                return;
+            }
+            i = 1;
+            ch = node.children[1];
+        }
+        if(ch.type === this.wordsType && ch.content.startsWith(" ")) {
+            ch.content = ch.content.slice(1);
+            if(ch.content.length === 0) {
+                node.children.splice(i, 1);
+            }
+        }
+        if(node.children.length === 0) {
+            return;
+        }
+        ch = node.children.at(-1)!;
+        if(ch.type === this.wordsType && ch.content.endsWith(" ")) {
+            ch.content = ch.content.slice(0, -1);
+            if(ch.content.length === 0) {
+                node.children.splice(-1, 1);
+            }
+        }
+    }
+
     // MatchFreeText: failing | skippable | successful
 
     matchFreeText(): Result<Node> {
@@ -380,6 +441,7 @@ export class Parser {
         this.end();
         result.content.begin = preIndex;
         result.content.end = this.index;
+        this.cleanupText(result.content);
         if (result.failed) {
             this.index = preIndex;
         }
@@ -398,21 +460,23 @@ export class Parser {
         let preIndex = 0, curIndex;
 
         while (true) {
+            curIndex = this.index;
+
             if (this.isEOF()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                 }
                 break;
             }
 
             else if (this.isMultilineBlankGeThanOne()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
-            else if ((curIndex = this.index, symRes = this.match("\\\\")).matched) {
+            else if ((symRes = this.match("\\\\")).matched) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
@@ -424,28 +488,28 @@ export class Parser {
             }
             else if (this.isBasicBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
             else if (this.isOtherBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
             else if (this.isSetting()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
 
 
-            else if ((curIndex = this.index, symRes = this.matchMultilineBlankLeThanOrEqOne()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+            else if ((symRes = this.matchMultilineBlankLeThanOrEqOne()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -454,7 +518,7 @@ export class Parser {
                 text += " ";
             }
 
-            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
+            else if((ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -463,76 +527,18 @@ export class Parser {
                 text += ndRes.content.content;
             }
 
-            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
-            //     if (text === "") {
-            //         preIndex = curIndex;
-            //     }
-            //     result.GuaranteeMatched();
-            //     result.merge(symRes);
-            //     if (this.notEnd()) {
-            //         switch (this.curChar()) {
-            //             case "(": case ")":
-            //             case "[": case "]": case "/": case "#": case "@":
-            //                 text += this.curChar();
-            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-            //                 break;
-            //             // 这里不需要判断 \\ 因为结束条件判断过
-            //             default:
-            //                 text += "\\";
-            //                 text += this.curChar();
-            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-            //         }
-            //         this.move();
-            //     }
-            //     else {
-            //         text += "\\";
-            //     }
-            // }
-
-            else if (this.isInsertion()) {
+            else if ((ndRes = this.matchInsertion()).matched) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
-                ndRes = handler();
                 result.merge(ndRes);
                 result.GuaranteeMatched();
-                if (result.shouldTerminate) {
-                    result.promoteToSkippable();
-                    this.move();
-                    continue;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
 
-            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            //     result.GuaranteeMatched();            
-            // }
-
-            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            //     result.GuaranteeMatched();                 
-            // }
-
-            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
+            else if ((ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block  前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
@@ -546,7 +552,7 @@ export class Parser {
 
             else {
                 if (text === "") {
-                    preIndex = this.index;
+                    preIndex = curIndex;
                 }
                 result.mergeState(ResultState.successful);
                 result.GuaranteeMatched();
@@ -652,6 +658,7 @@ export class Parser {
         this.end();
         result.content.begin = preIndex;
         result.content.end = this.index;
+        this.cleanupText(result.content);
         if (result.failed) {
             this.index = preIndex;
         }
@@ -670,28 +677,30 @@ export class Parser {
         let preIndex = 0, curIndex;
 
         while (true) {
+            curIndex = this.index;
+
             if (this.isEOF()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                 }
                 break;
             }
 
             else if(this.isMultilineBlankGeThanOne()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                 }
                 break;
             }
 
             else if (this.is("]")) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
-            else if ((curIndex = this.index, symRes = this.match("\\\\")).matched) {
+            else if ((symRes = this.match("\\\\")).matched) {
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
@@ -703,20 +712,20 @@ export class Parser {
             }
             else if (this.isBasicBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
             else if (this.isOtherBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 break;
             }
 
-            else if ((curIndex = this.index, blnRes = this.matchMultilineBlank()).matched) {
+            else if ((blnRes = this.matchMultilineBlank()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -730,7 +739,7 @@ export class Parser {
                 }
             }
 
-            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
+            else if((ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -739,77 +748,18 @@ export class Parser {
                 text += ndRes.content.content;
             }
 
-            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
-            //     if (text === "") {
-            //         preIndex = curIndex;
-            //     }
-            //     result.GuaranteeMatched();
-            //     result.merge(symRes);
-            //     if (this.notEnd()) {
-            //         switch (this.curChar()) {
-            //             case "(": case ")":
-            //             case "[": case "]": case "/": case "#": case "@":
-            //                 text += this.curChar();
-            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-            //                 break;
-            //             // 这里不需要判断 \\ 因为结束条件判断过
-            //             default:
-            //                 text += "\\";
-            //                 text += this.curChar();
-            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-            //         }
-            //         this.move();
-            //     }
-            //     else {
-            //         text += "\\";
-            //         continue; // 借用isEOF
-            //     }
-            // }
-
-            else if (this.isInsertion()) {
+            else if ((ndRes = this.matchInsertion()).matched) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
-                ndRes = handler();
                 result.merge(ndRes);
                 result.GuaranteeMatched();
-                if (result.shouldTerminate) {
-                    result.promoteToSkippable();
-                    this.move();
-                    continue;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
 
-            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            //     result.GuaranteeMatched();            
-            // }
-
-            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            //     result.GuaranteeMatched();            
-            // }
-
-            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
+            else if ((ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
@@ -823,7 +773,7 @@ export class Parser {
 
             else {
                 if (text === "") {
-                    preIndex = this.index;
+                    preIndex = curIndex;
                 }
                 result.mergeState(ResultState.successful);
                 result.GuaranteeMatched();
@@ -843,6 +793,7 @@ export class Parser {
         this.end();
         result.content.begin = preIndex;
         result.content.end = this.index;
+        this.cleanupText(result.content);
         if (result.failed) {
             this.index = preIndex;
         }
@@ -869,9 +820,11 @@ export class Parser {
         result.mergeState(ResultState.successful);
 
         while (true) {
+            curIndex = this.index;
+
             if (this.isEOF()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                 }
                 msg.push(this.getMessage("Text block ended abruptly."));
                 result.mergeState(ResultState.skippable);
@@ -880,7 +833,7 @@ export class Parser {
 
             else if(this.is("]")) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 return;
@@ -888,7 +841,7 @@ export class Parser {
 
             // else if ((symRes = this.match("]")).matched) {
             //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
             //         text = "";
             //     }
             //     result.merge(symRes);
@@ -898,7 +851,7 @@ export class Parser {
 
             else if(this.isMultilineBlankGeThanOne()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 msg.push(this.getMessage("Text block ended abruptly."));
@@ -908,7 +861,7 @@ export class Parser {
 
             else if ((blnRes = this.matchMultilineBlank()).matched) {
                 if (text === "") {
-                    preIndex = this.index;
+                    preIndex = curIndex;
                 }
                 result.merge(blnRes);
                 text += " ";
@@ -919,7 +872,7 @@ export class Parser {
                 }
             }
 
-            else if ((curIndex = this.index, symRes = this.match("\\\\")).matched) {
+            else if ((symRes = this.match("\\\\")).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -928,7 +881,7 @@ export class Parser {
                 //result.mergeState(ResultState.skippable);
             }
 
-            else if((curIndex = this.index, ndRes = this.matchEscapeChar()).matched) {
+            else if((ndRes = this.matchEscapeChar()).matched) {
                 if (text === "") {
                     preIndex = curIndex;
                 }
@@ -936,75 +889,19 @@ export class Parser {
                 text += ndRes.content.content;
             }
 
-            // else if ((curIndex = this.index, symRes = this.match("\\")).matched) {
-            //     if (text === "") {
-            //         preIndex = curIndex;
-            //     }
-            //     result.merge(symRes);
-            //     if (this.notEnd()) {
-            //         switch (this.curChar()) {
-            //             case "(": case ")":
-            //             case "[": case "]": case "/": case "#": case "@":
-            //                 text += this.curChar();
-            //                 result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
-            //                 break;
-            //             // 这里不需要判断 \\ 因为结束条件判断过
-            //             default:
-            //                 text += "\\";
-            //                 text += this.curChar();
-            //                 msg.push(this.getMessage(`\\${this.curChar()} do not represent any char.`, MessageType.warning));
-            //         }
-            //         this.move();
-            //     }
-            //     else {
-            //         text += "\\";
-            //         continue; // 借用isEOF
-            //     }
-            // }
-
-            else if (this.isInsertion()) {
+            else if ((ndRes = this.matchInsertion()).matched) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
-                let handler = this.insertionHandlerTable.getHandler(this.curChar())!;
-                ndRes = handler();
                 result.merge(ndRes);
-                if (result.shouldTerminate) {
-                    result.promoteToSkippable();
-                    this.move();
-                    return;
-                }
+                // 不会失败
                 node.children.push(ndRes.content);
             }
 
-            // else if ((curIndex = this.index, ndRes = this.matchReference()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            // }
-
-            // else if ((curIndex = this.index, ndRes = this.mathModule.matchInlineFormula()).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(ndRes);
-            //     if (result.shouldTerminate) {
-            //         return;
-            //     }
-            //     node.children.push(ndRes.content);
-            // }
-
             else if (this.isBasicBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
 
@@ -1015,7 +912,7 @@ export class Parser {
 
             else if (this.isOtherBlock()) {
                 if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, this.index));
+                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
                     text = "";
                 }
                 msg.push(this.getMessage("Text block should not have other block"));
@@ -1023,7 +920,7 @@ export class Parser {
                 this.skipByBrackets();
             }
 
-            else if ((curIndex = this.index, ndRes = this.matchFormatBlock()).matched) {
+            else if ((ndRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
                 if (text !== "") {
                     node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
@@ -1036,7 +933,7 @@ export class Parser {
 
             else {
                 if (text === "") {
-                    preIndex = this.index;
+                    preIndex = curIndex;
                 }
                 result.mergeState(ResultState.successful);
                 text += this.curChar();
@@ -1136,7 +1033,7 @@ export class Parser {
         result.merge(this.skipBlank());
     }
 
-    // Assistant Function
+    // MatchInsertion: failing | skippable | successful
 
     isInsertion(): boolean {
         if(this.isEOF()) {
@@ -1146,6 +1043,41 @@ export class Parser {
             return true;
         }
         return false;
+    }
+
+    matchInsertion(): Result<Node> {
+        let result = new Result<Node>(new Node(this.insertionType));
+        let preIndex = this.index;
+        this.begin("insertion");
+        this.myMatchInsertion(result);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
+    myMatchInsertion(result: Result<Node>) {
+        if(this.isEOF()) {
+            return;
+        }
+        let handler = this.insertionHandlerTable.getHandler(this.curChar());
+        if(handler === undefined) {
+            return;
+        }
+        result.content.content = this.curChar();
+        result.GuaranteeMatched();
+
+        let ndRes = handler();
+        result.merge(ndRes);
+        if (result.shouldTerminate) {
+            result.promoteToSkippable();
+            this.move();
+            return;
+        }
+        result.content = ndRes.content;
     }
 
     // **************** Block ****************
@@ -1889,9 +1821,9 @@ export class Parser {
     // message
 
     getMessage(message: string, type: MessageType = MessageType.error, code: number = -1): Message {
-        let lp = this.getLineAndCharacter() ?? { line: -1, character: -1 };
-        let pro = this.process.slice();
-        return new Message(message, type, code, lp.line, lp.character, pro);
+        //let lp = this.getLineAndCharacter() ?? { line: -1, character: -1 };
+        //let pro = this.process.slice();
+        return new Message(message, type, code, this.index, this.index + 1, []);
     }
 
     // highlight

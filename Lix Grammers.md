@@ -382,11 +382,14 @@ Block Handler
 * Block handler 是由 matchBlock 调用的, 如果 Block handler 的 state 为 sk, s, 则会用 block handler 的结果替代掉 block node, 反之则会保留 block node 并提供默认的 skip.
 * 要保证停在 EOF 或 `]` 处, 并且处理 EOF 的报错, 无需处理 ] 的报错.
 * 要注册一个新的 handler, 在 Moudle 的 constructor 内向 `parser.blockHanlderTable` 添加函数, 并且声明该 block 属于 `formatBlock`, `basicBlock`, `otherBlock` 中的哪一类.
+  * format: 该类 block 会在 text block 内被处理, 处理完后的内容作为 text 的子节点, 并且对内容进行格式化;
+  * basic: 该类 block 会在 paragraph block 内被处理, 处理完后作为 paragraph 的子节点;
+  * other: 该类会在 document 外进行处理, 处理完后作为 document 的子节点.
 
 Insertion Handler
 * Insertion handler 是 Lix 中 text block (包括 free text, 以及位于 paragraph 内的 free text) 内部的插入语, 如行内公式 `/ ... /` 以及引用 `@ ...`. 注意insertion 中的所有高亮信息 (包括前导符号) 都需要在 handler 内提供.
-* Insertion handler 是由 matchFreeText (包括 matchParFreeText, textBlockHandler) 调用的, 其匹配结果会被作为 text node 的一个子节点插入.
-* 要注册一个新的 handler, 在 Moudle 的 constructor 内向 `parser.insertionHanlderTable` 添加函数, 并且提供前导符号.
+* Insertion handler 是由 matchFreeText (包括 matchParFreeText, textBlockHandler) 调用的, 如果匹配成功, 其匹配结果会被作为 text node 的一个子节点插入, 否则会插入一个 insertion 节点并进行默认 skip.
+* 要注册一个新的 handler, 在 Moudle 的 constructor 内向 `parser.insertionHanlderTable` 添加函数, 并且提供前导符号, 必须为一个字符.
 
 #### Matching Terminal Token & Production Rule
 
@@ -834,7 +837,7 @@ promote: m + sk = sk
 * content: Node
   * type: textType
   * content: ""
-  * children: [text, formula, escape-char ...]
+  * children: [word, insertion, format ...]
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
 `paragraph-block-handler -> 0-repeat (<par-free-text> | <basic-block> | !<other-block>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
@@ -936,12 +939,28 @@ inline-text ->
 element ->
 formula ->
 
-term -> <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator
+`term -> <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator`
+* state: f, sk, s
+* messages: [New, Inherited]
+* highlights: [Inherited]
+* content: Node
+  * type: infix/ prefix / element / inlineText
+  * content: "depends"
+  * children: [tree of operator]
+
 operator -> <element> + infix-operator
 
 prefix -> <operator> <expression> <operator> <expression> 
 infix -> <expression> <operator> <expression> 
-expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)
+
+`expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)`
+* state: f, sk, s
+* messages: [New, Inherited]
+* highlights: [Inherited]
+* content: Node
+  * type: infixType / elementType
+  * content: "depends"
+  * children: [tree of operator]
 
 
 #### Core
@@ -983,8 +1002,20 @@ table-block-handler -> ...
 * content: Node
   * type: boldType, emphType, ...
   * content: ""
-  * children: [text, formula, escape-char ...]
+  * children: [word, insertion]
 
+// 还有问题, 暂时不用
+`inline-emph-handler -> * ... *`
+`inline-bold-handler -> ~ ... ~`
+`italic-block-handler -> ...`
+* state: f, sk, s
+* messages: [Inherited, New]
+* highlights: [Inherited, New]
+* content: Node
+  * type: boldType, emphType, ...
+  * content: ""
+  * children: [text, formula, escape-char ...]
+  
 #### Article
 
 // 这些等同于 matchText

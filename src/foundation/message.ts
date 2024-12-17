@@ -5,8 +5,10 @@ export enum MessageType {
 }
 
 export class Message {
-    line: number;
-    character: number;
+    // line: number;
+    // character: number;
+    begin: number;
+    end: number;
     process: string[];
 
     type: MessageType;
@@ -14,9 +16,11 @@ export class Message {
     code: number;
     message: string;
 
-    constructor(message: string, type: MessageType, code: number, line: number, character: number, process: string[]) {
-        this.line = line;
-        this.character = character;
+    constructor(message: string, type: MessageType, code: number, begin: number, end: number, process: string[]) {
+        // this.line = line;
+        // this.character = character;
+        this.begin = begin;
+        this.end = end;
         this.process = process;
         this.type = type;
         this.code = code;
@@ -43,7 +47,7 @@ export class Message {
             msg += `[${this.code}] `;
         }
         if (showPosition) {
-            msg += `(at line ${this.line + 1} character ${this.character + 1}) `;
+            msg += `(begin: ${this.begin}, end: ${this.end}) `;
         }
 
         if(showStack) {

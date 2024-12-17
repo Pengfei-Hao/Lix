@@ -1,115 +1,136 @@
 [title Formula Test]
-
 [author Lix]
 
-[date 2024.11.3]
+本部分是数学公式的测试文档, 同时也是一份教学手册. 本文档展示了大部分数学公式的用法.
 
-[section Introduction]
+[section 引入]
+在 Lix 中公式有两种, 一种是行内公式, 使用 `/ ... /` 插入, 例如 /[𝜕f⁄𝜕x]=∑i=1 to n: x^i/. 另一种是行间公式, 使用 `[formula ... ]` 插入, 例如
+[formula [𝜕f⁄𝜕x]=∑i=1 to n: x^i.]
+此外, 由于 `[]` 相较于其他括号 `{}`, `()` 来说使用频率最低, 因此在 Lix 中使用方括号 `[]` 作为默认的分界符以及默认的括号.
 
-[subsection math accent, vec, hat, arrow]
+[subsection 声调、变音符号]
+使用记号 `dot A`, `tilde A`, `hat A`, `vec A` 就可以输入这类符号, 如 /dot A/, /tilde A/, /hat A/, /vec A/. 如果要给多个字符加标记, 使用 `tilde [A B] widehat [A B]`, 效果是 /tilde [A B] widehat [A B]/.
+Lix 中所有支持的记号与 LaTeX 中支持的宏基本一致, 完整列表可以参照 `math.json`.
 
-有 Unicode 字符的直接打出来, 如: Â â ȧ; 没有的用指令: /dot A /,
+[subsection 函数名、希腊字母、数学符号、数学字体]
+函数名直接输入即可, 例如
+[code ``
+[formula exp, ln, log, sin, cos, tan, arcsin, arccos, sgn, max, min, Pr]``]
+得到
+[formula exp, ln, log, sin, cos, tan, arcsin, arccos, sgn, max, min, Pr]
+完整列表可以参照 `math.json`, 下同. 特别地, 如果有不支持的函数名, 可以用双引号包起来, 可以产生同样的效果, 例如 `"rank", "d"` 得到 /"rank", "d"/, 第二个正体的 /"d"/ 可以用作微分符号.
 
-[subsection sub \/ superscript]
-
-/[[] ^ b𝛗 _ c𝛔]/, /a _ b ^ c/ \\
-数字直接用/⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉/ ᵃᵇᶜ ᵈ ᵉ ᵍ ʰ ⁱ ʲ ᵏ ˡ ᵐ ⁿ ᵒ ᵖ ᵒ ʳ ˢ ᵗ ᵘ ᵛ ʷ ˣ ʸ ᙆ / x¹² /
-单字用 / 𝚽^k_t /
-复杂串用 / (∫𝚽"d"x)^[t_k]_"kkt"/
-同样的表达式用latex.
-${\int\Phi\text{d}x}^{t_k}_{\text{kkt}}$
-
-[subsection brackets]
-
-/[{ case1  case2 }] /, /(1 2 3)/ 
-配对的括号直接输入, /() {} <>/
-
-
-[subsection frac]
-
-/ [a b ⁄ c d] /, / a ⁄ b/ 
-单字用 / a /, /b/
-复杂字用 / [a b] ⁄ [c d]/
+输入数学符号时, 值得一提的是大多数数学符号都有其对应的 Unicode 版本, 在 VSCode 中输入相应的字母后按下 Tab 键就可以得到 Unicode 版本. [bold 由于 LaTeX 代码环境对 Unicode 符号支持不佳,后文中部分 Unicode 符号展示存在问题, 可以查看本文档代码.]
+数学符号的名称与 LaTeX 基本一致, 例如输入 `times`, `cdots`, `dots`, `cup`, `cap`, `in`, `infty`, `leqslant`, `forall`, `rightarrow` 后再按下 Tab 键, 就可以得到
+[code ``
+[formula ×,⋯,…,∪,∩,∊,∞,⩽,∀,→]``]
+效果为
+[formula ×,⋯,…,∪,∩,∊,∞,⩽,∀,→.]
 
 
-[subsection sqrt]
+希腊字母的输入与数学符号完全一致, 例如
+[code ``
+[formula 𝛼,𝛽,𝛤,𝛥,𝜇,𝜅]``]
+可以得到
+[formula 𝛼,𝛽,𝛤,𝛥,𝜇,𝜅]
 
-/  √ [ 2  a]/, / √ a /
-/ 3 √ [ a ^ 3]/
+数学字体的输入与数学符号也基本类似, 基本原则是在对应的字母前边加一个前缀, 手写体的字母加前缀 `s`, 例如 /𝒜/, /𝒞/, /𝒯/ 写作 `sA, sC, sT`; 粗体的字母加前缀 `b`, 例如 /𝐛/, /𝐆/, /𝐐/ 写作 `bb, bG, bQ`; 黑板体的字母加前缀 `d`, 例如 /𝔻/, /ℍ/, /ℝ/ 写作 `dD, dH, dR`; 一个例外是, 正体的字母要用双引号, 例如 /"formula"/ 写作 `"formula"`. 双引号实际是在数学公式中插入文本的方法, 如 `"速度"= ["路程"⁄"时间"]` 表示 /"速度"= ["路程"⁄"时间"]/.
 
-[subsection sum, int, pi, lim, binom]
+[subsection 上标、下标]
+Lix 中的上下标记号与 LaTeX 一致, 使用 `^`, `_` 来分别表示上标、下标, 如 /a^b/, /a_c/, /a^b_c/, /a_c^b/.如果上下标中的字符多于一个, 可以使用括号将字符包起来, 例如 `𝛤^[i j]_k` 可以得到 /𝛤^[i j]_k/
 
-/∑ a to b: c/
+对于数字上下标来说, 也可以直接输入 `sup0, sup1, ...` 以及 `sub0, sub1, ...` 来得到
+/⁰/, /¹, …/ 以及 /₀/, /₁,…/ 例如 /x¹₂/ 可写为 `x¹₂`.
 
-[subsection mat]
-
-/mat [a b]/
-
-[subsection cases]
-
-/[cases a ; b]/
-
-[subsection quad, qquad \ \;\,]
-
-/quad qquad/
-
+下面是一个较复杂的例子:
+[code ``
+[formula: (∫𝛷^k_[*, "it"](x)"d"x)^[t_k]_"kkt"]``]
+效果是
+[formula: (∫𝛷^k_[*, "it"](x)"d"x)^[t_k]_"kkt"]
 
 
-[section Example of Formulas]
+[subsection 括号]
+在 Lix 中括号直接输入即可, 默认会对根据括号包围住的内容调整括号大小, 如
+[code ``
+[formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]``]
+效果是
+[formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
+此处有几点需要注意, 由于巨算符的特性, 如果在括号内使用巨算符, 需要将其用方括号包起来, 否则右半个括号也会作为巨算符的一部分; 最后一个尖括号使用 `langle, rangle`.
 
+单边的括号.
+
+[subsection 分数和根号]
+要输入分数可以使用 `frac`, 在按 Tab 键后会变成一条斜线, (注意, 这条斜线不是键盘上的反斜线) 表示分数. 例如 `a c ⁄ b d` 表示 /a c ⁄ b d/. 分数默认会将左边的所有符号作为分子, 将右边所有符号作为分母, 这与上下标的默认行为不同. 如果想仅将式子的一部分作为分母, 用括号将其包住:
+[code ``
+[formula: 1 + [2 ⁄ 3 + [4 ⁄ 5 + ⋯]]]``]
+效果是
+[formula: 1 + [2 ⁄ 3 + [4 ⁄ 5 + ⋯]]]
+
+要输入根号使用 `sqrt`, 按 Tab 键后会变成一个根号, 后面跟一个符号, 如 `√a` 效果是 /√a/. 如果要加多个符号, 用括号括起来: 
+[code ``
+[formula: √[2 a],√[a^3], √ lim k→∞: @∑ f(k).]``]
+效果是
+[formula: √[2 a],√[a^3], √ lim k→∞: @∑ f(k).]
+
+[subsection 巨算符]
+巨算符的使用如下:
+[code ``
+[formula sum i=1 to infty: a_n = lim i=1: A_n = A_*]``]
+得到
+[formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]
+
+求和的写法是 `sum ... to ... : ...`, 极限的写法是 `lim ... : ...`, 如果想要单独使用 sum 符号和 lim 符号, 请使用 `@sum`, `@lim`, 其余符号同理, 如果想要在后边使用 to 以及 :, 而不是作为 sum 或者 lim 的一部分, 请使用 `@to`, `@:`.
+[code ``
+[formula lim k=1@:n : a_k = a_n]``]
+得到
+[formula lim k=1@:n : a_k = a_n]
+
+其余巨算符如 sum, int, pi, lim, binom 等同理, 完整列表可以参照 `math.json`.
+
+[subsection 转义字符]
+Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分的符号, 比如 ``[, ], /, \, `, @``, 如果想要输入这种符号, 加 `\` 前缀; 前边这种方式输入的符号默认会参与表达式解析, 如果不想参与解析, 使用 `@` 前缀, 如下
+[code ``
+[formula \[[ mat a b & c ; d @; & @& c⁄d ]\]]
+[formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]``]
+[formula \[[ mat a b & c ; d @; & @& c⁄d ]\]]
+[formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]
+注意 `\[ ... \]`, `@[ ... @]` 是不同的, 前者是一种运算, 可以自适应里边内容的大小, 后者不可以
+[formula \[ @∑ \]`, `@[ @∑ @]]
+
+[subsection 矩阵、表格与条件表达式]
+要输入矩阵可以使用 `mat`, 后边跟矩阵的元素, 例如
+[code ``
+[formula: ([mat a⁄t & b^x & @∑ c ; d @; & @& e & f_[\[x\]]])]``]
+效果是
+[formula: ([mat a⁄t & b^x & @∑ c ; d @; & @& e & f_[\[x\]]])]
+
+// 条件表达式使用 `cases`, 后边和矩阵相同:
+// [code ``
+// [formula: cases a ; b]``]
+// 效果是
+// [formula: cases a ; b]
+
+[subsection 空白]
+空白使用 `quad`.
+//quad, qquad \ \;\,
+
+[section 示例]
+首先是行间公式的例子:
 [formula 
 [lim norm h ↦ 0 : norm [f(x+h)-f(x)-A h]_F ⁄ norm h_E]=0
 ]
-
 [formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
-
-/𝛒(x,y) = norm [x-y]/, /𝛒(x,M) = norm [x-z]/  
-
-/[∑ i=1 to N: i × i]/
-
-/["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[1 2] x_2)/
-
-
-/ [lim i,j→∞ : ( [∑ i=1 to n : f(i)] ) ( [∑ j=1 to n: g(j)] )]
-= lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)/
-
-
-[section Other]
-
-[formula 
-
-[1 ⁄ d t] ([mat a b c;d e f;g h i] ) = ( x1 x2 x3 ) × ( [mat y1 ;y2 ;y3] )
- 
-{
-["d" x1 ⁄ d t] = A ( [mat x1 ; x2] )
-["d" x2 ⁄ d t] = A ( [mat x1 ; x2] )
-}
+[formula ∑ i=1 to N: i × i]
+[formula ["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[1 2] x_2)]
+[formula [lim i,j→∞ : ( [∑ i=1 to n : f(i)] ) ( [∑ j=1 to n: g(j)] )]
+= lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)]
+[formula [1 ⁄ "d"t] ([mat a & b & c;d & e & f;g & h & i]) = ([mat x₁ & x₂ & x₃])×([mat y₁;y₂;y₃])]
+[formula {[ mat
+["d"x₁⁄"d"t] = A(𝐱) ;
+["d"x₂⁄"d"t] = A(𝐱)
+]}
 ]
 
-[formula
-`x1 ↦ x 1`
-`x2 ↦x 2`
-`x3 ↦[x_3]`
-`y1 ↦[y_1]`
-`y2 ↦[y_2]`
-`y3 ↦[y_3]`
-`r1 ↦r_1`
-`r12 ↦r_1 2`
-`a1 ↦ alpha_1`
-`a2 ↦ alpha_2`
-]
-
-[formula
-`lix ↦ x y z`
-`sigmoid ↦ f(x)=[x/1+x]`
-`matrix ↦ [mat x x y;z z x;x y]`
-
-[lix^2]
-[int x=1 to 3: log x]
-[lim x approx infty: [sin x/x]]
-[t^3_n]
-(f⁄g)
-lix[sigmoid/mat a]
-]  
+然后是行内公式的例子: /𝜌(x,y) = norm [x-y]/, /𝜌(x,M) = norm [x-z]/, /f(x)=[x⁄1+x]/, /lim x→∞: [sin x⁄x]/, /f(x)⁄g(x)/
 
 

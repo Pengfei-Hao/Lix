@@ -161,7 +161,7 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let isDebugging = false;
+let isDebugging = true;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	if(!isDebugging) {
@@ -177,8 +177,8 @@ async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) 
 	let pos = change.selections[0].start;
 	let index = parser.getIndex(pos.line, pos.character)!;
 	let line = locate(index, parser.syntaxTree)-1;
-	console.log(`index:${index};line:${pos.line},char:${pos.character}`);
-
+	//console.log(`index:${index};line:${pos.line},char:${pos.character}`);
+	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
 	let uri = getUri(doc.uri, "parse");
 	vscode.workspace.openTextDocument(uri).then(doc => {
 		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
@@ -386,6 +386,7 @@ export function parseFromDocument(document: vscode.TextDocument): Parser {
 }
 
 async function updateFileList(document: vscode.TextDocument) {
+	return;
 	let compiler = lixContext.getCompiler(document.uri);
 	let list = await compiler.fileOperation.getFilesInDirectory(".");
 	let figlist: string[] = [];

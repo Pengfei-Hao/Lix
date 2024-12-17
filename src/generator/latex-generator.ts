@@ -75,6 +75,7 @@ export class LatexGenerator extends Generator {
 
     // generator of specific math node
     latexFormula: Map<string, string>;
+    latexOperator: Map<string, string>;
 
     // generator of specific setting node
     settingGeneratorTable: Map<string, (parameter: string) => string>;
@@ -159,9 +160,13 @@ export class LatexGenerator extends Generator {
 
         // Init math symbols
         this.latexFormula = new Map();
-        let json: { map: [string, string] } = JSON.parse(this.config.get("latex"));
+        this.latexOperator = new Map();
+        let json: { map: [string, string], operator: [string, string] } = JSON.parse(this.config.get("latex"));
         for (let [key, value] of json.map) {
             this.latexFormula.set(key, value);
+        }
+        for (let [key, value] of json.operator) {
+            this.latexOperator.set(key, value);
         }
     }
 
@@ -184,8 +189,22 @@ export class LatexGenerator extends Generator {
         this.addIntrodunction(this.line(this.command("usepackage", "graphicx")));
         this.addIntrodunction(this.line(this.command("usepackage", "subcaption")));
         this.addIntrodunction(this.line(this.command("usepackage", "circuitikz")));
+        this.addIntrodunction(this.line(this.command("usepackage", "listings")));
+        this.addIntrodunction(`\\lstset{
+	basicstyle          =   \\ttfamily,          % 基本代码风格
+	keywordstyle        =   \\bfseries,          % 关键字风格
+	commentstyle        =   \\rmfamily\\itshape,  % 注释的风格，斜体
+	stringstyle         =   \\ttfamily,  % 字符串风格
+	flexiblecolumns,                % 别问为什么，加上这个
+	numbers             =   left,   % 行号的位置在左边
+	showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
+	numberstyle         =   \\ttfamily,    % 行号的样式，小五号，tt等宽字体
+	showstringspaces    =   false,
+	captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top上面
+	frame               =   lrtb,   % 显示边框
+    breaklines          =   true,
+}\n`);
 
-        
         this.addContent(await this.generateDocument(this.syntaxTree));
 
         this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
@@ -222,7 +241,7 @@ export class LatexGenerator extends Generator {
                     flag = false;
                     break;
                 case this.paragraphType:
-                    if(!flag) {
+                    if (!flag) {
                         flag = true;
                     }
                     else {
@@ -230,7 +249,7 @@ export class LatexGenerator extends Generator {
                         res += "\\vspace{10pt}\n";
                     }
                     res += await this.generateParagraph(n);
-                    
+
                     break;
                 case this.titleType:
                     res += this.generateTitle(n);
@@ -284,6 +303,7 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: paragraph
     async generateParagraph(node: Node): Promise<string> {
         if (node.children.length == 0) {
+            console.log("[[empty par]]");
             //return "[[empty par]]";
         }
         let res = "";
@@ -292,13 +312,13 @@ export class LatexGenerator extends Generator {
 
             switch (n.type) {
                 case this.textType:
-                    if(flag) {
+                    if (flag) {
                         res += `\\par\\noindent `;
                         //res += `\\newline `;
                     }
                     else {
                         res += `\\par `;
-                        flag=true;
+                        flag = true;
                     }
                     res += this.generateText(n);
                     break;
@@ -309,9 +329,11 @@ export class LatexGenerator extends Generator {
                 case this.figureType:
                     res += await this.generateFigure(n);
                     break;
+                case this.codeType:
+                    res += this.generateCode(n);
+                    break;
                 case this.listType:
                 case this.tableType:
-                case this.codeType:
                     res += "[[Basic Block]]\n";
                     console.log("Unsupported basic block.");
                     break;
@@ -382,6 +404,7 @@ export class LatexGenerator extends Generator {
         let res = "";
         if (node.children.length == 0) {
             //res += "[[empty text]]";
+            console.log("[[empty text]]");
             if (!format) {
                 res += "\n";
             }
@@ -389,7 +412,7 @@ export class LatexGenerator extends Generator {
         }
         let flag = false;
         for (let n of node.children) {
-            if(flag) {
+            if (flag) {
                 //res += " ";
             }
             flag = true;
@@ -410,7 +433,16 @@ export class LatexGenerator extends Generator {
                     //     //res += "[[blank end]]";
                     // }
                     // else {
-                        res += n.content;
+                    for (let ch of n.content) {
+                        switch (ch) {
+                            case "#": case "%": case "{": case "}": case "&": case "_": case "~":
+                                res += "\\";
+                                res += ch;
+                                break;
+                            default:
+                                res += ch;
+                        }
+                    }
                     //}
                     break;
                 case this.referenceType:
@@ -418,6 +450,9 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.formulaType:
                     res += this.generateFormula(n, true);
+                    break;
+                case this.codeType:
+                    res += this.generateCode(n, true);
                     break;
                 case this.emphType:
                     res += `\\emph{${this.generateText(n, true)}}`;
@@ -464,18 +499,18 @@ export class LatexGenerator extends Generator {
                 size = "0.8";
                 break;
         }
-        if(node.children.length ==1) {
+        if (node.children.length == 1) {
 
         }
-        else if(node.children.length == 2) {
+        else if (node.children.length == 2) {
             let path = node.children[1].content;
             //if(path.split(".").at(-1) === "tikz") {
-            if(this.fileOperation.getFileExtension(path) === "tikz") {
+            if (this.fileOperation.getFileExtension(path) === "tikz") {
                 await this.fileOperation.copyFile(path, "./.lix/");
                 let file = await this.fileOperation.readFile(path);
                 text += file ?? "";
                 text += "\n";
-            } 
+            }
             else {
                 text += `\\includegraphics[width = ${size}\\linewidth]{${path}}\n`;
                 await this.fileOperation.copyFile(path, "./.lix/");
@@ -483,7 +518,7 @@ export class LatexGenerator extends Generator {
         }
         else {
             for (let n of node.children) {
-                if(n.type === this.figureCaptionType) {
+                if (n.type === this.figureCaptionType) {
                     continue;
                 }
                 text += `\\subcaptionbox{${n.children.length > 0 ? this.generateText(n.children[0], true) : ""}}{\n\\includegraphics[width = ${size}\\linewidth]{${n.content}}}\n`;
@@ -492,8 +527,20 @@ export class LatexGenerator extends Generator {
         }
         let caption = node.children[0];
         text += `\\vspace{-0.6em}\n\\caption{${caption ? this.generateText(caption) : "[[nocaption]]"}}\\vspace{-0.7em}\n\\end{figure}\n`;
-        
+
         return text;
+    }
+
+    // GenerateCode
+    // Syntax Tree type: code
+    generateCode(node: Node, inline = false): string {
+        if (inline) {
+            return `\\verb|${node.content}|`;
+        }
+        else {
+            return `\\begin{lstlisting}\n${node.content}\n\\end{lstlisting}\n`
+        }
+
     }
 
     // GenerateFormula
@@ -501,23 +548,25 @@ export class LatexGenerator extends Generator {
     generateFormula(node: Node, inline: boolean = false): string {
         let res = inline ? "$" : "\\begin{equation*}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}";
         if (node.children.at(-1)?.type === this.expressionType) {
-            res += this.generateExpression(node.children.at(-1)!);
+            res += this.generateTermOrOperator(node.children.at(-1)!.children[0]);
         }
         res += inline ? "$" : "\\end{equation*}\\par\n";
 
         return res;
     }
 
-    generateExpression(node: Node): string {
-        let res = "";
-        for (let subnode of node.children) {
-            res += this.generateTermOrOperator(subnode);
-        }
-        return res;
-    }
+    // generateExpression(node: Node): string {
+    //     let res = "";
+    //     for (let subnode of node.children) {
+    //         res += this.generateTermOrOperator(subnode);
+    //     }
+    //     return res;
+    // }
 
-    generateTerm(node: Node): string {
+    // 要保证为 Latex 中一项
+    generateTermOrOperator(node: Node): string {
         let res = "";
+        let code: string | undefined;
 
         switch (node.type) {
             case this.inlineTextType:
@@ -527,89 +576,157 @@ export class LatexGenerator extends Generator {
             case this.elementType:
                 let sym = this.latexFormula.get(node.content);
                 res += sym ?? `{[[${node.content}]]}`;
-                res += " ";
-                break;
-
-            case this.expressionType:
-                res += `${this.generateExpression(node)}`;
+                //res += " ";
                 break;
 
             case this.prefixType:
-                switch (node.content) {
-                    case "lim":
-                        res += `{\\lim_${this.generateExpression(node.children[0])}${this.generateExpression(node.children[1])}}`;
-                        break;
-                    case "⋃":
-                        res += `{\\bigcup_${this.generateExpression(node.children[0])}^${this.generateExpression(node.children[1])}${this.generateExpression(node.children[2])}}`;
-                        break;
-                    case "⋂":
-                        res += `{\\bigcap_${this.generateExpression(node.children[0])}^${this.generateExpression(node.children[1])}${this.generateExpression(node.children[2])}}`;
-                        break;
-                    case "∑":
-                        res += `{\\sum_${this.generateExpression(node.children[0])}^${this.generateExpression(node.children[1])}${this.generateExpression(node.children[2])}}`;
-                        break;
-                    case "dot":
-                        res += `{\\dot{${this.generateTerm(node.children[0])}}}`;
-                        break;
-                    case "√":
-                        res += `{\\sqrt ${this.generateTerm(node.children[0])}}`;
-                        break;
-                    case "cases":
-                        res += `{${this.generateTerm(node.children[0])}}`;
-                        break;
-                    case "norm":
-                        res += `{\\Vert ${this.generateTermOrOperator(node.children[0])} \\Vert}`;
-                        break;
-                    case "tilde":
-                            res += `{\\widetilde{${this.generateTermOrOperator(node.children[0])}}}`;
-                            break;
-                    case "mat":
-                        res += `{${this.generateExpression(node.children[0])}}`;
-                        break;
-                    case "(":
-                        res += `{\\left(${this.generateExpression(node.children[0])}\\right)}`;
-                        break;
-                    case "{":
-                        res += `{\\left\\{${this.generateExpression(node.children[0])}\\right\\}}`;
-                        break;
-                    case "⟨":
-                        res += `{\\left\\langle${this.generateExpression(node.children[0])}\\right\\rangle}`;
-                        break;
+                if(node.content === "mat") {
+                    res += `\\begin{matrix}`;
+                    let brow = false;
+                    for(let row of node.children) {
+                        if(brow) {
+                            res += `\\\\`;
+                        }
+                        brow = true;
+
+                        let bcol = false;
+                        for(let col of row.children) {
+                            let ncode = this.generateTermOrOperator(col);
+                            if(bcol) {
+                                res += `&`;
+                            }
+                            bcol = true;
+                            res += ncode;
+                        }
+                    } 
+                    res += `\\end{matrix}`;
+                    break;
                 }
-        }
+                code = this.latexOperator.get(node.content);
+                if (code !== undefined) {
+                    for(let i = 0; i < node.children.length; i++) {
+                        let ncode = this.generateTermOrOperator(node.children[i]);
+                        let flag = `\${${i}}`;
+                        code = code.replace(flag, ncode);
+                    }
+                    res += code;
+                }
+                else {
+                    res += `{[[Prefix Error]]}`;
+                }
+                // switch (node.content) {
+                //     case "lim":
+                //         res += `{\\lim_${this.generateTermOrOperator(node.children[0])}${this.generateTermOrOperator(node.children[1])}}`;
+                //         break;
+                //     case "⋃":
+                //         res += `{\\bigcup_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
+                //         break;
+                //     case "⋂":
+                //         res += `{\\bigcap_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
+                //         break;
+                //     case "∑":
+                //         res += `{\\sum_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
+                //         break;
+                //     case "dot":
+                //         res += `{\\dot{${this.generateTermOrOperator(node.children[0])}}}`;
+                //         break;
+                //     case "hat":
+                //         res += `{\\hat{${this.generateTermOrOperator(node.children[0])}}}`;
+                //         break;
+                //     case "vec":
+                //         res += `{\\vec{${this.generateTermOrOperator(node.children[0])}}}`;
+                //         break;
+                //     case "√":
+                //         res += `{\\sqrt ${this.generateTermOrOperator(node.children[0])}}`;
+                //         break;
+                //     case "cases":
+                //         res += `{${this.generateTermOrOperator(node.children[0])}}`;
+                //         break;
+                //     case "norm":
+                //         res += `{\\Vert ${this.generateTermOrOperator(node.children[0])} \\Vert}`;
+                //         break;
+                //     case "tilde":
+                //         res += `{\\widetilde{${this.generateTermOrOperator(node.children[0])}}}`;
+                //         break;
+                //     case "mat":
+                //         res += `{${this.generateTermOrOperator(node.children[0])}}`;
+                //         break;
+                //     case "(":
+                //         res += `{\\left(${this.generateTermOrOperator(node.children[0])}\\right)}`;
+                //         break;
+                //     case "{":
+                //         res += `{\\left\\{${this.generateTermOrOperator(node.children[0])}\\right\\}}`;
+                //         break;
+                //     case "⟨":
+                //         res += `{\\left\\langle${this.generateTermOrOperator(node.children[0])}\\right\\rangle}`;
+                //         break;
+                // }
+                break;
 
-        return res;
-    }
-
-    generateOperator(node: Node): string {
-        let res = "";
-
-        switch (node.type) {
             case this.infixType:
-                switch (node.content) {
-                    case "⁄":
-                        res += `{\\frac${this.generateTermOrOperator(node.children[0])}${this.generateTermOrOperator(node.children[1])}}`;
-                        break;
-                    default:
+                code = this.latexOperator.get(node.content);
+                if (code !== undefined) {
+                    if (code === "${default}") {
+                        let blank = false;
+                        if (node.content === "") {
+                            blank = true;
+                        }
+                        let lastIsAlphabet = false;
+
                         let i = 0;
                         res += "{";
                         for (let sub of node.children) {
-                            res += `${this.generateTermOrOperator(sub)}`;
+                            let ncode = this.generateTermOrOperator(sub);
+                            
+                            const reg = /[a-zA-Z]/;
+                            if(blank && lastIsAlphabet && ncode.length >= 1 && reg.exec(ncode[0]) != null) {
+                                res += " ";
+                            }
+                            if(blank && ncode.length >= 1 && reg.exec(ncode.at(-1)!) != null) {
+                                lastIsAlphabet = true;
+                            }
+                            else {
+                                lastIsAlphabet = false;
+                            }
+
+                            res += `${ncode}`;
                             res += (i < node.content.length) ? node.content[i] : "";
                             i++;
                         }
                         res += "}";
-                        break;
-
+                    }
+                    else {
+                        for(let i = 0; i < node.children.length; i++) {
+                            let ncode = this.generateTermOrOperator(node.children[i]);
+                            let flag = `\${${i}}`;
+                            code = code.replace(flag, ncode);
+                        }
+                        res += code;
+                    }
                 }
-        }
-        return res;
-    }
+                else {
+                    res += `{[[Infix Error]]}`;
+                }
+                // switch (node.content) {
+                //     case "⁄":
+                //         res += `{\\frac${this.generateTermOrOperator(node.children[0])}${this.generateTermOrOperator(node.children[1])}}`;
+                //         break;
+                //     default:
+                //         let i = 0;
+                //         res += "{";
+                //         for (let sub of node.children) {
+                //             res += `${this.generateTermOrOperator(sub)}`;
+                //             res += (i < node.content.length) ? node.content[i] : "";
+                //             i++;
+                //         }
+                //         res += "}";
+                //         break;
 
-    generateTermOrOperator(node: Node): string {
-        let res = "";
-        res += this.generateTerm(node);
-        res += this.generateOperator(node);
+                // }
+                break;
+
+        }
+
         return res;
     }
 
