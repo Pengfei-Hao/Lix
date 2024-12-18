@@ -13,8 +13,8 @@ export function updateDiagnostic(document: vscode.TextDocument, context: LixCont
 
     let diags: vscode.Diagnostic[] = [];
 	for(let msg of messageList) {
-		let begin = parser.getLineAndCharacter(msg.begin) ?? { line: -1, character: -1 };
-		let end = parser.getLineAndCharacter(msg.end) ?? { line: -1, character: -1 };
+		let begin = parser.getLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
+		let end = parser.getLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
 
 		let diag = new vscode.Diagnostic(new vscode.Range(begin.line, begin.character, end.line, end.character), msg.toString());
 		switch(msg.type) {

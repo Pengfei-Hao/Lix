@@ -580,7 +580,14 @@ export class LatexGenerator extends Generator {
                 break;
 
             case this.prefixType:
-                if(node.content === "mat") {
+                let cases =false;
+                if(node.content === "cases") {
+cases=true;
+                }
+                if(node.content === "mat" || cases) {
+                    if(cases) {
+                        res += `{\\left\\{`
+                    }
                     res += `\\begin{matrix}`;
                     let brow = false;
                     for(let row of node.children) {
@@ -600,6 +607,9 @@ export class LatexGenerator extends Generator {
                         }
                     } 
                     res += `\\end{matrix}`;
+                    if(cases) {
+                        res += `\\right.}`
+                    }
                     break;
                 }
                 code = this.latexOperator.get(node.content);

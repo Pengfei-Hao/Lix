@@ -54,10 +54,16 @@ Lix 中的上下标记号与 LaTeX 一致, 使用 `^`, `_` 来分别表示上标
 [code ``
 [formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]``]
 效果是
-[formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
+[formula: ((a+b)+c), (@lim), (lim i=1→n: a_n), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
 此处有几点需要注意, 由于巨算符的特性, 如果在括号内使用巨算符, 需要将其用方括号包起来, 否则右半个括号也会作为巨算符的一部分; 最后一个尖括号使用 `langle, rangle`.
 
-单边的括号.
+单边的括号 (暂定) 使用 
+[code ``
+lwcurly, rwcurly, lwangle, rwangle, lwparenthesis, rwparenthesis,lwsquare, rwsquare``],
+效果如下
+[code ``
+[formula ⦃ @∑, ⦇ [a ⁄ b],⦊ [mat a; b], ⦇⟧ lim x→∞: f(x)]``]
+[formula ⦃ @∑, ⦇ [a ⁄ b],⦇⦊ [mat a; b],⦊⦇ [mat a; b], ⦇⟧ lim x→∞: f(x)]
 
 [subsection 分数和根号]
 要输入分数可以使用 `frac`, 在按 Tab 键后会变成一条斜线, (注意, 这条斜线不是键盘上的反斜线) 表示分数. 例如 `a c ⁄ b d` 表示 /a c ⁄ b d/. 分数默认会将左边的所有符号作为分子, 将右边所有符号作为分母, 这与上下标的默认行为不同. 如果想仅将式子的一部分作为分母, 用括号将其包住:
@@ -92,27 +98,31 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 [code ``
 [formula \[[ mat a b & c ; d @; & @& c⁄d ]\]]
 [formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]``]
-[formula \[[ mat a b & c ; d @; & @& c⁄d ]\]]
+[formula \[ mat a b & c ; d @; & @& c⁄d \]]
 [formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]
 注意 `\[ ... \]`, `@[ ... @]` 是不同的, 前者是一种运算, 可以自适应里边内容的大小, 后者不可以
-[formula \[ @∑ \]`, `@[ @∑ @]]
+[formula \[ @∑ \], @[ @∑ @]]
 
 [subsection 矩阵、表格与条件表达式]
 要输入矩阵可以使用 `mat`, 后边跟矩阵的元素, 例如
 [code ``
-[formula: ([mat a⁄t & b^x & @∑ c ; d @; & @& e & f_[\[x\]]])]``]
+[formula: (mat a⁄t & b^x & @∑ c ; d @; & @& e & f_\[x\])]``]
 效果是
-[formula: ([mat a⁄t & b^x & @∑ c ; d @; & @& e & f_[\[x\]]])]
+[formula: (mat a⁄t & b^x & @∑ c ; d @; & @& e & f_\[x\])]
 
-// 条件表达式使用 `cases`, 后边和矩阵相同:
-// [code ``
-// [formula: cases a ; b]``]
-// 效果是
-// [formula: cases a ; b]
+条件表达式使用 `cases`, 后边和矩阵相同, 效果等同于 `lwcurly mat`:
+[code ``
+[formula: [cases a ; b],⦃ mat a; b; c]``]
+效果是
+[formula: [cases a ; b],⦃ mat a; b; c]
 
 [subsection 空白]
-空白使用 `quad`.
+空白使用 `blank` 以及 `quad`, 例如
 //quad, qquad \ \;\,
+[code ``
+[formula: a⌷b,a⎕b]``]
+效果是
+[formula: a⌷b,a⎕b]
 
 [section 示例]
 首先是行间公式的例子:
@@ -122,15 +132,14 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 [formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
 [formula ∑ i=1 to N: i × i]
 [formula ["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[1 2] x_2)]
-[formula [lim i,j→∞ : ( [∑ i=1 to n : f(i)] ) ( [∑ j=1 to n: g(j)] )]
+[formula lim i,j→∞ : ( ∑ i=1 to n : f(i) ) ( ∑ j=1 to n: g(j) )
 = lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)]
-[formula [1 ⁄ "d"t] ([mat a & b & c;d & e & f;g & h & i]) = ([mat x₁ & x₂ & x₃])×([mat y₁;y₂;y₃])]
-[formula {[ mat
+[formula [1 ⁄ "d"t] (mat a & b & c;d & e & f;g & h & i) = (mat x₁ & x₂ & x₃)×(mat y₁;y₂;y₃)]
+[formula ⦃ mat
 ["d"x₁⁄"d"t] = A(𝐱) ;
 ["d"x₂⁄"d"t] = A(𝐱)
-]}
 ]
 
-然后是行内公式的例子: /𝜌(x,y) = norm [x-y]/, /𝜌(x,M) = norm [x-z]/, /f(x)=[x⁄1+x]/, /lim x→∞: [sin x⁄x]/, /f(x)⁄g(x)/
+然后是行内公式的例子: /𝜌(x,y) = norm [x-y]/, /𝜌(x,M) = norm [x-z]/, /f(x)=[x⁄1+x]/, /lim x→∞: sin x⁄x/, /f(x)⁄g(x)/
 
 

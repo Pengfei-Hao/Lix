@@ -713,7 +713,7 @@ export class Math extends Module {
 
             }
 
-            else if ((res = this.analyseTerm(parnode, index)).matched) {
+            else if ((res = this.analyseTerm(parnode, index, endTerm)).matched) {
                 result.merge(res);
                 if (result.shouldTerminate) {
                     return;
@@ -814,10 +814,10 @@ export class Math extends Module {
 
     // AnalyseTerm: failing | matched | skippable | successful
 
-    analyseTerm(node: Node, index: Ref<number>): Result<Node> {
+    analyseTerm(node: Node, index: Ref<number>, endTerm: string[]): Result<Node> {
         let result = new Result(new Node(this.elementType));
         this.parser.begin("analyse-term");
-        this.myAnalyseTerm(node, index, result);
+        this.myAnalyseTerm(node, index, result, endTerm);
         this.parser.end();
         //注意result.content整个被换掉了
         //result.content.begin = preIndex;
@@ -825,7 +825,7 @@ export class Math extends Module {
         return result;
     }
 
-    myAnalyseTerm(parnode: Node, index: Ref<number>, result: Result<Node>) {
+    myAnalyseTerm(parnode: Node, index: Ref<number>, result: Result<Node>, endTerm: string[]) {
         let msg = result.messages;
 
         if (this.isEOF(parnode, index, [])) {
@@ -927,7 +927,7 @@ export class Math extends Module {
                 // }
 
                 // nNode.end = parnode.children[index.value - 1].end;
-                let nNode = this.readPrefixOperator(parnode, index, result, format);
+                let nNode = this.readPrefixOperator(parnode, index, result, format, endTerm);
                 if(nNode === undefined) {
                     return;
                 }
@@ -1006,7 +1006,7 @@ export class Math extends Module {
         }
     }
 
-    readPrefixOperator(parnode: Node, index: Ref<number>, result: Result<Node>, format: string[]): Node | undefined {
+    readPrefixOperator(parnode: Node, index: Ref<number>, result: Result<Node>, format: string[], endTerm: string[]): Node | undefined {
 
         let node = parnode.children[index.value]
         let nNode = new Node(this.prefixType);
@@ -1017,9 +1017,9 @@ export class Math extends Module {
         nNode.content = format[0];
         index.value++;
 
-        if(format[0] === "mat") {
+        if(format[0] === "mat" || format[0] === "cases") {
             let res: Result<Node>;
-            if(this.isEOF(parnode, index, [])) {
+            if(this.isEOF(parnode, index, endTerm)) {
                 return nNode;
             }
 
@@ -1028,7 +1028,7 @@ export class Math extends Module {
 
             while(true) {
 
-                    res = this.analyseExpression(parnode, index, ["&", ";"]);
+                    res = this.analyseExpression(parnode, index, endTerm.concat(["&", ";"]));
                     result.merge(res);
                     if (result.shouldTerminate) {
                         msg.push(this.parser.getMessage("Prefix mat failed."));
@@ -1036,7 +1036,7 @@ export class Math extends Module {
                     }
                     rowNode.children.push(res.content);
                     node = parnode.children[index.value];
-                    if(this.isEOF(parnode, index, [])) {
+                    if(this.isEOF(parnode, index, endTerm)) {
                         rowNode.begin = rowNode.children[0].begin;
                         rowNode.end = rowNode.children.at(-1)!.end;
                         break;
@@ -1067,10 +1067,10 @@ export class Math extends Module {
                 case "[expr]":
 
                     if (i + 1 < format.length) {
-                        res = this.analyseExpression(parnode, index, [format[i + 1]]);
+                        res = this.analyseExpression(parnode, index, endTerm.concat([format[i + 1]]));
                     }
                     else {
-                        res = this.analyseExpression(parnode, index);
+                        res = this.analyseExpression(parnode, index, endTerm);
                     }
                     result.merge(res);
                     if (result.shouldTerminate) {
@@ -1081,7 +1081,7 @@ export class Math extends Module {
                     break;
 
                 case "[term]":
-                    res = this.analyseTerm(parnode, index);
+                    res = this.analyseTerm(parnode, index, endTerm);
 
                     result.merge(res);
                     if (result.shouldTerminate) {
@@ -1092,6 +1092,7 @@ export class Math extends Module {
                     break;
 
                 default:
+                    // 此处 endTerm 必须设为 [], 就近匹配, 例如 (()) 第一个右括号要跟第二个左括号结合
                     if (this.isEOF(parnode, index, [])) {
                         result.mergeState(ResultState.failing);
                         msg.push(this.parser.getMessage("Prefix match element ended abruptly."));

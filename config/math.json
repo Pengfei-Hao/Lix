@@ -23,7 +23,7 @@
 
 	["₀", "sub0"], ["₁", "sub1"], ["₂", "sub2"], ["₃", "sub3"], ["₄", "sub4"], ["₅", "sub5"], ["₆", "sub6"], ["₇", "sub7"], ["₈", "sub8"], ["₉", "sub9"], 
 
-	["→", "rightarrow"], ["⇒", "Rightarrow"], ["⟶", "longrightarrow"], ["⟹", "Longrightarrow"], ["↪", "︎hookrightarrow"], ["⇀", "rightharpoonup"], ["⇁", "rightharpoondown"], ["⇛", "Rrightarrow"], ["↬", "looparrowright"], ["⇝", "rightsquigarrow"], ["⤏", "dashrightarrow"], ["↣", "rightarrowtail"], ["↷", "curvearrowright"], ["⥁", "circlearrowright"], ["↠", "twoheadrightarrow"], ["↛", "nrightarrow"], ["⇏", "nRightarrow"], ["⇉", "rightrightarrows"], 
+	["→", "to"], ["→", "rightarrow"], ["⇒", "Rightarrow"], ["⟶", "longrightarrow"], ["⟹", "Longrightarrow"], ["↪", "︎hookrightarrow"], ["⇀", "rightharpoonup"], ["⇁", "rightharpoondown"], ["⇛", "Rrightarrow"], ["↬", "looparrowright"], ["⇝", "rightsquigarrow"], ["⤏", "dashrightarrow"], ["↣", "rightarrowtail"], ["↷", "curvearrowright"], ["⥁", "circlearrowright"], ["↠", "twoheadrightarrow"], ["↛", "nrightarrow"], ["⇏", "nRightarrow"], ["⇉", "rightrightarrows"], 
 
 	["↦", "mapsto"], ["⟼", "longmapsto"], ["⊸", "multimap"], ["⇝", "leadsto"], 
 
@@ -79,7 +79,11 @@
 
 	["𝛢", "Alpha"], ["𝛣", "Beta"], ["𝛤", "Gamma"], ["𝛥", "Delta"], ["𝛦", "Epsilon"], ["𝛧", "Zeta"], ["𝛨", "Eta"], ["𝛩", "Theta"], 
 
-	["𝛪", "Iota"], ["𝛫", "Kappa"], ["𝛬", "Lambda"], ["𝛭", "Mu"], ["𝛮", "Nu"], ["𝛯", "Xi"], ["𝛰", "Omicron"], ["𝛱", "Pi"], ["𝛲", "Rho"], ["𝛴", "Sigma"], ["𝛵", "Tau"], ["𝛶", "Upsilon"], ["𝛷", "Phi"], ["𝛸", "Chi"], ["𝛹", "Psi"], ["𝛺", "Omega"], ["𝛻", "Nabla"]
+	["𝛪", "Iota"], ["𝛫", "Kappa"], ["𝛬", "Lambda"], ["𝛭", "Mu"], ["𝛮", "Nu"], ["𝛯", "Xi"], ["𝛰", "Omicron"], ["𝛱", "Pi"], ["𝛲", "Rho"], ["𝛴", "Sigma"], ["𝛵", "Tau"], ["𝛶", "Upsilon"], ["𝛷", "Phi"], ["𝛸", "Chi"], ["𝛹", "Psi"], ["𝛺", "Omega"], ["𝛻", "Nabla"], 
+
+	["⦃", "lwcurly"], ["⟦", "lwsquare"], ["⦇", "lwparenthesis"], ["⦉", "lwangle"], ["⦄", "rwcurly"], ["⟧", "rwsquare"], ["⦈", "rwparenthesis"], ["⦊", "rwangle"], 
+
+	["⎕", "quad"], ["⌷", "blank"]
 ],
 
 "Notations": [
@@ -87,58 +91,55 @@
 
 	"sin", "cos", "tan", "cot", "sec", "csc", "arcsin", "arccos", "arctan", "arccot", "arcsec", "arccsc", "sinh", "cosh", "tanh", "coth", 
 
-	"sgn", "min", "max", "inf", "sup", "lim", "liminf", "limsup", "dim", "deg", "det", "ker", "Pr", "hom", "arg", "gcd", "Re", "Im", 
+	"min", "max", "inf", "sup", "lim", "liminf", "limsup", "dim", "deg", "det", "ker", "Pr", "hom", "arg", "gcd", "Re", "Im", 
 
 	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
 
-	"lcm", "mod", "sh", "ch", "th", "argmin", "argmax",
+	"sgn", "lcm", "mod", "sh", "ch", "th", "argmin", "argmax", 
 
 	"cases", "norm", "mat", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec"
 ],
 
 "Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
 
-"Unused": [
-    "\\A","\\B","\\C","\\D","\\E","\\F","\\G","\\H","\\I","\\J","\\K","\\L","\\M","\\N","\\O","\\P","\\Q","\\R","\\S","\\T","\\U","\\V","\\W","\\X","\\Y","\\Z",
-
-    "~","`","!","@","#","$","%","^","&","*","(",")","_","-","+","=","{","[","}","]","|","\\",";",":","\"","'","<",",",">",".","?","/",
-    "alpha", "beta","gamma","delta","epsilon","varepsilon","zeta","eta","theta","vartheta","iota","kappa","lambda","mu","nu","xi","pi","rho","varrho","sigma","tau","upsilon","phi","varphi","chi","psi","omega",
-    "Gamma","Delta","Theta","Lambda","Xi","Pi","Sigma","Upsilon","Phi","Psi","Omega",
-    "Re","Im",
-    "times","cdot","div","cap","cup","neq","leq","geq","in","perp","notin","subset","simeq","approx","wedge","vee","oplus","otimes","equiv","cong","infty","forall","nabla","exists","partial","varnothing","complement","neg","cdots","square","triangle"
-],
-
 "PrefixOperator": [
-    ["lim", "[expr]", ":", "[expr]"],
-    ["∑", "[expr]", "to", "[expr]", ":", "[expr]"],
-    ["⋃", "[expr]", "to", "[expr]", ":", "[expr]"],
+	["lim", "[expr]", ":", "[expr]"],
+	["∑", "[expr]", "to", "[expr]", ":", "[expr]"],
+	["⋃", "[expr]", "to", "[expr]", ":", "[expr]"],
 	["⋂", "[expr]", "to", "[expr]", ":", "[expr]"],
-    ["√", "[term]"],
-    ["cases", "[term]"],
-    ["norm", "[term]"],
-    ["mat", "[expr]"],
-    ["(", "[expr]", ")"],
+	["√", "[term]"],
+	["cases", "[term]"],
+	["norm", "[term]"],
+	["mat", "[expr]"],
+	["(", "[expr]", ")"],
 	["[", "[expr]", "]"],
-    ["{", "[expr]", "}"],
-    ["⟨", "[expr]", "⟩"],
-
-    ["dot", "[term]"],
-    ["ddot", "[term]"],
-    ["acute", "[term]"],
-    ["grave", "[term]"],
-    ["check", "[term]"],
-    ["breve", "[term]"],
-    ["tilde", "[term]"],
-    ["bar", "[term]"],
-    ["hat", "[term]"],
-    ["widehat", "[term]"],
-    ["vec", "[term]"]
+	["{", "[expr]", "}"],
+	["⟨", "[expr]", "⟩"],
+	["⦃", "[term]"],
+	["⟦", "[term]"],
+	["⦇", "[term]"],
+	["⦉", "[term]"],
+	["⦄", "[term]"],
+	["⟧", "[term]"],
+	["⦈", "[term]"],
+	["⦊", "[term]"],
+	["dot", "[term]"],
+	["ddot", "[term]"],
+	["acute", "[term]"],
+	["grave", "[term]"],
+	["check", "[term]"],
+	["breve", "[term]"],
+	["tilde", "[term]"],
+	["bar", "[term]"],
+	["hat", "[term]"],
+	["widehat", "[term]"],
+	["vec", "[term]"]
 ],
 
 "InfixOperator": [
-    ["^_", "^", "_", "^_", "_^"],
-    [""],
-    ["⁄"]
+	["^_", "^", "_", "^_", "_^"],
+	[""],
+	["⁄"]
 ]
 
 }
