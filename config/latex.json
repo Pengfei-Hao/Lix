@@ -112,6 +112,7 @@
 	["[", "{\\left[${0}\\right]}"],
 	["{", "{\\left\\{${0}\\right\\}}"],
 	["⟨", "{\\left\\langle ${0}\\right\\rangle}"],
+	["|", "{\\left|${0}\\right|}"],
 	["⦃", "{\\left\\{${0}\\right.}"],
 	["⟦", "{\\left[${0}\\right.}"],
 	["⦇", "{\\left(${0}\\right.}"],

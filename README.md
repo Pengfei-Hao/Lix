@@ -1,261 +1,198 @@
-# Lix 文档
+# Lix: 轻量级的排版系统
 
-Lix 开发的目的在于简化 Latex 的复杂语法并且尽可能的保留 Latex 的排版能力, 并且提供更直观易读的源文件.
+Lix 是一种标记语言, 同时也是一个轻量级的排版系统. 当前, 已经有许多优秀的文档排版工具. 作为一种轻量级标记语言, Markdown 语法简洁易用, 但在排版效果的精确控制上有所不足; 而 LaTeX 虽然能够生成精美的排版效果, 但其语法复杂且冗长. Lix 旨在在这两种工具之间寻找一个平衡, 在提供精细排版的同时, 保持语法清晰易用. 
 
-## 配置及编译
+Lix 提供了一套简洁易读的语法, 具有较强的表达能力, 可以简单明了地实现精确的排版效果. 同时, Lix 作为 VSCode 插件, 能够提供高效的编辑体验和直观的预览功能. Lix 的实现原理是将 Lix 代码转换为其他排版系统的代码, 如 LaTeX 或 Markdown, 从而实现较强的兼容性与扩展性. 
+
+特别值得一提的是, Lix 的数学公式系统兼顾易读性和高效性, 能够在便捷输入的同时, 提供直观的公式预览效果. 
+
+
+## 配置及运行
 
 首先在合适的文件夹内使用
 ```
 git clone https://github.com/Pengfei-Hao/Lix
 ```
-克隆Git库, 然后使用
+克隆 git 库, 然后使用
 ```
 npm install
 ```
 安装所需的依赖库, 然后按 `F5` 或在 `Run and Debug` 中点击绿色箭头即可运行.
 
-在成功安装后, 在VSCode 的配置 Font Family 中添加 `STIX Two Math`, 并禁用 `Ambiguous Characters`.
+安装成功后, 在 VSCode 设置中为 `Font Family` 选项添加 `STIX Two Math` 字体 (可能需要另行下载), 并禁用 `Ambiguous Characters` 选项.
 
-## 使用
+新建（或打开 `./tests/` 目录中）拓展名为 `lix` 的文件, 即可使用 Lix.
 
-新建（或打开`./tests/`目录中）拓展名为 `lix` 的文件, 即可使用 Lix.
+## 功能介绍
 
-在打开后的页面右上角有几个选项, 从左到右分别是
+在打开 Lix 文件后, 当前页面的右上角有 3 个按钮, 从左到右分别是
 
-* Compile: 将生成的 Latex 文档编译为PDF, PDF文件位于文档所在的相同目录下.
-* Generate: (Debug) 展示将 Lix 文件编译后生成的 Latex 源代码.
-* Parse: (Debug) 将 Lix 文档进行词法语法分析并展示语法树.
+* Compile: 将 Lix 文件编译并生成 PDF 文件, PDF 文件位于 Lix 文件所在的同一目录下.
+* Generate: (仅用于 Debug) 将 Lix 文件编译并展示生成的 Latex 代码.
+* Parse: (仅用于 Debug) 将 Lix 文档进行词法语法分析并展示语法树.
 
-## 原理
+此外, 在 VSCode 的左侧还有一个 Lix 的面板, 其中有三个列表, 分别是
 
-***注意***: **该部分及后边部分已过时, 请参考 Lix Document.md**.
+* Block List: 展示 Lix 中可用的所有块.
+* Font List: 展示 Lix 中可用的所有字体.
+* Math List: 展示 Lix 数学公式中所有可用的数学符号以及缩写.
 
-### Syntax
-语法：
-实意字符char
-空白字符：连续两个换行newline, 连续空白blank
+## 语法介绍
 
-上述符号不包括#和[]的
-
-词法符号
+Lix 的排版是以 **块 (Block)** 为核心的, 一个 Lix 文档中是由许多块组成的, 如包含文本的 **文本块 (Text Block)**, 包含图片的 **图片块 (Figure Block)**, 包含代码的 **代码块 (Code Block)** 等等. 一些块可以嵌套在另一些块之中, 比如上述的几个块都可以嵌套在 **段落块 (Paragraph Block)** 之中, 而段落块又可以嵌套在 **文档块 (Document Block)** 之中, 换言之, 一个 Lix 文档由许多段落块以及其他块组成, 而段落又由许多文本块, 图片块, 代码块等基础块组成. 一个典型的块有如下的结构:
 ```
-blank -> (space\t\v\f)+和单个的\n
-newline -> \n((blank)*\n)+
-char -> 其他
+[ block-name (argument1, argument2, ...) block-content ]
+```
+特别地, 在 Lix 中默认使用 `[]` 作为分界符使用, 而不是其他语言中常见的 `{}`, 这是因为在文档排版中方括号的使用频率少于花括号.
+
+接下来以一个例子来介绍 Lix 的基本用法. 更详细的用法可以参考 `./tests/` 目录下的几个文档:
+* `basic-test.lix`: Lix 基本块 (pargraph, text) 的用法以及测试用例.
+* `core-test.lix`: Lix 其他块 (figure, code) 的用法以及测试用例.
+* `formula-test.lix`: Lix 数学公式的文档以及公式块 (formula, theorem, lemma, proof) 的用法和测试用例.
+```
+[title Example]
+[author Lix]
+
+[section Text and Paragraph Block]
+
+[paragraph
+[text This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.]]
+[text A new line of words. ]
+[text New line of words again. ]
+]
+
+[paragraph
+This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.] \\
+A new line of words. \\
+New line of words again.
+]
+
+This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.] \\
+A new line of words. \\
+New line of words again.
+
+[section Formula and Other Block]
+
+Inline formula.  let /𝜌(x,y) = norm [x-y]/, then /lim x→∞: sin x⁄x = 𝜌(0,0)/.
+
+Formula block.
+[formula
+F = min_[x_i∊X] f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]
+]
+
+This is a line comment. // line comment.
+
+This is a multiline comment.  /* comment
+comment */ Amultiline comment.
+
+Embeded comment. /* comment /* Embeded comment. */ */
+```
+前边提到 Lix 文档是由许多块组成的, 可以结合这个例子具体解释. 文档开头有两个块 `title` 和 `author`, 分别表示文章的标题和作者为 `Example` 以及 `Lix`. 此外, 在两个块之间的空白字符会被忽略, 也就是说这两个块可以写成下面的样子.
+```
+[title Example]
+
+[author Lix]
+```
+或
+```
+[title Example][author Lix]
+```
+接下来是 `section` 块, 代表此处是一个章节, 章节的名字是 `Text and Paragraph Block`.
+
+接下来的
+```
+[paragraph
+[text This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.]]
+[text A new line of words. ]
+[text New line of words again. ]
+]
+```
+是一个段落块, 一个段落块内部可以包含多个文本块以及代码块, 图片块等, 此处仅以文本块举例. 此处的段落内包含三个文本块, 分别是
+```
+[text This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.]]
+```
+```
+[text A new line of words. ]
+```
+```
+[text New line of words again. ]
+```
+在文本块内部还可以调整文本块的格式, 如使用 `emph` 块来表示强调文本 `Empasize some words.`, `bold` 块来表示加粗文本 `Make these words bold.`.
+
+
+由于段落块与文本块十分常用, Lix 提供了简化书写的方式. 文本块可以去掉外层的 `[text ...]`, 直接输入文本块的内容即可. 在两个文本块之间, 可以使用 `\\` 来分隔. 如代码所示
+```
+[paragraph
+This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.] \\
+A new line of words. \\
+New line of words again.
+]
+```
+上述代码还可以写成
+```
+[paragraph
+This is a text block. ... \\
+A new line of words.
+[text New line of words again.]
+]
+```
+```
+[paragraph
+[text This is a text block. ...]
+A new line of words.
+[text New line of words again.]
+]
+```
+```
+[paragraph
+[text This is a text block. ...]
+A new line of words. \\
+New line of words again.
+]
+```
+这两种写文本块的方式可以自由切换.
+
+此外, 段落块也有简化的写法. 去掉外层的 `[paragraph ...]`, 直接写段落的内容即可. 在两个段落之间使用多行 (大于等于两个换行) 的空白来分隔, 而单个 (小于等于一个换行) 的空白则被当作一个空格, 这与 LaTeX 的处理方式是相同的. 段落的简化写法可以与文本块的简化写法一起使用, 如
+```
+This is a text block. This text block in contained in a paragraph block. [emph Empasize some words.] Normal words. [bold Make these words bold.] \\
+A new line of words. \\
+New line of words again.
+```
+```
+[text This is a text block. ...]
+A new line of words. \\
+New line of words again.
 ```
 
+接下来是下一个章节块, 不再赘述. 下面主要介绍公式块以及其他块的用法.
+
+接下来的
 ```
-LiX ->setting|
+Inline formula.  let /𝜌(x,y) = norm [x-y]/, then /lim x→∞: sin x⁄x = 𝜌(0,0)/.
 ```
+是一个行内的公式的例子. 行内公式可以放在文本块内部, 使用两个反斜线 `/ ... /` 包围. 在公式内部可以直接输入 Unicode 字符来使用对应的数学符号, 十分直观. Unicode 字符可以由 VSCode 的自动补全直接输入.
 
-### 架构设计
-
-LiX的核心部分负责将lix文件解析为抽象语法树, 由于LiX被设计为各个标签可以有不同的语法, 因此我们词法分析和语法分析阶段合并.
-
-将源文本分割, 并根据标签的名称选择对应的处理函数.
-
-对Label的管理, 
-
-node.ts 对抽象语法树节点及类型的管理, 类型分为Type Id Name, 这三种类型是等价的, 在内部统一使用Id进行管理.
-
-## LiX 支持的属性
-
-标题
-
-字体字号：加粗 倾斜 删除线 
-字体 字号 颜色 前景、背景色
-上下标
-
-居中、左右对齐
-
-分割线
-
-引用
-
-列表
-
-表格
-
-图片
-
-代码
-
-数学
-
-段落、换行
-
-### 数学环境
-
-数学环境使用
 ```
-[formula ...]
-[$ ...]
+Formula block.
+[formula
+F = min_[x_i∊X] f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]
+]
 ```
-其中 ...代表一串符号列, 其中符号的名称由字母和数字组成, 并且以空格分隔.
+是公式块, 它代表一个行间公式. 公式的输入与行内公式完全相同.
+
+下面是注释的例子.
 ```
-token1 token2 [token3 token4] ...
+This is a line comment. // line comment.
+
+This is a multiline comment.  /* comment
+comment */ Amultiline comment.
+
+Embeded comment. /* comment /* Embeded comment. */ */
 ```
-可以自定义符号：
-```
-'d => [textbf d]' 
-```
+Lix 支持单行以及多行注释, 分别使用 `// ...` 以及 `/* ... */`, 特别地, 多行注释可以嵌套, 如上所示.
 
-内置符号有以下这些：
-```
-Math functions:
-Refer to math.json.
+## License
 
-Operator & Symbols:
-Refer to math.json.
+Copyright (c) Pengfei Hao. All rights reserved.
 
-Alphabets:
-Latin Alphabet: a b c ...  A B C ...
-Greek Alphabet: alpha beta ...
-Digits: 0 1 2 ...
-
-
-
-Structures:
-Fraction: [... / ...]
-Matrix: [... , ... , ...; ... , ... , ...; ...]
-Matrix with brackets:
-Multiline:
-Aligned:
-
-Sqrt: [... ^2]
-Sum: [sum ... to ... : ...]
-Product: [prod ^ ... _ ...]
-Limit: [lim ... : ]
-Integral: [int ... to ... : ...]
-
-Script:
-Superscript: [... ^ ...]
-Subscript: [... _ ...]
-Super-subscript: [... ^ ... _ ...]
-
-Brackets:
-Round brackets: [( ... )]
-Square brackets: (unsupported)
-Curly brackets: [{ ... }]
-Angle brackets: [< ... >]
-Pipes: [| ... |]
-Double pipes: [|| ... ||]
-
-Tag:
-``` 
-
-
-## 开发
-
-### Parser
-
-#### 文法
-
-document -> blank [paragraph|setting]* eof
-setting -> # blank name : command \n blank
-paragraph -> [label | [escapeChar | blank | text]]
-label -> '[' blank name blank  ']'
-blank -> [ [\t \v\f\r\n]+ | // ... \n | /* ... */] *
-#### Match 函数
-
-每个myMatch函数对应一个语法节点, 功能是从index开始匹配该语法节点, 如果成功index设置为该语法节点结尾后一个字符的位置, 如果失败index位置是随机的.
-
-Match函数用来构建Result<Node>:
-success
-messages[] -> line&position, process, type, code, message
-content -> type, content, children, begin, end
-并控制index
-index
-
-##### myMatch模版
-let result = new Result<Node>(true, new Node(this.xxxType), []);
-let node = result.content;
-let msg = result.messages;
-this.begin("xxx");
-node.begin = this.index;
-
-match syntax ...
-
-   保证index位置正确
-
-##### myMatch 返回时
-成功
-return result;
-
-失败
-msg.push(this.getMessage("xxx"));
-result.success = false;
-return result;
-
-
-
-##### 需要用到其他match函数时
-let nResult = this.matchXXX();
-result.merge(nResult);
-if (!result.success) {
-    msg.push(this.getMessage("xxx"));
-    result.success = false;
-    return result;
-}
-nResult.content ....
-
-##### 需要试错match函数时
-let result = this.matchXXX();
-if (result.success) {
-    this.syntaxTree.children.push(result.content);
-    this.mergeMessage(msg, result.messages);
-    return new Result(true, node, msg);
-}
-
-result = this.matchXXX();
-if (result.success) {
-    this.syntaxTree.children.push(result.content);
-    this.mergeMessage(msg, result.messages);
-    return new Result(true, node, msg);
-}
-
-this.sendMessage(msg, "xxx");
-return new Result(false, node, msg);
-
-
-##### Match函数
-每个match函数对应相应的match函数, 提供试错机会, 并且在myMatch失败后将index放回初始位置,并且不产生message.
-match模版
-let preIndex = this.index;
-let result = this.matchSetting();
-this.end();
-result.content.end = this.index;
-if (!result.success) {
-    this.index = preIndex;
-}
-return result;
-
-
-#### Match 两种模式
-
-扫描模式
-
-while(this.notEnd()) {
-    if(this.is(Parser.blank)) {
-        do {
-            this.move();
-        } while(this.notEnd() && this.is(Parser.blank));
-    }
-    else if(this.is("/") && this.nextIs("/")) {
-        this.move(2);
-        while(this.notEnd()) {
-            if(this.is("\n")) {
-                this.move();
-                break;
-            }
-            this.move();
-        }
-    }
-    else if(this.is("/") && this.nextIs("*")) {
-        this.move(2);
-        while(this.notEnd(1) && )
-    }
-    else {
-        this.move();
-    }
-}
+Licensed under the [MIT](LICENSE.txt) license.

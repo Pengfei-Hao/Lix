@@ -64,6 +64,12 @@ export class LatexGenerator extends Generator {
     subsectionType: Type;
     subsubsectionType: Type;
 
+    lemmaType: Type;
+    propositionType: Type;
+    theoremType: Type;
+    proofType: Type;
+    corollaryType: Type;
+
     // Introduction & Document
     introduction: string;
     document: string;
@@ -135,6 +141,11 @@ export class LatexGenerator extends Generator {
         this.subsectionType = this.typeTable.get("subsection")!;
         this.subsubsectionType = this.typeTable.get("subsubsection")!;
 
+        this.lemmaType = this.typeTable.get("lemma")!;
+        this.propositionType = this.typeTable.get("proposition")!;
+        this.theoremType = this.typeTable.get("theorem")!;
+        this.corollaryType = this.typeTable.get("corollary")!;
+        this.proofType = this.typeTable.get("proof")!;
         // this.fractionType = this.typeTable.get("fraction")!;
         // this.sqrtType = this.typeTable.get("sqrt")!;
         // this.sumType = this.typeTable.get("sum")!;
@@ -186,6 +197,7 @@ export class LatexGenerator extends Generator {
         this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
         this.addIntrodunction(this.line(this.command("usepackage", "amsmath")));
         this.addIntrodunction(this.line(this.command("usepackage", "amssymb")));
+        this.addIntrodunction(this.line(this.command("usepackage", "amsthm")));
         this.addIntrodunction(this.line(this.command("usepackage", "graphicx")));
         this.addIntrodunction(this.line(this.command("usepackage", "subcaption")));
         this.addIntrodunction(this.line(this.command("usepackage", "circuitikz")));
@@ -204,6 +216,7 @@ export class LatexGenerator extends Generator {
 	frame               =   lrtb,   % 显示边框
     breaklines          =   true,
 }\n`);
+        this.addIntrodunction(`\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
 
         this.addContent(await this.generateDocument(this.syntaxTree));
 
@@ -276,6 +289,26 @@ export class LatexGenerator extends Generator {
                     res += this.generateSubsubsection(n);
                     flag = false;
                     break;
+                case this.theoremType:
+                    res += await this.generateTheorem(n);
+                    flag = false;
+                    break;
+                case this.lemmaType:
+                    res += await this.generateLemma(n);
+                    flag = false;
+                    break;
+                case this.corollaryType:
+                    res += await this.generateCorollary(n);
+                    flag = false;
+                    break;
+                case this.propositionType:
+                    res += await this.generateProposition(n);
+                    flag = false;
+                    break;
+                case this.proofType:
+                    res += await this.generateProof(n);
+                    flag = false;
+                    break;
                 default:
                     console.log("generate document error.");
                     flag = false;
@@ -307,17 +340,34 @@ export class LatexGenerator extends Generator {
             //return "[[empty par]]";
         }
         let res = "";
+
+        let titled = false;
+        if (node.content === "titled") {
+            titled = true;
+            res += `\\paragraph{${this.generateText(node.children[1]).slice(0, -1)}}\n`;
+        }
+
         let flag = false;
-        for (let n of node.children) {
+        for (let n of (!titled ? node.children : node.children.slice(2))) {
 
             switch (n.type) {
                 case this.textType:
                     if (flag) {
-                        res += `\\par\\noindent `;
+                        if (n.content === "indent") {
+                            res += `\\par `;
+                        }
+                        else {
+                            res += `\\par\\noindent `;
+                        }
                         //res += `\\newline `;
                     }
                     else {
-                        res += `\\par `;
+                        if (n.content === "noindent") {
+                            res += `\\par\\noindent `;
+                        }
+                        else {
+                            res += `\\par `;
+                        }
                         flag = true;
                     }
                     res += this.generateText(n);
@@ -333,6 +383,8 @@ export class LatexGenerator extends Generator {
                     res += this.generateCode(n);
                     break;
                 case this.listType:
+                    res += await this.generateList(n);
+                    break;
                 case this.tableType:
                     res += "[[Basic Block]]\n";
                     console.log("Unsupported basic block.");
@@ -382,19 +434,61 @@ export class LatexGenerator extends Generator {
     // GenerateSection
     // Syntax Tree type: section
     generateSection(node: Node): string {
-        return `\\section{${this.generateText(node, true)}}\n`;
+        let num = "";
+        if(node.content === "unnumbered") {
+            num = "*";
+        }
+        return `\\section${num}{${this.generateText(node, true)}}\n`;
     }
 
     // GenerateSubsection
     // Syntax Tree type: subsection
     generateSubsection(node: Node): string {
-        return `\\subsection{${this.generateText(node, true)}}\n`;
+        let num = "";
+        if(node.content === "unnumbered") {
+            num = "*";
+        }
+        return `\\subsection${num}{${this.generateText(node, true)}}\n`;
     }
 
     // GenerateSubsubection
     // Syntax Tree type: subsubsection
     generateSubsubsection(node: Node): string {
-        return `\\subsubsection{${this.generateText(node, true)}}\n`;
+        let num = "";
+        if(node.content === "unnumbered") {
+            num = "*";
+        }
+        return `\\subsubsection${num}{${this.generateText(node, true)}}\n`;
+    }
+
+    // GenerateTheorem
+    // Syntax Tree type: theorem
+    async generateTheorem(node: Node): Promise<string> {
+        return `\\begin{theorem}${await this.generateParagraph(node)}\\end{theorem}\n`;
+    }
+
+    // GenerateLemma
+    // Syntax Tree type: lemma
+    async generateLemma(node: Node): Promise<string> {
+        return `\\begin{lemma}${await this.generateParagraph(node)}\\end{lemma}\n`;
+    }
+
+    // GenerateCorollary
+    // Syntax Tree type: corollary
+    async generateCorollary(node: Node): Promise<string> {
+        return `\\begin{corollary}${await this.generateParagraph(node)}\\end{corollary}\n`;
+    }
+
+    // GenerateProposition
+    // Syntax Tree type: proposition
+    async generateProposition(node: Node): Promise<string> {
+        return `\\begin{proposition}${await this.generateParagraph(node)}\\end{proposition}\n`;
+    }
+
+    // GenerateProof
+    // Syntax Tree type: proof
+    async generateProof(node: Node): Promise<string> {
+        return `\\begin{proof}${await this.generateParagraph(node)}\\end{proof}\n`;
     }
 
 
@@ -543,6 +637,47 @@ export class LatexGenerator extends Generator {
 
     }
 
+    // GenerateList
+    // Syntax Tree type: list
+    async generateList(node: Node): Promise<string> {
+        if (node.children.length == 0) {
+            console.log("[[empty par]]");
+            //return "[[empty par]]";
+        }
+        let res = "";
+
+        res += "\\begin{enumerate}";
+        for (let n of node.children) {
+
+            switch (n.type) {
+                case this.textType:
+                    res += `\\item `;
+                    res += this.generateText(n);
+                    break;
+
+                case this.formulaType:
+                    res += this.generateFormula(n);
+                    break;
+                case this.figureType:
+                    res += await this.generateFigure(n);
+                    break;
+                case this.codeType:
+                    res += this.generateCode(n);
+                    break;
+                case this.listType:
+                    res += await this.generateList(n);
+                    break;
+                case this.tableType:
+                    res += "[[Basic Block]]\n";
+                    console.log("Unsupported basic block.");
+                    break;
+            }
+        }
+        res += "\\end{enumerate}\n";
+
+        return res;
+    }
+
     // GenerateFormula
     // Syntax Tree type: formula
     generateFormula(node: Node, inline: boolean = false): string {
@@ -580,41 +715,41 @@ export class LatexGenerator extends Generator {
                 break;
 
             case this.prefixType:
-                let cases =false;
-                if(node.content === "cases") {
-cases=true;
+                let cases = false;
+                if (node.content === "cases") {
+                    cases = true;
                 }
-                if(node.content === "mat" || cases) {
-                    if(cases) {
+                if (node.content === "mat" || cases) {
+                    if (cases) {
                         res += `{\\left\\{`
                     }
                     res += `\\begin{matrix}`;
                     let brow = false;
-                    for(let row of node.children) {
-                        if(brow) {
+                    for (let row of node.children) {
+                        if (brow) {
                             res += `\\\\`;
                         }
                         brow = true;
 
                         let bcol = false;
-                        for(let col of row.children) {
+                        for (let col of row.children) {
                             let ncode = this.generateTermOrOperator(col);
-                            if(bcol) {
+                            if (bcol) {
                                 res += `&`;
                             }
                             bcol = true;
                             res += ncode;
                         }
-                    } 
+                    }
                     res += `\\end{matrix}`;
-                    if(cases) {
+                    if (cases) {
                         res += `\\right.}`
                     }
                     break;
                 }
                 code = this.latexOperator.get(node.content);
                 if (code !== undefined) {
-                    for(let i = 0; i < node.children.length; i++) {
+                    for (let i = 0; i < node.children.length; i++) {
                         let ncode = this.generateTermOrOperator(node.children[i]);
                         let flag = `\${${i}}`;
                         code = code.replace(flag, ncode);
@@ -687,12 +822,12 @@ cases=true;
                         res += "{";
                         for (let sub of node.children) {
                             let ncode = this.generateTermOrOperator(sub);
-                            
+
                             const reg = /[a-zA-Z]/;
-                            if(blank && lastIsAlphabet && ncode.length >= 1 && reg.exec(ncode[0]) != null) {
+                            if (blank && lastIsAlphabet && ncode.length >= 1 && reg.exec(ncode[0]) != null) {
                                 res += " ";
                             }
-                            if(blank && ncode.length >= 1 && reg.exec(ncode.at(-1)!) != null) {
+                            if (blank && ncode.length >= 1 && reg.exec(ncode.at(-1)!) != null) {
                                 lastIsAlphabet = true;
                             }
                             else {
@@ -706,7 +841,7 @@ cases=true;
                         res += "}";
                     }
                     else {
-                        for(let i = 0; i < node.children.length; i++) {
+                        for (let i = 0; i < node.children.length; i++) {
                             let ncode = this.generateTermOrOperator(node.children[i]);
                             let flag = `\${${i}}`;
                             code = code.replace(flag, ncode);

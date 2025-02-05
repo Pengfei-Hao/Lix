@@ -16,6 +16,13 @@ export class Article extends Module {
     subsectionType: Type;
     subsubsectionType: Type;
 
+    lemmaType: Type;
+    propositionType: Type;
+    theoremType: Type;
+    proofType: Type;
+    corollaryType: Type;
+
+
     constructor(parser: Parser) {
         super(parser);
 
@@ -43,16 +50,38 @@ export class Article extends Module {
         this.subsectionType = this.parser.typeTable.add("subsection")!;
         this.subsubsectionType = this.parser.typeTable.add("subsubsection")!;
 
+
+        this.parser.otherBlocks.add("lemma");
+        this.parser.otherBlocks.add("proposition");
+        this.parser.otherBlocks.add("theorem");
+        this.parser.otherBlocks.add("corollary");
+        this.parser.otherBlocks.add("proof");
+        this.parser.blockHandlerTable.add("lemma", this.lemmaBlockHandler, this);
+        this.parser.blockHandlerTable.add("proposition", this.propositionBlockHandler, this);
+        this.parser.blockHandlerTable.add("theorem", this.theoremBlockHandler, this);
+        this.parser.blockHandlerTable.add("corollary", this.corollaryBlockHandler, this);
+        this.parser.blockHandlerTable.add("proof", this.proofBlockHandler, this);
+
+        this.lemmaType = this.parser.typeTable.add("lemma")!;
+        this.propositionType = this.parser.typeTable.add("proposition")!;
+        this.theoremType = this.parser.typeTable.add("theorem")!;
+        this.corollaryType = this.parser.typeTable.add("corollary")!;
+        this.proofType = this.parser.typeTable.add("proof")!;
     }
 
     init() {
         
     }
 
-    sectionBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
+    sectionBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.sectionType));
         let preIndex = this.parser.index;
         this.parser.begin("section-block-handler");
+        for(let arg of args.children) {
+            if(arg.content === "unnumbered") {
+                result.content.content = "unnumbered";
+            }
+        }
         this.parser.myTextLikeBlockHandler("section", result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -64,10 +93,15 @@ export class Article extends Module {
         return result;
     }
 
-    subsectionBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
+    subsectionBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.subsectionType));
         let preIndex = this.parser.index;
         this.parser.begin("subsection-block-handler");
+        for(let arg of args.children) {
+            if(arg.content === "unnumbered") {
+                result.content.content = "unnumbered";
+            }
+        }
         this.parser.myTextLikeBlockHandler("subsection", result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -79,10 +113,15 @@ export class Article extends Module {
         return result;
     }
 
-    subsubsectionBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
+    subsubsectionBlockHandler(args: Node): Result<Node> {
         let result = new Result<Node>(new Node(this.subsubsectionType));
         let preIndex = this.parser.index;
         this.parser.begin("subsubsection-block-handler");
+        for(let arg of args.children) {
+            if(arg.content === "unnumbered") {
+                result.content.content = "unnumbered";
+            }
+        }
         this.parser.myTextLikeBlockHandler("subsubsection", result, args);
         this.parser.end();
         result.content.begin = preIndex;
@@ -270,5 +309,33 @@ export class Article extends Module {
         }
     }
 
+    lemmaBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("lemma", args);
+        result.content.type = this.lemmaType;
+        return result;
+    }
 
+    propositionBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("proposition", args);
+        result.content.type = this.propositionType;
+        return result;
+    }
+
+    theoremBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("theorem", args);
+        result.content.type = this.theoremType;
+        return result;
+    }
+
+    corollaryBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("corollary", args);
+        result.content.type = this.corollaryType;
+        return result;
+    }
+
+    proofBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("proof", args);
+        result.content.type = this.proofType;
+        return result;
+    }
 }

@@ -1,8 +1,8 @@
-/ dot dot a 𝛂^𝛃_𝛄 a ^ b _c d e ^ d/
+/ dot dot a 𝛼^𝛽_𝛾 a ^ b _c d e ^ d/
 / a_d^f⁄b⁄c f()/
 / lim  : ∑  to  : /
 
-/ dot dot a 𝛂^𝛃_ 𝛄 (a+b+dot t ⁄ √ 2 c + d) [mat a b c] ⁄ h  /
+/ dot dot a 𝛼^𝛽_𝛾 (a+b+dot t ⁄ √ 2 c + d) [mat a b c] ⁄ h  /
 
 
 /[dot dot b _ a] c _ b c ⁄ d e ^ h _ g/
@@ -10,3 +10,7 @@
 [formula [lim [lim h : t] → 0 : [lim f(x+h)-f(x)-A h : t]^F [lim h:t]_E]=0]
 
 this is math /a^y/ text.
+
+[formula
+F = min_[x_i∊X] f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]
+]
