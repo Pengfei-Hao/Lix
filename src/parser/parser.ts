@@ -603,6 +603,12 @@ export class Parser {
 
         result.mergeState(ResultState.successful);
 
+        for(let arg of args.children) {
+            if(arg.content === "titled") {
+                node.content = "titled";
+            }
+        }
+
         while (true) {
             if (this.isEOF()) {
                 msg.push(this.getMessage("Paragraph block ended abruptly."));
@@ -818,6 +824,15 @@ export class Parser {
         node.children.push(args);
 
         result.mergeState(ResultState.successful);
+
+        for(let arg of args.children) {
+            if(arg.content === "noindent") {
+                node.content = "noindent";
+            }
+            if(arg.content === "indent") {
+                node.content = "indent";
+            }
+        }
 
         while (true) {
             curIndex = this.index;

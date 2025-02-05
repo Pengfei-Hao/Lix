@@ -32,7 +32,7 @@ export class Core extends Module {
         this.parser.basicBlocks.add("table");
         this.parser.basicBlocks.add("code");
         this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this);
-        this.parser.blockHandlerTable.add("list", this.parser.textBlockHandler, this.parser);
+        this.parser.blockHandlerTable.add("list", this.listBlockHandler, this);
         this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
         this.parser.blockHandlerTable.add("code", this.codeBlockHandler, this);
 
@@ -688,5 +688,11 @@ export class Core extends Module {
             }
 
         }
+    }
+
+    listBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.paragraphLikeBlockHandler("list", args);
+        result.content.type = this.listType;
+        return result;
     }
 }

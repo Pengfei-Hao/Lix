@@ -767,3 +767,29 @@ italic-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char
 * setting系统
 * ! latex生成
 * 自动提示、目录结构、命令列表
+
+## LiX 支持的属性
+
+标题
+
+字体字号：加粗 倾斜 删除线 
+字体 字号 颜色 前景、背景色
+上下标
+
+居中、左右对齐
+
+分割线
+
+引用
+
+列表
+
+表格
+
+图片
+
+代码
+
+数学
+
+段落、换行
