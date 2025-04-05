@@ -64,6 +64,7 @@ export class LatexGenerator extends Generator {
     subsectionType: Type;
     subsubsectionType: Type;
 
+    definitionType: Type;
     lemmaType: Type;
     propositionType: Type;
     theoremType: Type;
@@ -141,6 +142,7 @@ export class LatexGenerator extends Generator {
         this.subsectionType = this.typeTable.get("subsection")!;
         this.subsubsectionType = this.typeTable.get("subsubsection")!;
 
+        this.definitionType = this.typeTable.get("definition'")!;
         this.lemmaType = this.typeTable.get("lemma")!;
         this.propositionType = this.typeTable.get("proposition")!;
         this.theoremType = this.typeTable.get("theorem")!;
@@ -216,7 +218,7 @@ export class LatexGenerator extends Generator {
 	frame               =   lrtb,   % 显示边框
     breaklines          =   true,
 }\n`);
-        this.addIntrodunction(`\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
+        this.addIntrodunction(`\\newtheorem{definition}{Definition}[section]\n\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
 
         this.addContent(await this.generateDocument(this.syntaxTree));
 
@@ -291,6 +293,10 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.theoremType:
                     res += await this.generateTheorem(n);
+                    flag = false;
+                    break;
+                case this.definitionType:
+                    res += await this.generateDefinition(n);
                     flag = false;
                     break;
                 case this.lemmaType:
@@ -374,6 +380,7 @@ export class LatexGenerator extends Generator {
                     break;
 
                 case this.formulaType:
+                case this.expressionType:
                     res += this.generateFormula(n);
                     break;
                 case this.figureType:
@@ -467,6 +474,12 @@ export class LatexGenerator extends Generator {
         return `\\begin{theorem}${await this.generateParagraph(node)}\\end{theorem}\n`;
     }
 
+    // GenerateDefinition
+    // Syntax Tree type: definition
+    async generateDefinition(node: Node): Promise<string> {
+        return `\\begin{definition}${await this.generateParagraph(node)}\\end{definition}\n`;
+    }
+
     // GenerateLemma
     // Syntax Tree type: lemma
     async generateLemma(node: Node): Promise<string> {
@@ -543,6 +556,7 @@ export class LatexGenerator extends Generator {
                     res += `\\ref{${n.content}}`;
                     break;
                 case this.formulaType:
+                case this.expressionType:
                     res += this.generateFormula(n, true);
                     break;
                 case this.codeType:
@@ -567,7 +581,9 @@ export class LatexGenerator extends Generator {
 
     // GenerateFigure
     // Syntax Tree type: figure
-    async generateFigure(node: Node): Promise<string> {
+    async generateFigure(tnode: Node): Promise<string> {
+        let node = Node.clone(tnode);
+        node.children = node.children.slice(1);
         // \begin{figure}[!htbp]
         // \centering
         // \subcaptionbox{矩形区域}{
@@ -593,6 +609,7 @@ export class LatexGenerator extends Generator {
                 size = "0.8";
                 break;
         }
+
         if (node.children.length == 1) {
 
         }
@@ -682,10 +699,14 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: formula
     generateFormula(node: Node, inline: boolean = false): string {
         let res = inline ? "$" : "\\begin{equation*}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}";
-        if (node.children.at(-1)?.type === this.expressionType) {
-            res += this.generateTermOrOperator(node.children.at(-1)!.children[0]);
-        }
-        res += inline ? "$" : "\\end{equation*}\\par\n";
+        //if (node.children.at(-1)?.type === this.expressionType) {
+            let tmp = this.generateTermOrOperator(node.children.at(-1)!);
+            if(tmp.startsWith("{") && tmp.endsWith("}")) {
+                tmp=tmp.slice(1,-1);
+            }
+            res += tmp;
+        //}
+        res += inline ? "$" : "\\end{equation*}%\n";
 
         return res;
     }

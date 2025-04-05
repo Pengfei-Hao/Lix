@@ -4,14 +4,10 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-
-import * as path from 'path';
 import { workspace } from 'vscode';
 
-import { TextDecoder, TextEncoder } from 'util';
 import { Parser } from './parser/parser';
 import { Generator } from './generator/generator';
-import { LatexGenerator } from './generator/latex-generator';
 import { VSCodeConfig } from './extension/vscode-config';
 import { LixCompletionProvider } from './extension/completion-provider';
 import { LixContext } from './extension/lix-context';
@@ -20,9 +16,7 @@ import { LatexProvider } from './extension/document-provider';
 import { LixSemanticProvider } from './extension/semantic-provider';
 import { updateDiagnostic } from './extension/diagnostic-provider';
 import { ResultState } from './foundation/result';
-import { Heap } from './foundation/heap';
-import { Ref } from './foundation/ref';
-import { DocumentFilter, DocumentSelector } from 'vscode-languageclient';
+import { DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
 
 
@@ -165,7 +159,7 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let isDebugging = false;
+let isDebugging = true;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	if(!isDebugging) {
@@ -179,13 +173,21 @@ async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) 
 	
 	let parser = lixContext.getCompiler(doc.uri).parser;
 	let pos = change.selections[0].start;
+
 	let index = parser.getIndex(pos.line, pos.character)!;
-	let line = locate(index, parser.syntaxTree)-1;
+	let line = locate(index, parser.syntaxTree)-1+1;
 	//console.log(`index:${index};line:${pos.line},char:${pos.character}`);
 	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
-	let uri = getUri(doc.uri, "parse");
-	vscode.workspace.openTextDocument(uri).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
+
+	vscode.workspace.openTextDocument(getUri(doc.uri, "parse")).then(doc => {
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Two, preview : false, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
+		vscode.window.showTextDocument(doc, opt);
+		
+	});
+
+	let lineA = locate(index, parser.analysedTree)-1+1;
+	vscode.workspace.openTextDocument(getUri(doc.uri, "analyse")).then(doc => {
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Three, preview : false, preserveFocus : true, selection : new vscode.Range(lineA,0,lineA,0)};
 		vscode.window.showTextDocument(doc, opt);
 		
 	});
@@ -324,6 +326,7 @@ async function parse() {
 	}
 	parseFromDocument(document);
 	showFile(getUri(document.uri, "parse"));
+	showFile(getUri(document.uri, "analyse"));
 }
 
 function test() {
@@ -354,18 +357,18 @@ export async function generateLatexFromDocument(document: vscode.TextDocument): 
 	let generator = compiler.curGenerator; // latex
 	await compiler.generateFromText(document.getText(), generator);
 
-	documentProvider.updateContent(getUri(document.uri, "generate"), generator.output);
+	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);
 	return generator;
 }
 
 export function parseFromDocument(document: vscode.TextDocument): Parser {
 
 	updateFileList(document);
-	
+
 	let compiler = lixContext.getCompiler(document.uri);
 	compiler.parseFromText(document.getText());
-	let parser = compiler.parser;
 	//console.log(`Document '${document.fileName}' parsered.`);
+	let parser = compiler.parser;
 
 	updateDiagnostic(document, lixContext);
 
@@ -384,7 +387,8 @@ export function parseFromDocument(document: vscode.TextDocument): Parser {
 			st = "failing";
 			break;
 	}
-	documentProvider.updateContent(getUri(document.uri, "parse"), parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+	documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+	documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString());
 
 	return parser;
 }
@@ -409,7 +413,7 @@ async function updateFileList(document: vscode.TextDocument) {
 
 function showFile(uri: vscode.Uri) {
 	vscode.workspace.openTextDocument(uri).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : undefined};
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : undefined};
 		vscode.window.showTextDocument(doc,opt);
 		
 	});

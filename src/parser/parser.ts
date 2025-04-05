@@ -5,7 +5,7 @@
 import { Type } from "../sytnax-tree/type";
 import { Node } from "../sytnax-tree/node";
 import { TypeTable } from "../sytnax-tree/type-table";
-import { BlockHandlerTable, BlockHandler } from "./block-handler-table";
+import { BlockHandlerTable, BlockHandler, ArgumentType, ArgumentsSpecification } from "./block-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
 import { Highlight, HighlightType, Result, ResultState } from "../foundation/result";
@@ -33,6 +33,8 @@ export class Parser {
     insertionType: Type;
     wordsType: Type;
     nameType: Type;
+    stringType: Type;
+    numberType: Type;
     escapeCharType: Type;
     referenceType: Type;
     settingType: Type;
@@ -40,7 +42,7 @@ export class Parser {
     blockType: Type;
     errorType: Type;
     argumentsType: Type;
-    argumentItemType: Type;
+    argumentType: Type;
 
     // This table holds all the labels that lix contains with its handle function.
     blockHandlerTable: BlockHandlerTable;
@@ -70,6 +72,7 @@ export class Parser {
 
     // Generated syntax tree will be storaged here, type table holds all the type of node.
     syntaxTree: Node;
+    analysedTree: Node;
 
     // Message list
     messageList: Message[];
@@ -91,6 +94,8 @@ export class Parser {
         this.insertionType = this.typeTable.add("insertion")!;
         this.wordsType = this.typeTable.add("words")!;
         this.nameType = this.typeTable.add("name")!;
+        this.stringType = this.typeTable.add("string")!;
+        this.numberType = this.typeTable.add("number")!;
         this.escapeCharType = this.typeTable.add("escape-char")!;
         this.referenceType = this.typeTable.add("reference")!;
         this.settingType = this.typeTable.add("setting")!;
@@ -98,17 +103,23 @@ export class Parser {
         this.blockType = this.typeTable.add("block")!;
         this.errorType = this.typeTable.add("error")!;
         this.argumentsType = this.typeTable.add("arguments")!;
-        this.argumentItemType = this.typeTable.add("argument-item")!;
+        this.argumentType = this.typeTable.add("argument")!;
 
         this.blockHandlerTable = new BlockHandlerTable();
 
         // other blocks
         this.otherBlocks = new Set(["paragraph"]);
-        this.blockHandlerTable.add("paragraph", this.paragraphBlockHandler, this);
+        const paragraphSpec: ArgumentsSpecification = new Map([]);
+        this.blockHandlerTable.add("paragraph", this.paragraphBlockHandler, this, paragraphSpec);
 
         // basic blocks (formula is added in math module)
         this.basicBlocks = new Set(["text"]);
-        this.blockHandlerTable.add("text", this.textBlockHandler, this);
+        const textSpec: ArgumentsSpecification = new Map([
+            ["start", { type: ArgumentType.enumeration, options: ["indent", "noindent", "auto"], default: "auto" }],
+            ["path", { type: ArgumentType.string, options: [], default: "" }],
+            ["end", { type: ArgumentType.enumeration, options: ["full", "half"], default: "full" }]
+        ]);
+        this.blockHandlerTable.add("text", this.textBlockHandler, this, textSpec);
 
         this.formatBlocks = new Set();
 
@@ -127,6 +138,7 @@ export class Parser {
         this.process = [];
 
         this.syntaxTree = new Node(this.documentType);
+        this.analysedTree = new Node(this.documentType);
         this.messageList = [];
         this.highlights = [];
         this.state = ResultState.failing;
@@ -141,6 +153,7 @@ export class Parser {
         this.process = [];
 
         this.syntaxTree = new Node(this.documentType);
+        this.analysedTree = new Node(this.documentType);
         this.messageList = [];
         this.highlights = [];
         this.state = ResultState.failing;
@@ -161,6 +174,7 @@ export class Parser {
         // parse
         let result = this.matchDocument();
         this.syntaxTree = result.content;
+        this.analysedTree = result.analysedContent;
         this.messageList = result.messages;
         this.highlights = result.highlights;
         this.state = result.state;
@@ -171,59 +185,65 @@ export class Parser {
     // MatchDocument: failing | skippable | successful
 
     matchDocument(): Result<Node> {
-        let result = new Result<Node>(new Node(this.documentType));
-        let preIndex = this.index;
-        this.begin("document");
-        this.myMatchDocument(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        // analyse 在 parse 中处理了
+        return this.prepareMatch(this.documentType, "document", this.myMatchDocument, this);
+        // let result = new Result<Node>(new Node(this.documentType));
+        // result.analysedContent = new Node(this.documentType);
+        // let preIndex = this.index;
+        // this.begin("document");
+        // this.myMatchDocument(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchDocument(result: Result<Node>) {
-        let tmpRes: Result<Node>;
-        // if(this.isEOF()) {
-        //     result.mergeState(ResultState.successful);
-        //     return;
-        // }
+        let nodeRes: Result<Node>;
+
         result.mergeState(ResultState.successful);
+
         while (true) {
             if (this.isEOF()) {
                 break;
             }
 
-            else if ((tmpRes = this.matchSetting()).matched) {
-                result.merge(tmpRes);
+            else if ((nodeRes = this.matchSetting()).matched) {
+                result.merge(nodeRes);
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.content.children.push(tmpRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
+
+                // result.content.children.push(tmpRes.content);
+                // if(!tmpRes.discarded) {
+                //     analysedNode.children.push(tmpRes.analysedContent ?? Node.clone(tmpRes.content));
+                // }
             }
 
-            else if ((tmpRes = this.matchFreeParagraph()).matched) {
-                result.merge(tmpRes);
+            else if ((nodeRes = this.matchFreeParagraph()).matched) {
+                result.merge(nodeRes);
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.content.children.push(tmpRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
-            else if ((tmpRes = this.matchBlock()).matched) {
-                result.merge(tmpRes);
+            else if ((nodeRes = this.matchBlock()).matched) {
+                result.merge(nodeRes);
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.content.children.push(tmpRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
             else {
-                // failed
+                // 理论上不会出现
                 result.mergeState(ResultState.failing);
-                result.messages.push(this.getMessage("[[Logical Error]] Matching paragraph, setting and block failed."));
+                this.mergeMessage(result, "[[Logical Error]] Matching paragraph, setting and block failed.");
                 return;
             }
         }
@@ -232,56 +252,48 @@ export class Parser {
     // MatchSetting: failing | skippable | successful
 
     matchSetting(): Result<Node> {
-        let result = new Result<Node>(new Node(this.settingType));
-        let preIndex = this.index;
-        this.begin("setting");
-        this.myMatchSetting(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.settingType, "setting", this.myMatchSetting, this, this.defaultAnalysis);
     }
 
     private myMatchSetting(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
+        let paramNode = new Node(this.settingParameterType, "");
+        node.children.push(paramNode);
+
 
         result.merge(this.match("#"));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing '#'."));
+            this.mergeMessage(result, "Missing '#'.");
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
         result.GuaranteeMatched();
+        this.mergeHighlight(result, HighlightType.operator, -1, 0);
 
         result.merge(this.skipBlank());
 
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing name."));
+            this.mergeMessage(result, "Missing name.");
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.keyword, nameRes.content));
+        this.mergeHighlight(result, HighlightType.keyword, nameRes.content);
         node.content = nameRes.content.content;
 
         result.merge(this.skipBlank());
 
         result.merge(this.match(":"));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing ':'."));
+            this.mergeMessage(result, "Missing ':'.");
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+        this.mergeHighlight(result, HighlightType.operator, -1, 0);
 
         let command = "";
         while (true) {
@@ -299,7 +311,21 @@ export class Parser {
             }
 
         }
-        node.children.push(new Node(this.settingParameterType, command));
+        paramNode.content = command;
+    }
+
+    defaultAnalysis(result: Result<Node>) {
+        // let source = result.content;
+        // let dist = result.analysedContent;
+
+        // dist.content = source.content;
+        // for (let child of source.children) {
+        //     dist.children.push(Node.clone(child));
+        // }
+
+        Node.copyTo(result.content, result.analysedContent);
+
+        result.discarded = false;
     }
 
     isSetting(): boolean {
@@ -311,32 +337,33 @@ export class Parser {
     // MatchFreeParagraph: failing | skippable | successful
 
     matchFreeParagraph(): Result<Node> {
-        let result = new Result<Node>(new Node(this.paragraphType));
-        let preIndex = this.index;
-        this.begin("free-paragraph");
-        this.myMatchFreeParagraph(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.paragraphType, "free-paragraph", this.myMatchFreeParagraph, this, this.cleanupParagraph);
+
+        // let result = new Result<Node>(new Node(this.paragraphType));
+        // result.analysedContent = new Node(this.paragraphType);
+        // let preIndex = this.index;
+        // this.begin("free-paragraph");
+        // this.myMatchFreeParagraph(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchFreeParagraph(result: Result<Node>) {
-        let node = result.content;
-        let msg = result.messages;
-
-        let ndRes: Result<Node>;
-        let nullRes: Result<null>;
+        let nodeRes: Result<Node>;
+        let symRes: Result<null>;
 
         while (true) {
             if (this.isEOF()) {
                 break;
             }
-            else if ((nullRes = this.matchMultilineBlankGeThanOne()).matched) {
-                result.merge(nullRes);
+            else if ((symRes = this.matchMultilineBlankGeThanOne()).matched) {
+                result.merge(symRes);
                 result.GuaranteeMatched();
                 break;
             }
@@ -347,45 +374,49 @@ export class Parser {
                 break;
             }
 
-            else if ((ndRes = this.matchFreeText()).matched) {
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchFreeText()).matched) {
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 if (result.shouldTerminate) {
                     return;
                 }
-                node.children.push(ndRes.content);
-                
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
-            else if ((ndRes = this.matchBasicBlock()).matched) {
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchBasicBlock()).matched) {
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                node.children.push(ndRes.content);
-                
+                this.mergeNodeToChildren(result, nodeRes);
             }
             else {
-                msg.push(this.getMessage("[[Logical Error]]Unintended 'else'. Free paragraph match failed."));
+                this.mergeMessage(result, "[[Logical Error]]Unintended 'else'. Free paragraph match failed.");
                 result.mergeState(ResultState.failing);
                 return;
             }
         }
     }
 
-    cleanupText(node: Node) {
-        
+    cleanupParagraph(result: Result<Node>) {
+        result.discarded = (result.analysedContent.children.length === 0);
+    }
+
+    cleanupText(result: Result<Node>) {
+        let node = result.analysedContent;
+
         // word node 的begin end 没改
-        if(node.children.length === 0) {
+        if (node.children.length === 0) {
+            result.discarded = true;
             return;
         }
 
         // 将 word 连起来
         let preIsWord = false;
-        for(let i = 0; i < node.children.length; i++) {
+        for (let i = 0; i < node.children.length; i++) {
             let ch = node.children[i];
-            if(preIsWord && ch.type === this.wordsType) {
-                let pre = node.children[i-1];
-                if(pre.content.endsWith(" ") && ch.content.startsWith(" ")) {
+            if (preIsWord && ch.type === this.wordsType) {
+                let pre = node.children[i - 1];
+                if (pre.content.endsWith(" ") && ch.content.startsWith(" ")) {
                     ch.content = ch.content.slice(1);
                 }
                 pre.content = pre.content.concat(ch.content);
@@ -395,7 +426,7 @@ export class Parser {
                 continue;
             }
 
-            if(ch.type === this.wordsType) {
+            if (ch.type === this.wordsType) {
                 preIsWord = true;
             }
             else {
@@ -406,154 +437,145 @@ export class Parser {
         // 去除首尾空格
         let i = 0;
         let ch = node.children[0];
-        if(ch.type === this.argumentsType) {
-            if(node.children.length <= 1) {
+        if (ch.type === this.argumentsType) {
+            if (node.children.length <= 1) {
+                result.discarded = (result.analysedContent.children.length === 0);
                 return;
             }
             i = 1;
             ch = node.children[1];
         }
-        if(ch.type === this.wordsType && ch.content.startsWith(" ")) {
+        if (ch.type === this.wordsType && ch.content.startsWith(" ")) {
             ch.content = ch.content.slice(1);
-            if(ch.content.length === 0) {
+            if (ch.content.length === 0) {
                 node.children.splice(i, 1);
             }
         }
-        if(node.children.length === 0) {
+        if (node.children.length === 0) {
+            result.discarded = (result.analysedContent.children.length === 0);
             return;
         }
         ch = node.children.at(-1)!;
-        if(ch.type === this.wordsType && ch.content.endsWith(" ")) {
+        if (ch.type === this.wordsType && ch.content.endsWith(" ")) {
             ch.content = ch.content.slice(0, -1);
-            if(ch.content.length === 0) {
+            if (ch.content.length === 0) {
                 node.children.splice(-1, 1);
             }
         }
+        result.discarded = (result.analysedContent.children.length === 0);
     }
 
     // MatchFreeText: failing | skippable | successful
 
     matchFreeText(): Result<Node> {
-        let result = new Result<Node>(new Node(this.textType));
-        let preIndex = this.index;
-        this.begin("free-text");
-        this.myMatchFreeText(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        this.cleanupText(result.content);
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.textType, "free-text", this.myMatchFreeText, this, this.cleanupText);
+
+        // let result = new Result<Node>(new Node(this.textType));
+        // result.analysedContent = new Node(this.textType);
+        // let preIndex = this.index;
+        // this.begin("free-text");
+        // this.myMatchFreeText(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // this.cleanupText(result.analysedContent);
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchFreeText(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
+        let analysedNode = result.analysedContent;
 
         let text = "";
         let symRes: Result<null>;
-        //let blnRes: Result<number>;
-        let ndRes: Result<Node>;
+        let nodeRes: Result<Node>;
 
-        let preIndex = 0, curIndex;
+        let preIndex = 0, curIndex: number;
+
+        const mergeWordsNode = () => {
+            if (text !== "") {
+                node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                analysedNode.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                text = "";
+            }
+        }
+
+        const resetIndex = () => {
+            if (text === "") {
+                preIndex = curIndex;
+            }
+        }
 
         while (true) {
             curIndex = this.index;
 
             if (this.isEOF()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                }
+                mergeWordsNode();
                 break;
             }
 
             else if (this.isMultilineBlankGeThanOne()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
             else if ((symRes = this.match("\\\\")).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 result.merge(symRes);
                 result.GuaranteeMatched();
-                result.highlights.push(this.getHighlight(HighlightType.operator, -2, 0));
+                this.mergeHighlight(result, HighlightType.operator, -2, 0);
                 break;
             }
             else if (this.isBasicBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
             else if (this.isOtherBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
             else if (this.isSetting()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
 
 
             else if ((symRes = this.matchMultilineBlankLeThanOrEqOne()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
-                if (text === "") {
-                    preIndex = curIndex;
-                }
+                resetIndex();
                 result.merge(symRes);
                 result.GuaranteeMatched();
                 text += " ";
             }
 
-            else if((ndRes = this.matchEscapeChar()).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchEscapeChar()).matched) {
+                resetIndex();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
-                text += ndRes.content.content;
+                text += nodeRes.content.content;
             }
 
-            else if ((ndRes = this.matchInsertion()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchInsertion()).matched) {
+                mergeWordsNode();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
-            else if ((ndRes = this.matchFormatBlock()).matched) {
+            else if ((nodeRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block  前边判断过
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+                mergeWordsNode();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
             else {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
+                resetIndex();
                 result.mergeState(ResultState.successful);
                 result.GuaranteeMatched();
                 text += this.curChar();
@@ -565,89 +587,92 @@ export class Parser {
     // ParagraphBlockHandler: failing | skippable | successful
 
     paragraphBlockHandler(args: Node = new Node(this.argumentsType)): Result<Node> {
-        let result = new Result<Node>(new Node(this.paragraphType));
-        let preIndex = this.index;
-        this.begin("paragraph-block-handler");
-        this.myParagraphBlockHandler(result, args);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.paragraphType, "paragraph-block-handler", this.myParagraphBlockHandler, this, this.cleanupParagraph);
+
+        // let result = new Result<Node>(new Node(this.paragraphType));
+        // result.analysedContent = new Node(this.paragraphType);
+        // let preIndex = this.index;
+        // this.begin("paragraph-block-handler");
+        // this.myParagraphBlockHandler(result, args);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
-    paragraphLikeBlockHandler(blockName: string, args: Node = new Node(this.argumentsType)): Result<Node> {
-        let result = new Result<Node>(new Node(this.paragraphType));
-        let preIndex = this.index;
-        this.begin(`${blockName}-block-handler`);
-        this.myParagraphBlockHandler(result, args);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
+    paragraphLikeBlockHandler(blockName: string, type: Type, args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = this.prepareMatch(this.paragraphType, `${blockName}-block-handler`, this.myParagraphBlockHandler, this, this.cleanupParagraph);
+        result.content.type = type;
+        result.analysedContent.type = type;
         return result;
+
+        // let result = new Result<Node>(new Node(this.paragraphType));
+        // result.analysedContent = new Node(this.paragraphType);
+        // let preIndex = this.index;
+        // this.begin(`${blockName}-block-handler`);
+        // this.myParagraphBlockHandler(result, args);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
-    private myParagraphBlockHandler(result: Result<Node>, args: Node, blockName: string = "paragraph") {
-        let node = result.content;
-        let msg = result.messages;
+    private myParagraphBlockHandler(result: Result<Node>, args: Node = new Node(this.argumentsType), blockName: string = "paragraph") {
+        //let node = result.content;
 
-        let ndRes: Result<Node>;
-        let nullRes: Result<null>;
+        let nodeRes: Result<Node>;
 
-        node.children.push(args);
+        //node.children.push(args);
 
         result.mergeState(ResultState.successful);
 
-        for(let arg of args.children) {
-            if(arg.content === "titled") {
-                node.content = "titled";
-            }
-        }
+        // for (let arg of args.children) {
+        //     if (arg.content === "titled") {
+        //         node.content = "titled";
+        //     }
+        // }
 
         while (true) {
             if (this.isEOF()) {
-                msg.push(this.getMessage("Paragraph block ended abruptly."));
+                this.mergeMessage(result, "Paragraph block ended abruptly.");
                 result.mergeState(ResultState.skippable);
                 return;
             }
             if (this.isMultilineBlankGeThanOne()) {
-                msg.push(this.getMessage("Paragraph block ended abruptly."));
+                this.mergeMessage(result, "Paragraph block ended abruptly.");
                 result.mergeState(ResultState.skippable);
                 return;
             }
             else if (this.is("]")) {
                 break;
             }
-            // else if ((nullRes = this.match("]")).matched) {
-            //     result.merge(nullRes);
-            //     result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
-            //     break;
-            // }
             else if (this.isOtherBlock()) {
-                msg.push(this.getMessage("Paragraph block should not have other block."));
+                this.mergeMessage(result, "Paragraph block should not have other block.");
                 result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
                 continue;
             }
 
-            else if ((ndRes = this.matchParFreeText()).matched) {
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchParFreeText()).matched) {
+                result.merge(nodeRes);
                 // match par free text 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
-            else if ((ndRes = this.matchBasicBlock()).matched) { // par free text 中检测过 format block
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchBasicBlock()).matched) { // par free text 中检测过 format block
+                result.merge(nodeRes);
                 // match block 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
             else {
-                msg.push(this.getMessage("[[Logical Error]]Unintended 'else'. Matching paragraph block failed."));
+                this.mergeMessage(result, "[[Logical Error]]Unintended 'else'. Matching paragraph block failed.");
                 result.mergeState(ResultState.failing);
                 return;
             }
@@ -657,134 +682,124 @@ export class Parser {
     // MatchParFreeText: failing | skippable | successful
 
     matchParFreeText(): Result<Node> {
-        let result = new Result<Node>(new Node(this.textType));
-        let preIndex = this.index;
-        this.begin("par-free-text");
-        this.myMatchParFreeText(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        this.cleanupText(result.content);
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.textType, "par-free-text", this.myMatchParFreeText, this, this.cleanupText);
+
+        // let result = new Result<Node>(new Node(this.textType));
+        // result.analysedContent = new Node(this.textType);
+        // let preIndex = this.index;
+        // this.begin("par-free-text");
+        // this.myMatchParFreeText(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // this.cleanupText(result.analysedContent);
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchParFreeText(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
+        let analysedNode = result.analysedContent;
 
         let text = "";
         let symRes: Result<null>;
-        let blnRes: Result<number>;
-        let ndRes: Result<Node>;
+        let blkRes: Result<number>;
+        let nodeRes: Result<Node>;
 
-        let preIndex = 0, curIndex;
+        let preIndex = 0, curIndex: number;
+
+        const mergeWordsNode = () => {
+            if (text !== "") {
+                node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                analysedNode.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                text = "";
+            }
+        }
+
+        const resetIndex = () => {
+            if (text === "") {
+                preIndex = curIndex;
+            }
+        }
 
         while (true) {
             curIndex = this.index;
 
             if (this.isEOF()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                }
+                mergeWordsNode();
                 break;
             }
 
-            else if(this.isMultilineBlankGeThanOne()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                }
+            else if (this.isMultilineBlankGeThanOne()) {
+                mergeWordsNode();
                 break;
             }
 
             else if (this.is("]")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
             else if ((symRes = this.match("\\\\")).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 result.merge(symRes);
                 result.GuaranteeMatched();
-                result.highlights.push(this.getHighlight(HighlightType.operator, -2, 0));
+                this.mergeHighlight(result, HighlightType.operator, -2, 0);
                 break;
             }
             else if (this.isBasicBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
             else if (this.isOtherBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
                 break;
             }
 
-            else if ((blnRes = this.matchMultilineBlank()).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(blnRes);
+            else if ((blkRes = this.matchMultilineBlank()).matched) {
+                resetIndex();
+                result.merge(blkRes);
                 result.GuaranteeMatched();
                 text += " ";
 
-                if (blnRes.content > 1) {
-                    msg.push(this.getMessage("Text in paragraph block cannot contain linebreaks more than 1.", MessageType.warning));
+                if (blkRes.content > 1) {
+                    this.mergeMessage(result, "Text in paragraph block cannot contain linebreaks more than 1.", MessageType.warning);
                     //result.mergeState(ResultState.skippable);
                 }
             }
 
-            else if((ndRes = this.matchEscapeChar()).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchEscapeChar()).matched) {
+                resetIndex();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
-                text += ndRes.content.content;
+                text += nodeRes.content.content;
             }
 
-            else if ((ndRes = this.matchInsertion()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchInsertion()).matched) {
+                mergeWordsNode();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
-            else if ((ndRes = this.matchFormatBlock()).matched) {
+            else if ((nodeRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+                mergeWordsNode();
+                result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
             else {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
+                resetIndex();
                 result.mergeState(ResultState.successful);
                 result.GuaranteeMatched();
                 text += this.curChar();
-                this.move();           
+                this.move();
             }
         }
     }
@@ -792,164 +807,271 @@ export class Parser {
     // TextBlockHandler: failing | skippable | successful
 
     textBlockHandler(args: Node = new Node(this.argumentsType)): Result<Node> {
-        let result = new Result<Node>(new Node(this.textType));
-        let preIndex = this.index;
-        this.begin("text-block-handler");
-        this.myTextBlockHandler(result, args);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        this.cleanupText(result.content);
-        if (result.failed) {
-            this.index = preIndex;
-        }
+        return this.prepareMatch(this.textType, "text-block-handler", this.myTextBlockHandler, this, this.cleanupText);
+
+        // let result = new Result<Node>(new Node(this.textType));
+        // result.analysedContent = new Node(this.textType);
+        // let preIndex = this.index;
+        // this.begin("text-block-handler");
+        // this.myTextBlockHandler(result, args);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // this.cleanupText(result.analysedContent);
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
+    }
+
+    textLikeBlockHandler(blockName: string, type: Type, args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = this.prepareMatch(this.textType, `${blockName}-block-handler`, this.myTextBlockHandler, this, this.cleanupText);
+        result.content.type = type;
+        result.analysedContent.type = type;
         return result;
     }
 
-    myTextLikeBlockHandler(blockName: string, result: Result<Node>, args: Node = new Node(this.argumentsType)) {
-        this.myTextBlockHandler(result, args);
-    }
+    // myTextLikeBlockHandler(blockName: string, result: Result<Node>, args: Node = new Node(this.argumentsType)) {
+    //     result.analysedContent = Node.clone(result.content);
+    //     this.myTextBlockHandler(result, args);
+    // }
 
-    private myTextBlockHandler(result: Result<Node>, args: Node) {
+    private myTextBlockHandler(result: Result<Node>, args: Node = new Node(this.argumentsType)) {
         let node = result.content;
-        let msg = result.messages;
+        let analysedNode = result.analysedContent;
 
         let text = "";
         let symRes: Result<null>;
-        let blnRes: Result<number>;
-        let ndRes: Result<Node>;
+        let blkRes: Result<number>;
+        let nodeRes: Result<Node>;
 
-        let preIndex = 0, curIndex;
+        let preIndex = 0, curIndex: number;
 
-        node.children.push(args);
+        // node.children.push(args);
+
+        const mergeWordsNode = () => {
+            if (text !== "") {
+                node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                analysedNode.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                text = "";
+            }
+        }
+
+        const resetIndex = () => {
+            if (text === "") {
+                preIndex = curIndex;
+            }
+        }
 
         result.mergeState(ResultState.successful);
 
-        for(let arg of args.children) {
-            if(arg.content === "noindent") {
-                node.content = "noindent";
-            }
-            if(arg.content === "indent") {
-                node.content = "indent";
-            }
-        }
+        // for (let arg of args.children) {
+        //     if (arg.content === "noindent") {
+        //         node.content = "noindent";
+        //     }
+        //     if (arg.content === "indent") {
+        //         node.content = "indent";
+        //     }
+        // }
 
         while (true) {
             curIndex = this.index;
 
             if (this.isEOF()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                }
-                msg.push(this.getMessage("Text block ended abruptly."));
+                mergeWordsNode();
+                this.mergeMessage(result, "Text block ended abruptly.");
+                result.mergeState(ResultState.skippable);
+                break;
+            }
+            else if (this.is("]")) {
+                mergeWordsNode();
+                break;
+            }
+            else if (this.isMultilineBlankGeThanOne()) {
+                mergeWordsNode();
+                this.mergeMessage(result, "Text block ended abruptly.");
                 result.mergeState(ResultState.skippable);
                 return;
             }
 
-            else if(this.is("]")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                return;
-            }
-
-            // else if ((symRes = this.match("]")).matched) {
-            //     if (text !== "") {
-            //         node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-            //         text = "";
-            //     }
-            //     result.merge(symRes);
-            //     result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
-            //     return;
-            // }
-
-            else if(this.isMultilineBlankGeThanOne()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                msg.push(this.getMessage("Text block ended abruptly."));
-                result.mergeState(ResultState.skippable);
-                return;
-            }
-
-            else if ((blnRes = this.matchMultilineBlank()).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(blnRes);
+            else if ((blkRes = this.matchMultilineBlank()).matched) {
+                resetIndex();
+                result.merge(blkRes);
                 text += " ";
 
-                if (blnRes.content > 1) {
-                    msg.push(this.getMessage("Text block cannot contain linebreaks more than 1.", MessageType.warning));
+                if (blkRes.content > 1) {
+                    this.mergeMessage(result, "Text block cannot contain linebreaks more than 1.", MessageType.warning);
                     //result.mergeState(ResultState.skippable);
                 }
             }
 
             else if ((symRes = this.match("\\\\")).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                msg.push(this.getMessage("Text block should not have \\\\.", MessageType.warning));
+                resetIndex();
+                this.mergeMessage(result, "Text block should not have \\\\.", MessageType.warning);
                 text += "\\\\";
                 //result.mergeState(ResultState.skippable);
             }
 
-            else if((ndRes = this.matchEscapeChar()).matched) {
-                if (text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(ndRes);
-                text += ndRes.content.content;
+            else if ((nodeRes = this.matchEscapeChar()).matched) {
+                resetIndex();
+                result.merge(nodeRes);
+                text += nodeRes.content.content;
             }
 
-            else if ((ndRes = this.matchInsertion()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+            else if ((nodeRes = this.matchInsertion()).matched) {
+                mergeWordsNode();
+                result.merge(nodeRes);
                 // 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
             else if (this.isBasicBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
+                mergeWordsNode();
 
-                msg.push(this.getMessage("Text block should not have basic block"));
+                this.mergeMessage(result, "Text block should not have basic block");
                 result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
             }
 
             else if (this.isOtherBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                msg.push(this.getMessage("Text block should not have other block"));
+                mergeWordsNode();
+                this.mergeMessage(result, "Text block should not have other block");
                 result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
             }
 
-            else if ((ndRes = this.matchFormatBlock()).matched) {
+            else if ((nodeRes = this.matchFormatBlock()).matched) {
                 // 只能是 format block 前边判断过
-                if (text !== "") {
-                    node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
+                mergeWordsNode();
+                result.merge(nodeRes);
                 // match block 不会失败
-                node.children.push(ndRes.content);
+                this.mergeNodeToChildren(result, nodeRes);
             }
 
             else {
-                if (text === "") {
-                    preIndex = curIndex;
+                resetIndex();
+                result.mergeState(ResultState.successful);
+                text += this.curChar();
+                this.move();
+            }
+        }
+    }
+
+    // FormatLikeBlockHandler: failing | skippable | successful
+
+    formatLikeBlockHandler(blockName: string, type: Type, args: Node = new Node(this.argumentsType)): Result<Node> {
+        let result = this.prepareMatch(this.textType, `${blockName}-block-handler`, this.myFormatLikeBlockHandler.bind(this, blockName), this, this.cleanupText);
+        result.content.type = type;
+        result.analysedContent.type = type;
+        return result;
+        // let result = new Result<Node>(new Node(this.textType));
+        // result.analysedContent = new Node(this.textType);
+        // let preIndex = this.index;
+        // this.begin("text-block-handler");
+        // this.myTextBlockHandler(result, args);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // this.cleanupText(result.analysedContent);
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
+    }
+
+    private myFormatLikeBlockHandler(blockName: string, result: Result<Node>, args: Node = new Node(this.argumentsType)) {
+        let node = result.content;
+        let analysedNode = result.analysedContent;
+
+
+        let text = "";
+        let symRes: Result<null>;
+        let blkRes: Result<number>;
+        let nodeRes: Result<Node>;
+
+        let preIndex = 0, curIndex: number;
+
+        // node.children.push(args);
+
+        const mergeWordsNode = () => {
+            if (text !== "") {
+                node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                analysedNode.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
+                text = "";
+            }
+        }
+
+        const resetIndex = () => {
+            if (text === "") {
+                preIndex = curIndex;
+            }
+        }
+
+        result.mergeState(ResultState.successful);
+
+        while (true) {
+            curIndex = this.index;
+
+            if (this.isEOF()) {
+                mergeWordsNode();
+                this.mergeMessage(result, "Format block ended abruptly.");
+                result.mergeState(ResultState.skippable);
+                break;
+            }
+
+            else if (this.is("]")) {
+                mergeWordsNode();
+                return;
+            }
+
+            else if (this.isMultilineBlankGeThanOne()) {
+                mergeWordsNode();
+                this.mergeMessage(result, "Format block ended abruptly.");
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+
+            else if ((blkRes = this.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+                resetIndex();
+                result.merge(blkRes);
+                text += " ";
+                if (blkRes.content > 1) {
+                    this.mergeMessage(result, "Format block cannot contain linebreaks more than 1.", MessageType.warning);
+                    //result.mergeState(ResultState.skippable);
                 }
+            }
+
+            else if ((symRes = this.match("\\\\")).matched) {
+                resetIndex();
+                this.mergeMessage(result, "Format block should not have \\\\.", MessageType.warning);
+                text += "\\\\";
+                //result.mergeState(ResultState.skippable);
+            }
+
+            else if ((nodeRes = this.matchEscapeChar()).matched) {
+                resetIndex();
+                result.merge(nodeRes);
+                text += nodeRes.content.content;
+            }
+
+            else if ((nodeRes = this.matchInsertion()).matched) {
+                mergeWordsNode();
+                result.merge(nodeRes);
+                // 不会失败
+                this.mergeNodeToChildren(result, nodeRes);
+            }
+
+            else if (this.isBlock()) {
+                mergeWordsNode();
+                this.mergeMessage(result, "Format block should not have block.");
+                result.mergeState(ResultState.skippable);
+                this.skipByBrackets();
+            }
+
+            else {
+                resetIndex();
                 result.mergeState(ResultState.successful);
                 text += this.curChar();
                 this.move();
@@ -960,26 +1082,27 @@ export class Parser {
     // MatchEscapeChar: failing | successful
 
     matchEscapeChar(): Result<Node> {
-        let result = new Result<Node>(new Node(this.escapeCharType));
-        let preIndex = this.index;
-        this.begin("escape-char");
-        this.myMatchEscapeChar(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.escapeCharType, "escape-char", this.myMatchEscapeChar, this, this.defaultAnalysis);
+
+        // let result = new Result<Node>(new Node(this.escapeCharType));
+        // let preIndex = this.index;
+        // this.begin("escape-char");
+        // this.myMatchEscapeChar(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchEscapeChar(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
 
         result.merge(this.match("\\"));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing '\\'."));
+            this.mergeMessage(result, "Missing '\\'.");
             return;
         }
         result.GuaranteeMatched();
@@ -989,48 +1112,49 @@ export class Parser {
                 case "(": case ")":
                 case "[": case "]": case "/": case "#": case "@":
                     node.content += this.curChar();
-                    result.highlights.push(this.getHighlight(HighlightType.operator, -1, 1));
+                    this.mergeHighlight(result, HighlightType.operator, -1, 1);
                     break;
                 default:
                     node.content += "\\";
                     node.content += this.curChar();
-                    msg.push(this.getMessage(`\\${this.curChar()} is not an escape char.`, MessageType.warning));
+                    this.mergeMessage(result, `\\${this.curChar()} is not an escape char.`, MessageType.warning);
             }
             this.move();
             result.mergeState(ResultState.successful);
         }
         else {
             node.content = "\\";
-            msg.push(this.getMessage(`Escape char ended abruptly.`, MessageType.warning));
+            this.mergeMessage(result, `Escape char ended abruptly.`, MessageType.warning);
         }
     }
 
     // MatchReference: failing | skippable | successful
 
     matchReference(): Result<Node> {
-        let result = new Result<Node>(new Node(this.referenceType));
-        let preIndex = this.index;
-        this.begin("reference");
-        this.myMatchReference(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.referenceType, "reference", this.myMatchReference, this, this.defaultAnalysis);
+
+        // let result = new Result<Node>(new Node(this.referenceType));
+        // let preIndex = this.index;
+        // this.begin("reference");
+        // this.myMatchReference(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchReference(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
 
         result.merge(this.match("@"));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing '@'."));
+            this.mergeMessage(result, "Missing '@'.");
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+        this.mergeHighlight(result, HighlightType.operator, -1, 0);
         result.GuaranteeMatched();
 
         result.merge(this.skipBlank());
@@ -1038,12 +1162,12 @@ export class Parser {
         let name = this.matchName();
         result.merge(name);
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing reference name."));
+            this.mergeMessage(result, "Missing reference name.");
             result.promoteToSkippable();
             return;
         }
         node.content = name.content.content;
-        result.highlights.push(this.getHighlight(HighlightType.keyword, name.content));
+        this.mergeHighlight(result, HighlightType.keyword, name.content);
 
         result.merge(this.skipBlank());
     }
@@ -1051,48 +1175,57 @@ export class Parser {
     // MatchInsertion: failing | skippable | successful
 
     isInsertion(): boolean {
-        if(this.isEOF()) {
+        if (this.isEOF()) {
             return false;
         }
-        if(this.insertionHandlerTable.has(this.curChar())) {
+        if (this.insertionHandlerTable.has(this.curChar())) {
             return true;
         }
         return false;
     }
 
     matchInsertion(): Result<Node> {
-        let result = new Result<Node>(new Node(this.insertionType));
-        let preIndex = this.index;
-        this.begin("insertion");
-        this.myMatchInsertion(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        // analyse 在 parse 中一起处理了
+        return this.prepareMatch(this.insertionType, "insertion", this.myMatchInsertion, this);
+
+        // let result = new Result<Node>(new Node(this.insertionType));
+        // let preIndex = this.index;
+        // this.begin("insertion");
+        // this.myMatchInsertion(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     myMatchInsertion(result: Result<Node>) {
-        if(this.isEOF()) {
+        let node = result.content;
+        let analysedNode = result.analysedContent;
+
+        if (this.isEOF()) {
             return;
         }
         let handler = this.insertionHandlerTable.getHandler(this.curChar());
-        if(handler === undefined) {
+        if (handler === undefined) {
             return;
         }
         result.content.content = this.curChar();
         result.GuaranteeMatched();
 
-        let ndRes = handler();
-        result.merge(ndRes);
+        let hdlRes = handler();
+        result.merge(hdlRes);
         if (result.shouldTerminate) {
             result.promoteToSkippable();
             this.move();
             return;
         }
-        result.content = ndRes.content;
+
+        node.children.push(hdlRes.content);
+        // 此处相当于令 analyseNode = hdlRes.analysedContent 浅拷贝
+        Node.moveTo(hdlRes.analysedContent, analysedNode);
     }
 
     // **************** Block ****************
@@ -1100,36 +1233,40 @@ export class Parser {
     // MatchBlock: failing | skippable | successful
 
     matchBlock(): Result<Node> {
-        let result = new Result<Node>(new Node(this.blockType));
-        let preIndex = this.index;
-        this.begin("block");
-        this.myMatchBlock(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        // analyse 在 parse 中一起处理了
+        return this.prepareMatch(this.blockType, "block", this.myMatchBlock, this);
+
+        // let result = new Result<Node>(new Node(this.blockType));
+        // result.analysedContent = new Node(this.blockType);
+        // let preIndex = this.index;
+        // this.begin("block");
+        // this.myMatchBlock(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     private myMatchBlock(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
+        let analysedNode = result.analysedContent;
 
         result.merge(this.match("["));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing '['."));
+            this.mergeMessage(result, "Missing '['.");
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+        this.mergeHighlight(result, HighlightType.operator, -1, 0);
 
         result.merge(this.skipBlank());
 
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing name."));
+            this.mergeMessage(result, "Missing name.");
             // Do not skip because it may not be a block.
             return;
         }
@@ -1138,146 +1275,334 @@ export class Parser {
         let handle: BlockHandler | undefined;
         handle = this.blockHandlerTable.getHandler(nameRes.content.content);
         if (handle === undefined) {
-            msg.push(this.getMessage(`Block name '${nameRes.content.content}' not found.`));
+            this.mergeMessage(result, `Block name '${nameRes.content.content}' not found.`);
             result.mergeState(ResultState.failing);
             return;
         }
         result.GuaranteeMatched();
-        result.highlights.push(this.getHighlight(HighlightType.keyword, nameRes.content));
+        this.mergeHighlight(result, HighlightType.keyword, nameRes.content);
 
-        result.merge(this.skipBlank());
-
-        let argRes = this.matchArguments();
+        let argRes = this.matchArguments(nameRes.content.content);
         result.merge(argRes);
         // matchArguments will not be failing
-        result.content.children.push(argRes.content);
+        node.children.push(argRes.content);
+        analysedNode.children.push(argRes.analysedContent);
 
-        let nResult = handle!(argRes.content);
-        result.merge(nResult);
+        let hdlRes = handle!(argRes.content);
+        result.merge(hdlRes);
         if (result.shouldTerminate) {
             result.promoteToSkippable();
             this.skipByBrackets(1);
             return;
         }
-        //result.content.children.push(nResult.content);
-        result.content = nResult.content;
+        node.children.push(hdlRes.content);
+        // 此处相当于令 analyseNode = hdlRes.analysedContent 浅拷贝
+        Node.moveTo(hdlRes.analysedContent, analysedNode);
 
-        if (this.isEOF()) {
-            return;
-        }
         result.merge(this.match("]"));
         if (result.shouldTerminate) {
-            msg.push(this.getMessage("Missing ']'."));
+            this.mergeMessage(result, "Missing ']'.");
             result.promoteToSkippable();
             return;
         }
-        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+        this.mergeHighlight(result, HighlightType.operator, -1, 0);
     }
+
 
     // MatchArguments: skippable | successful
 
-    matchArguments(): Result<Node> {
-        let result = new Result<Node>(new Node(this.argumentsType));
-        let preIndex = this.index;
-        this.begin("argument");
-        this.myMatchArgument(result);
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
+    checkAndStandardizeArguments(blockName: string, result: Result<Node>) {
+        let stdArguments = result.analysedContent;
+        let argumentsSpec = this.blockHandlerTable.getSpecification(blockName)!;
+
+        const argumentTypeToType: Map<ArgumentType, Type> = new Map([[ArgumentType.string, this.stringType], [ArgumentType.number, this.numberType], [ArgumentType.enumeration, this.nameType]]);
+
+        for (let [name, spec] of argumentsSpec) {
+            let stdArgument = new Node(this.argumentType, name);
+            stdArgument.children.push(new Node(argumentTypeToType.get(spec.type)!, spec.default));
+            stdArguments.children.push(stdArgument);
         }
-        return result;
+
+        // 可以避免重复输入参数或者少输入参数带来的问题
+
+        let references: Set<string> = new Set();
+
+        for (let argument of result.content.children) {
+            let name = argument.content;
+            if (argument.children.length === 0) {
+                // 不可能的情况
+                this.mergeMessage(result, `Argument '${name}' has no value.`);
+                result.mergeState(ResultState.skippable);
+                continue;
+            }
+
+            let argumentValue = argument.children[0];
+
+            if (argumentValue.type === this.referenceType) {
+                if (references.has(argumentValue.content)) {
+                    this.mergeMessage(result, `Reference '${argumentValue.content}' is repeated.`);
+                    result.mergeState(ResultState.skippable);
+                }
+                references.add(argumentValue.content);
+                continue;
+            }
+
+            if (argument.content === "") {
+                let notUnique = false;
+                argumentsSpec.forEach((value, key) => {
+                    if (value.options.indexOf(argumentValue.content) !== -1) {
+                        if (name !== "") {
+                            notUnique = true;
+                            return;
+                        }
+                        name = key;
+                    }
+                })
+                if (notUnique) {
+                    this.mergeMessage(result, `Implicit argument '${argumentValue.content}' is not unique.`);
+                    result.mergeState(ResultState.skippable);
+                }
+                if (name === "") {
+                    this.mergeMessage(result, `Implicit argument '${argumentValue.content}' is not correct.`);
+                    result.mergeState(ResultState.skippable);
+                    continue;
+                }
+            }
+
+            let spec = argumentsSpec.get(name);
+            if (!spec) {
+                this.mergeMessage(result, `Argument '${name}' not identified.`);
+                result.mergeState(ResultState.skippable);
+                continue;
+            }
+
+            if (argumentTypeToType.get(spec.type) !== argumentValue.type) {
+                this.mergeMessage(result, `Type of argument '${name}' is not correct.`);
+                result.mergeState(ResultState.skippable);
+                continue;
+            }
+
+            if (spec.type === ArgumentType.enumeration && spec.options.indexOf(argumentValue.content) === -1) {
+                this.mergeMessage(result, `Value of enumeration argument '${name}' is not correct.`);
+                result.mergeState(ResultState.skippable);
+                continue;
+            }
+
+            stdArguments.children.find(node => node.content === name)!.children[0].content = argumentValue.content;
+        }
+
+        references.forEach(value => {
+            stdArguments.children.push(new Node(this.referenceType, value));
+        });
     }
 
-    private myMatchArgument(result: Result<Node>) {
+    matchArguments(blockName: string): Result<Node> {
+        return this.prepareMatch(this.argumentsType, "arguments", this.myMatchArguments, this, this.checkAndStandardizeArguments.bind(this, blockName));
+
+        // let result = new Result<Node>(new Node(this.argumentsType));
+        // let preIndex = this.index;
+        // this.begin("arguments");
+        // this.myMatchArguments(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
+    }
+
+    private myMatchArguments(result: Result<Node>) {
         let node = result.content;
-        let msg = result.messages;
 
-        let nullRes: Result<null>;
+        let symRes: Result<null>;
+        let nodeRes: Result<Node>;
 
-        if ((nullRes = this.match("(")).matched) {
-            result.merge(nullRes);
-            result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+        // This is an 'is' function
+        let preIndex = this.index;
+        let skip = false;
+        this.skipBlank();
+        if (this.is("(") || this.is(":")) {
+            skip = true;
+        }
+        this.index = preIndex;
+
+        if (skip) {
+            result.merge(this.skipBlank());
+        }
+
+        if ((symRes = this.match("(")).matched) {
+            result.merge(symRes);
+            this.mergeHighlight(result, HighlightType.operator, -1, 0);
 
             result.merge(this.skipBlank());
 
-            let nmRes: Result<Node>;
-
             if (this.isEOF()) {
-                msg.push(this.getMessage(`Argument ended abruptly.`));
+                this.mergeMessage(result, `Argument ended abruptly.`);
                 result.mergeState(ResultState.skippable);
                 return;
             }
-            else if ((nullRes = this.match(")")).matched) {
-                result.merge(nullRes);
-                result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+            else if ((symRes = this.match(")")).matched) {
+                result.merge(symRes);
+                this.mergeHighlight(result, HighlightType.operator, -1, 0);
             }
-            else if ((nmRes = this.matchName()).matched) {
-                result.merge(nmRes);
-                result.highlights.push(this.getHighlight(HighlightType.keyword, nmRes.content));
-                nmRes.content.type = this.argumentItemType;
-                node.children.push(nmRes.content);
+            else if ((nodeRes = this.matchArgument()).matched) {
+                result.merge(nodeRes);
+                node.children.push(nodeRes.content);
 
                 result.merge(this.skipBlank());
 
                 while (true) {
                     if (this.isEOF()) {
-                        msg.push(this.getMessage(`Argument ended abruptly.`));
+                        this.mergeMessage(result, `Argument ended abruptly.`);
                         result.mergeState(ResultState.skippable);
                         break;
                     }
-                    else if ((nullRes = this.match(")")).matched) {
-                        result.merge(nullRes);
-                        result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+                    else if ((symRes = this.match(")")).matched) {
+                        result.merge(symRes);
+                        this.mergeHighlight(result, HighlightType.operator, -1, 0);
                         break;
                     }
 
                     result.merge(this.match(","));
                     if (result.shouldTerminate) {
-                        msg.push(this.getMessage(`Missing ','.`));
+                        this.mergeMessage(result, `Missing ','.`);
                         result.promoteToSkippable();
-                        this.skipToBehind(")");
+                        this.skipToAfter(")");
                         return;
                     }
-                    result.highlights.push(this.getHighlight(HighlightType.operator, -1, 0));
+                    this.mergeHighlight(result, HighlightType.operator, -1, 0);
 
                     result.merge(this.skipBlank());
 
-                    nmRes = this.matchName();
-                    result.merge(nmRes);
+                    nodeRes = this.matchArgument();
+                    result.merge(nodeRes);
                     if (result.shouldTerminate) {
-                        msg.push(this.getMessage(`Matching argument name failed.`));
+                        this.mergeMessage(result, `Matching argument name failed.`);
                         result.promoteToSkippable();
-                        this.skipToBehind(")");
+                        this.skipToAfter(")");
                         return;
                     }
-                    result.highlights.push(this.getHighlight(HighlightType.keyword, nmRes.content));
-                    nmRes.content.type = this.argumentItemType;
-                    node.children.push(nmRes.content);
+                    node.children.push(nodeRes.content);
 
                     result.merge(this.skipBlank());
                 }
             }
             else {
-                msg.push(this.getMessage(`Unrecognized argument.`));
+                this.mergeMessage(result, `Unrecognized argument.`);
                 result.mergeState(ResultState.skippable);
-                this.skipToBehind(")");
+                this.skipToAfter(")");
                 return;
             }
         }
-        else if ((nullRes = this.match(":")).matched) {
-            result.merge(nullRes);
+        else if ((symRes = this.match(":")).matched) {
+            result.merge(symRes);
         }
         else {
             result.mergeState(ResultState.successful);
         }
     }
 
+    // MatchArgument: failed | skippable | successful
+
+    matchArgument(): Result<Node> {
+        // 无需 analyse 复制一份
+        return this.prepareMatch(this.argumentType, "argument", this.myMatchArgument, this);
+
+        // let result = new Result<Node>(new Node(this.argumentType));
+        // let preIndex = this.index;
+        // this.begin("argument");
+        // this.myMatchArgument(result);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
+    }
+
+    private myMatchArgument(result: Result<Node>) {
+        let node = result.content;
+
+        let symRes: Result<null>;
+        let nodeRes: Result<Node>;
+        let nameRes: Result<Node>;
+
+        if ((symRes = this.match("@")).matched) {
+            result.merge(symRes);
+            this.mergeHighlight(result, HighlightType.operator, -1, 0);
+            let refNode = new Node(this.referenceType, "");
+            node.children.push(refNode);
+
+            result.merge(this.skipBlank());
+
+            let nameRes = this.matchName();
+            result.merge(nameRes);
+            if (result.shouldTerminate) {
+                this.mergeMessage(result, "Missing reference name.");
+                result.promoteToSkippable();
+                return;
+            }
+            refNode.content = nameRes.content.content;
+            this.mergeHighlight(result, HighlightType.keyword, nameRes.content);
+        }
+
+        else if ((nameRes = this.matchName()).matched) {
+            result.merge(nameRes);
+            this.mergeHighlight(result, HighlightType.keyword, nameRes.content);
+
+            // This is an 'is' function
+            let preIndex = this.index;
+            this.skipBlank();
+            let hasValue = this.is(":");
+            this.index = preIndex;
+
+            if (hasValue) {
+                node.content = nameRes.content.content;
+
+                result.merge(this.skipBlank());
+
+                result.merge(this.match(":"));
+                this.mergeHighlight(result, HighlightType.operator, -1, 0);
+
+                result.merge(this.skipBlank());
+
+                if ((nodeRes = this.matchNumber()).matched) {
+                    result.merge(nodeRes);
+                    this.mergeHighlight(result, HighlightType.number, nodeRes.content);
+                    node.children.push(nodeRes.content);
+
+                }
+                else if ((nodeRes = this.matchString()).matched) {
+                    result.merge(nodeRes);
+                    this.mergeHighlight(result, HighlightType.string, nodeRes.content);
+                    node.children.push(nodeRes.content);
+
+                }
+                else if ((nodeRes = this.matchName()).matched) {
+                    result.merge(nodeRes);
+                    this.mergeHighlight(result, HighlightType.keyword, nodeRes.content);
+                    node.children.push(nodeRes.content);
+                }
+                else {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "Missing argument value.", MessageType.warning);
+                    node.children.push(new Node(this.nameType));
+                }
+
+            }
+            else {
+                node.children.push(nameRes.content);
+            }
+        }
+
+    }
+
     // Assistant: GetBlockName: failing | successful
 
     private getBlockName(): Result<string> {
-        let result = new Result<string>("");
+        let result = new Result<string>("", "");
         result.merge(this.match("["));
         if (result.shouldTerminate) {
             return result;
@@ -1335,60 +1660,92 @@ export class Parser {
     }
 
     matchBasicBlock(): Result<Node> {
-        let result = new Result<Node>(new Node(this.blockType));
-        let preIndex = this.index;
-        this.begin("basic-block");
-        if (this.isBasicBlock()) {
-            this.myMatchBlock(result);
-        }
-        else {
-            result.messages.push(this.getMessage("Not basic block."));
-        }
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.blockType, "basic-block", result => {
+            if (this.isBasicBlock()) {
+                this.myMatchBlock(result);
+            }
+            else {
+                this.mergeMessage(result, "Not basic block.");
+            }
+        }, this);
+
+        // let result = new Result<Node>(new Node(this.blockType), new Node(this.blockType));
+
+        // let preIndex = this.index;
+        // this.begin("basic-block");
+        // if (this.isBasicBlock()) {
+        //     this.myMatchBlock(result);
+        // }
+        // else {
+        //     this.mergeMessage(result, "Not basic block."));
+        // }
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     matchFormatBlock(): Result<Node> {
-        let result = new Result<Node>(new Node(this.blockType));
-        let preIndex = this.index;
-        this.begin("format-block");
-        if (this.isFormatBlock()) {
-            this.myMatchBlock(result);
-        }
-        else {
-            result.messages.push(this.getMessage("Not format block."));
-        }
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.blockType, "format-block", result => {
+            if (this.isFormatBlock()) {
+                this.myMatchBlock(result);
+            }
+            else {
+                this.mergeMessage(result, "Not format block.");
+            }
+        }, this);
+
+        // let result = new Result<Node>(new Node(this.blockType));
+        // result.analysedContent = new Node(this.blockType);
+
+        // let preIndex = this.index;
+        // this.begin("format-block");
+        // if (this.isFormatBlock()) {
+        //     this.myMatchBlock(result);
+        // }
+        // else {
+        //     this.mergeMessage(result, "Not format block."));
+        // }
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     matchOtherBlock(): Result<Node> {
-        let result = new Result<Node>(new Node(this.blockType));
-        let preIndex = this.index;
-        this.begin("other-block");
-        if (this.isOtherBlock()) {
-            this.myMatchBlock(result);
-        }
-        else {
-            result.messages.push(this.getMessage("Not other block."));
-        }
-        this.end();
-        result.content.begin = preIndex;
-        result.content.end = this.index;
-        if (result.failed) {
-            this.index = preIndex;
-        }
-        return result;
+        return this.prepareMatch(this.blockType, "other-block", result => {
+            if (this.isOtherBlock()) {
+                this.myMatchBlock(result);
+            }
+            else {
+                this.mergeMessage(result, "Not other block.");
+            }
+        }, this);
+
+        // let result = new Result<Node>(new Node(this.blockType));
+        // result.analysedContent = new Node(this.blockType);
+
+        // let preIndex = this.index;
+        // this.begin("other-block");
+        // if (this.isOtherBlock()) {
+        //     this.myMatchBlock(result);
+        // }
+        // else {
+        //     this.mergeMessage(result, "Not other block."));
+        // }
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
     }
 
     // **************** Skipping ****************
@@ -1426,7 +1783,7 @@ export class Parser {
         }
     }
 
-    skipToBehind(char: string): boolean {
+    skipToAfter(char: string): boolean {
         while (true) {
             if (this.isEOF()) {
                 return true;
@@ -1445,16 +1802,35 @@ export class Parser {
 
     // **************** Foundation ****************
 
+    prepareMatchForFoundation(type: Type, name: string, myMatch: (result: Result<Node>) => void, thisArg?: unknown) {
+        let result = new Result<Node>(new Node(type), new Node(type));
+        let preIndex = this.index;
+        this.begin(name);
+        myMatch.bind(thisArg)(result);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+        result.analysedContent.content = result.content.content;
+        result.analysedContent.begin = preIndex;
+        result.analysedContent.end = this.index;
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
     // MatchName: failing | successful
 
     matchName(): Result<Node> {
-        let result = new Result<Node>(new Node(this.nameType));
-        result.content.begin = this.index;
-        this.begin("name");
-        this.myMatchName(result);
-        this.end();
-        result.content.end = this.index;
-        return result;
+        return this.prepareMatchForFoundation(this.nameType, "name", this.myMatchName, this);
+        // let result = new Result<Node>(new Node(this.nameType), new Node(this.nameType));
+        // result.content.begin = this.index;
+        // this.begin("name");
+        // this.myMatchName(result);
+        // this.end();
+        // result.content.end = this.index;
+        // result.analysedContent = result.content;
+        // return result;
     }
 
     private myMatchName(result: Result<Node>) {
@@ -1473,10 +1849,168 @@ export class Parser {
         }
     }
 
+    // MatchString: failing | skippable | successful
+
+    matchString(): Result<Node> {
+        return this.prepareMatchForFoundation(this.stringType, "string", this.myMatchString, this);
+
+        // let result = new Result<Node>(new Node(this.stringType), new Node(this.stringType));
+        // result.content.begin = this.index;
+        // this.begin("string");
+        // this.myMatchString(result);
+        // this.end();
+        // result.content.end = this.index;
+        // return result;
+    }
+
+    private myMatchString(result: Result<Node>) {
+        let symRes: Result<null>;
+
+        if ((symRes = this.match('`')).matched) {
+            result.merge(symRes);
+            while (true) {
+                if ((symRes = this.match('`')).matched) {
+                    result.merge(symRes);
+                    break;
+                }
+                else if (this.is(Parser.newline)) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String should not have new line.");
+                    break;
+                }
+                if (this.isEOF()) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String abruptly end.");
+                    break;
+                }
+                else {
+                    result.content.content += this.curChar();
+                    this.move();
+                }
+            }
+        }
+        else if ((symRes = this.match("'")).matched) {
+            result.merge(symRes);
+            while (true) {
+                if ((symRes = this.match("'")).matched) {
+                    result.merge(symRes);
+                    break;
+                }
+                else if (this.is(Parser.newline)) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String should not have new line.");
+                    break;
+                }
+                if (this.isEOF()) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String abruptly end.");
+                    break;
+                }
+                else {
+                    result.content.content += this.curChar();
+                    this.move();
+                }
+            }
+        }
+        else if ((symRes = this.match('"')).matched) {
+            result.merge(symRes);
+            while (true) {
+                if ((symRes = this.match('"')).matched) {
+                    result.merge(symRes);
+                    break;
+                }
+                else if (this.is(Parser.newline)) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String should not have new line.");
+                    break;
+                }
+                if (this.isEOF()) {
+                    result.mergeState(ResultState.skippable);
+                    this.mergeMessage(result, "String abruptly end.");
+                    break;
+                }
+                else {
+                    result.content.content += this.curChar();
+                    this.move();
+                }
+            }
+        }
+    }
+
+    // MatchNumber: failing | skippable | successful
+
+    matchNumber(): Result<Node> {
+        return this.prepareMatchForFoundation(this.numberType, "number", this.myMatchNumber, this);
+
+        // let result = new Result<Node>(new Node(this.numberType));
+        // result.content.begin = this.index;
+        // this.begin("number");
+        // this.myMatchNumber(result);
+        // this.end();
+        // result.content.end = this.index;
+        // return result;
+    }
+
+    private myMatchNumber(result: Result<Node>) {
+        let msg = result.messages;
+        let node = result.content;
+
+        let symRes: Result<null>;
+
+        if ((symRes = this.match('+')).matched) {
+            result.merge(symRes);
+            node.content += '';
+        }
+        else if ((symRes = this.match('-')).matched) {
+            result.merge(symRes);
+            node.content += '-';
+        }
+        else {
+            node.content += '';
+        }
+
+        if (!this.is(Parser.number)) {
+            result.mergeState(ResultState.failing);
+            return;
+        }
+        node.content += this.curChar();
+        this.move();
+        result.mergeState(ResultState.successful);
+
+        result.GuaranteeMatched();
+
+        while (true) {
+            if (this.is(Parser.number)) {
+                node.content += this.curChar();
+                this.move();
+                result.mergeState(ResultState.successful);
+            }
+            else {
+                break;
+            }
+        }
+
+        if ((symRes = this.match(".")).matched) {
+            result.merge(symRes);
+            node.content += ".";
+
+            while (true) {
+                if (this.is(Parser.number)) {
+                    node.content += this.curChar();
+                    this.move();
+                    result.mergeState(ResultState.successful);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+    }
+
     // MatchSinglelineBlank: failing | skippable | successful
 
     matchSinglelineBlank(): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin("singleline-blank");
         this.myMatchSinglelineBlank(result);
@@ -1511,11 +2045,12 @@ export class Parser {
     // MatchMultilineBlank: failing | skippable | successful
 
     matchMultilineBlank(): Result<number> {
-        let result = new Result<number>(0);
+        let result = new Result<number>(0, 0);
         let preIndex = this.index;
         this.begin("multiline-blank");
         this.myMatchMultilineBlank(result);
         this.end();
+        result.analysedContent = result.content;
         if (result.failed) {
             this.index = preIndex;
         }
@@ -1569,7 +2104,7 @@ export class Parser {
     }
 
     matchMultilineBlankGeThanOne(): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin("multiline-blank-ge-than-1");
         let blnRes = this.matchMultilineBlank();
@@ -1584,7 +2119,7 @@ export class Parser {
     }
 
     matchMultilineBlankLeThanOrEqOne(): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin("multiline-blank-le-than-or-eq-1");
         let blnRes = this.matchMultilineBlank();
@@ -1602,7 +2137,7 @@ export class Parser {
     // MatchSinglelineComment: failing | successful
 
     matchSinglelineComment(): Result<null> {
-        let result = new Result<null>(null, []);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin("singleline-comment");
         this.myMatchSinglelineComment(result);
@@ -1613,7 +2148,7 @@ export class Parser {
         return result;
     }
 
-    myMatchSinglelineComment(result: Result<null>) {
+    private myMatchSinglelineComment(result: Result<null>) {
         result.merge(this.match("//"));
         if (result.shouldTerminate) {
             return;
@@ -1636,7 +2171,7 @@ export class Parser {
     // MatchMultilineComment: failing | skippable | successful
 
     matchMultilineComment(): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin("multiline-comment");
         this.myMatchMultilineComment(result);
@@ -1647,7 +2182,7 @@ export class Parser {
         return result;
     }
 
-    myMatchMultilineComment(result: Result<null>) {
+    private myMatchMultilineComment(result: Result<null>) {
         result.merge(this.match("/*"));
         if (result.shouldTerminate) {
             return;
@@ -1657,7 +2192,7 @@ export class Parser {
         while (true) {
             if (this.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.messages.push(this.getMessage("Multiline comment ended abruptly.", MessageType.warning));
+                this.mergeMessage(result, "Multiline comment ended abruptly.", MessageType.warning);
                 return;
             }
             else if ((tmpRes = this.match("*/")).matched) {
@@ -1677,7 +2212,7 @@ export class Parser {
     // SkipBlank: skippable | successful
 
     skipBlank(): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         this.begin("skip-blank");
         let tmpRes = this.matchSinglelineBlank();
         if (tmpRes.matched) {
@@ -1693,7 +2228,7 @@ export class Parser {
     // SkipMutilineBlank: skippable | successful
 
     skipMutilineBlank(): Result<number> {
-        let result = new Result<number>(0);
+        let result = new Result<number>(0, 0);
         this.begin("skip-multiline-blank");
         let tmpRes = this.matchMultilineBlank();
         if (tmpRes.matched) {
@@ -1711,7 +2246,7 @@ export class Parser {
     // Match: failing | successful, non-msg
 
     match(text: string): Result<null> {
-        let result = new Result<null>(null);
+        let result = new Result<null>(null, null);
         let preIndex = this.index;
         this.begin(`match'${text}'`);
         this.myMatch(text, result);
@@ -1737,6 +2272,7 @@ export class Parser {
     }
 
     static nameChar = /[A-Za-z0-9-]/;
+    static number = /[0-9]/;
     static blank = /[\t \v\f]/;
     static newline = /[\r\n]/;
 
@@ -1833,12 +2369,41 @@ export class Parser {
         this.process.pop();
     }
 
+    // prepare for matching
+
+    prepareMatch(type: Type, name: string, myMatch: (result: Result<Node>) => void, thisArg?: unknown, myAnalyse?: (result: Result<Node>) => void, secondThisArg?: unknown) {
+        let result = new Result<Node>(new Node(type), new Node(type));
+        let preIndex = this.index;
+        this.begin(name);
+        myMatch.bind(thisArg)(result);
+        this.end();
+        result.content.begin = preIndex;
+        result.content.end = this.index;
+
+        if (myAnalyse) {
+            this.begin('analyse-' + name);
+            myAnalyse.bind(secondThisArg ?? thisArg)(result);
+            this.end();
+        }
+        result.analysedContent.begin = preIndex;
+        result.analysedContent.end = this.index;
+
+        if (result.failed) {
+            this.index = preIndex;
+        }
+        return result;
+    }
+
     // message
 
     getMessage(message: string, type: MessageType = MessageType.error, code: number = -1): Message {
         //let lp = this.getLineAndCharacter() ?? { line: -1, character: -1 };
         //let pro = this.process.slice();
         return new Message(message, type, code, this.index, this.index + 1, []);
+    }
+
+    mergeMessage<T>(result: Result<T>, message: string, type: MessageType = MessageType.error, code: number = -1) {
+        result.messages.push(this.getMessage(message, type, code));
     }
 
     // highlight
@@ -1855,6 +2420,26 @@ export class Parser {
         }
     }
 
+    mergeHighlight<T>(result: Result<T>, type: HighlightType, node: Node): void
+    mergeHighlight<T>(result: Result<T>, type: HighlightType, relativeBegin: number, relativeEnd: number): void
+    mergeHighlight<T>(result: Result<T>, type: HighlightType, relativeBeginOrNode: number | Node, relativeEnd?: number): void {
+        if (typeof (relativeBeginOrNode) === "number") {
+            result.highlights.push(this.getHighlight(type, relativeBeginOrNode, relativeEnd!));
+        }
+        else {
+            result.highlights.push(this.getHighlight(type, relativeBeginOrNode));
+        }
+
+    }
+
+    // node
+
+    mergeNodeToChildren(result: Result<Node>, intermediateResult: Result<Node>) {
+        result.content.children.push(intermediateResult.content);
+        if (!intermediateResult.discarded) {
+            result.analysedContent.children.push(intermediateResult.analysedContent);
+        }
+    }
 
     // **************** index control ****************
 

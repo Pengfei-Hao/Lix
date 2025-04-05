@@ -41,6 +41,10 @@ name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)
 newline -> [\r\n]
 blankchar -> [\t \v\f]
 
+string -> ` repeat( <not-newline> )  end(`) | ' repeat( <not-newline> )  end(') | " repeat( <not-newline> )  end(" | !<newline>)
+
+number -> ( + | - | NULL ) ( [0-9] repeat([0-9]) end(*<repeat-failing>) ( . [0-9] repeat([0-9]) end(*<repeat-failing>) | NULL ) )
+
 singleline-comment -> / / repeat (<not-end>) end (*EOF | *<newline>)
 
 multiline-comment -> / * repeat (<multiline-comment> | <not-end>) end (!EOF | * / )
@@ -59,7 +63,7 @@ skip-multiline-blank -> multiline-blank | NULL
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
 
 ```
-document -> repeat (<setting> | <free-paragraph> | <block>) end (*EOF)
+document -> NULL | repeat (<setting> | <free-paragraph> | <block>) end (EOF)
 
 // setting
 
@@ -67,9 +71,12 @@ setting -> # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<
 
 // block
 
+argument -> (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )
+
 arguments -> ( < !EOF | ( > | <name> repeat ( , <name> ) end (!EOF | >) ) ) | : | NULL
 
-block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler>
+block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]
+// 注意在 block 的 handler 中遇到多行换行要结束
 
 error-block -> <block> + name != other, basic, format
 
@@ -107,6 +114,8 @@ escape-char -> \ [[]()#@/]
 multiline-blank-le-than-or-eq-1 -> ...
 multiline-blank-ge-than-1 -> ...
 
+insertion -> <symbol> <skip-blank> <insertion-block-handler>
+
 reference -> @ <name> <skip-blank>
 
 // inline-formula 在 math 节中
@@ -133,7 +142,7 @@ elements -> repeat (<element> | [ <elements> | <multiline-blank-le-than-or-eq-1>
 
 element -> ( repeat([A-Za-z0-9]) end (*<repeat-failing>) ) | <element-char> | ( ` repeat(<not-end>) end(!EOF | *` ) ` )
 
-inline-formula -> / <elements> + endWith /
+formula-insertion-handler -> / <elements> + endWith /
 formula-block-handler -> <elements> + endWith ]
 
 
@@ -670,6 +679,10 @@ promote: m + sk = sk
   * type:
   * content:
   * children:
+* analysedContent:
+  * type:
+  * content:
+  * children:
 
 #### Foundation
 
@@ -678,6 +691,7 @@ promote: m + sk = sk
 * messages: []
 * highlights: []
 * content: null
+* analysedContent: undefined
 
 `name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)`
 * state: f, s
@@ -687,6 +701,7 @@ promote: m + sk = sk
   * type: nameType
   * content: name matched.
   * children: []
+* analysedContent: undefined
 
 `newline -> [\r\n]`
 `blankchar -> [\t \v\f]`
@@ -697,24 +712,28 @@ promote: m + sk = sk
 * messages: []
 * highlights: []
 * content: null
+* analysedContent: undefined
 
 `multiline-comment -> / * repeat (<multiline-comment> | <not-end>) end (!EOF | * / )`
 * state: f, sk, s
 * messages: ["multiline comment ended..."]
 * highlights: []
 * content: null
+* analysedContent: undefined
 
 `singleline-blank ->  repeat (<blankchar> | <multiline-comment>) end (<singleline-comment> | <repeat-failing>)`
 * state: f, sk, s
 * messages: [Inherited]
 * highlights: []
 * content: null
+* analysedContent: undefined
 
 `multiline-blank -> repeat (<blankchar> | <newline> | <singleline-comment> | <multiline-comment>) end (*EOF | <repeat-failing>)`
 * state: f, sk, s
 * messages: [Inherited]
 * highlights: []
 * content: number: number of line breaks
+* analysedContent: undefined
 
 // 下面是 multiline-blank 的带参数形式, 对应于同名的 is 函数, 其 Result 结构与上文相同, 不再重复
 `multiline-blank-le-than-or-eq-1 -> <multiline-blank> + blank <= 1`
@@ -725,25 +744,29 @@ promote: m + sk = sk
 * messages: [Inherited]
 * highlights: []
 * content: null
+* analysedContent: undefined
 
 `skip-multiline-blank -> multiline-blank | NULL`
 * state: sk, s
 * messages: [Inherited]
 * highlights: []
 * content: number: number of line breaks
+* analysedContent: undefined
 
 #### Document & Setting & Block
 
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
 
-`document -> 0-repeat (<setting> | <free-paragraph> | <block>) end (*EOF)`
+`document -> NULL | repeat (<setting> | <free-paragraph> | <block>) end (EOF)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
-* content: Node
-  * type: documentType
-  * content: ""
-  * children: 0 or more node of setting, paragraph or other block
+* content, analysedContent:
+  document: ""
+    paragraph...
+    setting...
+    other-block...
+
 
 // setting
 
@@ -751,30 +774,50 @@ promote: m + sk = sk
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [New]
-* content: Node
-  * type: settingType
-  * content: name of setting
-  * children: a node of settingParameterType, its content contains the command.
+* content, analysedContent:
+  setting: "[[name of setting]]"
+    settingParameter: "[[command]]"
 
 // block
+
+`argument -> (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )`
+* state: f, sk, s
+* messages: [Inherited, New]
+* highlights: [New]
+* content, analysedContent: 
+  argument: "name of argument"
+    reference: "name" or
+    name: "value" or
+    number: "value" or
+    string: "value"
+
 
 `arguments -> ( \( <skip-blank> (!EOF | \) | <name> <skip-blank> repeat ( , <skip-blank> <name> <skip-blank> ) end (!EOF | \)) ) ) | : | NULL`
 * state: sk, s
 * messages: [Inherited, New]
 * highlights: [New]
-* content: Node
-  * type: argumentsType
-  * content: ""
-  * children: 0 or more node of argumentItemType, its content contains argument.
+* content: 
+  arguments: ""
+    [[argument]]...
+* analysedContent:
+  arguments: ""
+    argument: "[[checked name]]"...
+      [[checked type]]: "[[checked value]]"...
+    reference: "[[checked reference name]]"...
+
 
 `block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler>`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: blockType
-  * content: Before handling, name of block;
-  * children: Before handling, [a node of argument];
+* content:
+  block: "[[name of block]]"
+    arguments:
+    [[type of block, optional]]:
+* analysedContent:
+  [[type of block, optional, default is block]]: [[added by handler, optional]]
+    arguments:
+    [[added by handler, optional]]...
 
 // 下面是带参数的 block, 其分别对应 同名 is 函数, 其 Result 的结构与 block 相同, 不再重复.
 
@@ -803,29 +846,39 @@ promote: m + sk = sk
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
-* content: Node
-  * type: paragraphType
-  * content: ""
-  * children: [0 or more text and basic blocks]
+* content: 
+  paragraph: ""
+    text...
+    [[basic block]]...
+* analysedContent:
+  paragraph: ""
+    [[cleaned text]]...
+    [[cleaned basic block]]...
 
 `escape-char -> \ [[]()#@/]`
 * state: f, s
 * messages: [New]
 * highlights: [New]
-* content: Node
-  * type: escapeCharType
-  * content: "escape char"
-  * children: []
+* content, analysedContent:
+  reference: "[[escape char]]"
 
+`insertion -> <symbol> <skip-blank> <insertion-block-handler>`
+* state: f, sk, s
+* messages: [Inherited, New]
+* highlights: [Inherited, New]
+* content:
+  insertion: "[[symbol]]"
+    [[insertion type, optional]]: ...
+* analysedContent:
+  [[insertion type, optional, default is insertion]]: "[[insertion added]]"
+    [[insertion added]]...
 
 `reference -> @ <name> <skip-blank>`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: referenceType
-  * content: "reference name"
-  * children: []
+* content, analysedContent:
+  reference: "[[reference name]]"
 
 // inline-formula 在 math 节中
 
@@ -834,44 +887,66 @@ promote: m + sk = sk
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: textType
-  * content: ""
-  * children: [word, insertion, format ...]
+* content: 
+  text: ""
+    words...
+    [[insertion: reference, formula]]...
+    [[format block: emph, bold]]...
+* analysedContent:
+  text: ""
+    [[cleaned words]]...
+    [[cleaned insertion: reference, formula]]...
+    [[cleaned format block: emph, bold]]...
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
 `paragraph-block-handler -> 0-repeat (<par-free-text> | <basic-block> | !<other-block>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: paragraphType
-  * content: ""
-  * children: [0 or more text and basic blocks]
+* content: 
+  paragraph: ""
+    text...
+    [[basic block]]...
+* analysedContent:
+  paragraph: ""
+    [[cleaned text]]...
+    [[cleaned basic block]]...
 
 `par-free-text -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-ge-than-1> | *] | \ \ | *<basic-block> | *<other-block>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: textType
-  * content: ""
-  * children: [text, formula, escape-char ...]
+* content: 
+  text: ""
+    words...
+    [[insertion: reference, formula]]...
+    [[format block: emph, bold]]...
+* analysedContent:
+  text: ""
+    [[cleaned words]]...
+    [[cleaned insertion: reference, formula]]...
+    [[cleaned format block: emph, bold]]...
 
 `text-block-handler -> 0-repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<other-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
-* content: Node
-  * type: textType
-  * content: ""
-  * children: [text, formula, escape-char ...]
+* content: 
+  text: ""
+    words...
+    [[insertion: reference, formula]]...
+    [[format block: emph, bold]]...
+* analysedContent:
+  text: ""
+    [[cleaned words]]...
+    [[cleaned insertion: reference, formula]]...
+    [[cleaned format block: emph, bold]]...
 
 #### Math
 
 本部分给出 Math 模块对应功能的产生式, 主要包括 formula 块以及行内 foumula 块的产生式.
 
-`inline-formula -> / <elements> /`
+`formula-insertion-handler -> / <elements> /`
 * state: sk, s, matchElements 中对上述模式匹配中有默认的处理机制 (跳过该字符), 所以不会出现 f, 直到遇到结束条件之一.
 * messages: []
 * highlights: []

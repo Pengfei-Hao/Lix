@@ -29,9 +29,27 @@ export class Node {
         return newNode;
     }
 
-    private myToString(level: string): string {
+    static moveTo(from: Node, to: Node) {
+        to.type = from.type;
+        to.content = from.content;
+        to.begin = from.begin;
+        to.end = from.end;
+        from.children.forEach(value => to.children.push(value));
+    }
 
-        let res = `${level}${this.type.name}: "${this.content}", begin = ${this.begin}, end = ${this.end}`
+    static copyTo(from: Node, to: Node) {
+        to.type = from.type;
+        to.content = from.content;
+        to.begin = from.begin;
+        to.end = from.end;
+        from.children.forEach(value => to.children.push(Node.clone(value)));
+    }
+
+    private myToString(level: string): string {
+        if(this.type === undefined) {
+            console.log("a");
+        }
+        let res = `${level}${this.type.name}: "${this.content}", range: [${this.begin}, ${this.end})`
         if (this.children.length === 0) {
             return res;
         }
@@ -48,4 +66,3 @@ export class Node {
         return this.myToString("");
     }
 }
-

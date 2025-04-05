@@ -24,6 +24,7 @@ export class TypeTable {
 
     add(name: string): Type | undefined {
         if(this.has(name)) {
+            console.log(`Type '${name}' is defined.`);
             return undefined;
         }
 

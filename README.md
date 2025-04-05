@@ -37,6 +37,12 @@ npm install
 * Font List: 展示 Lix 中可用的所有字体.
 * Math List: 展示 Lix 数学公式中所有可用的数学符号以及缩写.
 
+Lix 在命令面板中有如下命令
+* `Enable/Disable debug mode`: 启用 / 关闭调试模式, 调试模式开启时会自动显示语法树, 并自动跳转到光标所处位置对应的语法树节点, 并显示 LaTeX 编译面板.
+* `Compile Lix file to PDF`: 功能等同于 `Compile` 按钮
+* `Generate target (LaTeX, Markdown...) code`: 功能等同于 `Generate` 按钮
+* `Parse the file and generate syntax tree`: 功能等同于 `Parse` 按钮
+
 ## 语法介绍
 
 Lix 的排版是以 **块 (Block)** 为核心的, 一个 Lix 文档中是由许多块组成的, 如包含文本的 **文本块 (Text Block)**, 包含图片的 **图片块 (Figure Block)**, 包含代码的 **代码块 (Code Block)** 等等. 一些块可以嵌套在另一些块之中, 比如上述的几个块都可以嵌套在 **段落块 (Paragraph Block)** 之中, 而段落块又可以嵌套在 **文档块 (Document Block)** 之中, 换言之, 一个 Lix 文档由许多段落块以及其他块组成, 而段落又由许多文本块, 图片块, 代码块等基础块组成. 一个典型的块有如下的结构:
@@ -190,6 +196,10 @@ comment */ Amultiline comment.
 Embeded comment. /* comment /* Embeded comment. */ */
 ```
 Lix 支持单行以及多行注释, 分别使用 `// ...` 以及 `/* ... */`, 特别地, 多行注释可以嵌套, 如上所示.
+
+## 文档
+
+Lix 详细的开发文档可以参阅 `Lix Document.md`, 其中包含了本项目的架构设计, 代码规范等; 关于语法分析, 词法分析的部分可以参考 `Lix Grammers.md`, 其中包含了 Lix 的文法, 以及对应的实现细节; 关于 Lix 的使用文档可以参考 `./tests/` 中的 `basic-test.lix`, `core-test.lix`, `formula-test.lix`, 前文已有介绍.
 
 ## License
 

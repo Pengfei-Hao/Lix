@@ -36,6 +36,7 @@ export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvide
           type = "variable";
           break;
         case HighlightType.string:
+        case HighlightType.number:
           type = "string";
           break;
         case HighlightType.comment:

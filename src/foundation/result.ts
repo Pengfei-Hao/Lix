@@ -5,7 +5,8 @@ export enum HighlightType {
     keyword,
     variable,
     string,
-    comment
+    comment,
+    number
 };
 
 export class Highlight {
@@ -32,19 +33,24 @@ matched = 1,
 failing = 0
 }
 
-export class Result<T> implements IResult<Result<T>> {
+export class Result<T> {
     content: T;
     messages: Message[];
     highlights: Highlight[];
     state: ResultState;
 
+    discarded: boolean;
+    analysedContent: T;
+
     private promotedToMatched: boolean;
 
-    constructor(content: T, messages: Message[] = [], highlights: Highlight[] = []) {
+    constructor(content: T, analysedContent: T, messages: Message[] = [], highlights: Highlight[] = [], discarded = false) {
         this.state = ResultState.failing;
         this.content = content;
+        this.analysedContent = analysedContent;
         this.messages = messages;
         this.highlights = highlights;
+        this.discarded = discarded;
         this.promotedToMatched = false;
     }
 
