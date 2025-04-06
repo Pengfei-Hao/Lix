@@ -303,12 +303,19 @@ async function compile() {
 		//compileTerminal.hide();
 	}
 
+
 	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
 	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
 	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
 	compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
-	compileTerminal.sendText(`open -a safari "${newPdfUri.fsPath}"`);
-
+	//compileTerminal.sendText(`open "${newPdfUri.fsPath}"`);
+	//workspace.openTextDocument(newPdfUri).then(doc => vscode.window.showTextDocument(doc));
+	vscode.commands.executeCommand(
+		'vscode.openWith',
+		newPdfUri,
+		'latex-workshop-pdf-hook', // use Latex Workshop
+		vscode.ViewColumn.Beside
+	)
 }
 
 async function generate() {

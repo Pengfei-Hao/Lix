@@ -16,6 +16,8 @@ export class Article extends Module {
     sectionType: Type;
     subsectionType: Type;
     subsubsectionType: Type;
+    tableofcontentsType: Type;
+    newpageType: Type;
 
     definitionType: Type;
     lemmaType: Type;
@@ -34,6 +36,8 @@ export class Article extends Module {
         this.parser.otherBlocks.add("section");
         this.parser.otherBlocks.add("subsection");
         this.parser.otherBlocks.add("subsubsection");
+        this.parser.otherBlocks.add("tableofcontents");
+        this.parser.otherBlocks.add("newpage");
         this.parser.otherBlocks.add("title");
         this.parser.otherBlocks.add("author");
         this.parser.otherBlocks.add("date");
@@ -47,6 +51,8 @@ export class Article extends Module {
         this.parser.blockHandlerTable.add("section", this.sectionBlockHandler, this, sectionSpec);
         this.parser.blockHandlerTable.add("subsection", this.subsectionBlockHandler, this, sectionSpec);
         this.parser.blockHandlerTable.add("subsubsection", this.subsubsectionBlockHandler, this, sectionSpec);
+        this.parser.blockHandlerTable.add("tableofcontents", this.tableofcontentsBlockHandler, this);
+        this.parser.blockHandlerTable.add("newpage", this.newpageBlockHandler, this);
         this.parser.blockHandlerTable.add("title", this.titleBlockHandler, this);
         this.parser.blockHandlerTable.add("author", this.authorBlockHandler, this);
         this.parser.blockHandlerTable.add("date", this.dateBlockHandler, this);
@@ -58,6 +64,8 @@ export class Article extends Module {
         this.sectionType = this.parser.typeTable.add("section")!;
         this.subsectionType = this.parser.typeTable.add("subsection")!;
         this.subsubsectionType = this.parser.typeTable.add("subsubsection")!;
+        this.tableofcontentsType = this.parser.typeTable.add("tableofcontents")!;
+        this.newpageType = this.parser.typeTable.add("newpage")!;
 
         // 此 definition 与 math 冲突了
         this.parser.otherBlocks.add("definition");
@@ -155,6 +163,18 @@ export class Article extends Module {
         //     this.parser.index = preIndex;
         // }
         // return result;
+    }
+
+    tableofcontentsBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.formatLikeBlockHandler("tableofcontents", this.tableofcontentsType, args);
+        result.discarded = false;
+        return result;
+    }
+
+    newpageBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.formatLikeBlockHandler("newpage", this.newpageType, args);
+        result.discarded = false;
+        return result;
     }
 
     titleBlockHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {

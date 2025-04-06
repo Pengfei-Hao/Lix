@@ -64,6 +64,8 @@ export class LatexGenerator extends Generator {
     sectionType: Type;
     subsectionType: Type;
     subsubsectionType: Type;
+    tableofcontentsType: Type;
+    newpageType: Type;
 
     definitionType: Type;
     lemmaType: Type;
@@ -143,6 +145,8 @@ export class LatexGenerator extends Generator {
         this.sectionType = this.typeTable.get("section")!;
         this.subsectionType = this.typeTable.get("subsection")!;
         this.subsubsectionType = this.typeTable.get("subsubsection")!;
+        this.tableofcontentsType = this.typeTable.get("tableofcontents")!;
+        this.newpageType = this.typeTable.get("newpage")!;
 
         this.definitionType = this.typeTable.get("definition'")!;
         this.lemmaType = this.typeTable.get("lemma")!;
@@ -222,7 +226,9 @@ export class LatexGenerator extends Generator {
     breaklines          =   true,
 }\n`);
         this.addIntrodunction(`\\newtheorem{definition}{Definition}[section]\n\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
-
+        
+        this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
+        
         this.addContent(await this.generateDocument(this.syntaxTree));
 
         this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
@@ -243,6 +249,8 @@ export class LatexGenerator extends Generator {
             [this.sectionType, this.generateSection],
             [this.subsectionType, this.generateSubsection],
             [this.subsubsectionType, this.generateSubsubsection],
+            [this.tableofcontentsType, this.generateTableofcontents],
+            [this.newpageType, this.generateNewpage]
         ]);
 
         const blockGeneratorAsync: Map<Type, (n: Node) => Promise<string>> = new Map([
@@ -255,77 +263,6 @@ export class LatexGenerator extends Generator {
         ]);
         
         for (let n of node.children) {
-            // switch (n.type) {
-            //     case this.settingType:
-            //         res += this.generateSetting(n);
-            //         flag = false;
-            //         break;
-            //     case this.paragraphType:
-            //         if (!flag) {
-            //             flag = true;
-            //         }
-            //         else {
-            //             //res += "\n\\hspace*{\\fill}\n\n";
-            //             res += "\\vspace{10pt}\n";
-            //         }
-            //         res += await this.generateParagraph(n);
-
-            //         break;
-            //     case this.titleType:
-            //         res += this.generateTitle(n);
-            //         flag = false;
-            //         break;
-            //     case this.authorType:
-            //         res += this.generateAuthor(n);
-            //         flag = false;
-            //         break;
-            //     case this.dateType:
-            //         res += this.generateDate(n);
-            //         flag = false;
-            //         break;
-
-            //     case this.sectionType:
-            //         res += this.generateSection(n);
-            //         flag = false;
-            //         break;
-            //     case this.subsectionType:
-            //         res += this.generateSubsection(n);
-            //         flag = false;
-            //         break;
-            //     case this.subsubsectionType:
-            //         res += this.generateSubsubsection(n);
-            //         flag = false;
-            //         break;
-            //     case this.theoremType:
-            //         res += await this.generateTheorem(n);
-            //         flag = false;
-            //         break;
-            //     case this.definitionType:
-            //         res += await this.generateDefinition(n);
-            //         flag = false;
-            //         break;
-            //     case this.lemmaType:
-            //         res += await this.generateLemma(n);
-            //         flag = false;
-            //         break;
-            //     case this.corollaryType:
-            //         res += await this.generateCorollary(n);
-            //         flag = false;
-            //         break;
-            //     case this.propositionType:
-            //         res += await this.generateProposition(n);
-            //         flag = false;
-            //         break;
-            //     case this.proofType:
-            //         res += await this.generateProof(n);
-            //         flag = false;
-            //         break;
-            //     default:
-            //         console.log("generate document error.");
-            //         flag = false;
-            //         return res;
-
-            // }
             if (n.type === this.settingType) {
                 res += this.generateSetting(n);
                 flag = false;
@@ -925,6 +862,18 @@ export class LatexGenerator extends Generator {
             numbered = "";
         }
         return `\\subsubsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+    }
+
+    // GenerateTableofcontents
+    // Syntax Tree type: tableofcontents
+    generateTableofcontents(node: Node): string {
+        return `\\tableofcontents\n`;
+    }
+
+    // GenerateNewpage
+    // Syntax Tree type: newpage
+    generateNewpage(node: Node): string {
+        return `\\newpage\n`;
     }
 
     // GenerateTheorem
