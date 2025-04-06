@@ -27,7 +27,7 @@ export class LatexGenerator extends Generator {
     blockType: Type;
     errorType: Type;
     argumentsType: Type;
-    argumentItemType: Type;
+    argumentType: Type;
 
     // Math Types
     formulaType: Type;
@@ -48,12 +48,13 @@ export class LatexGenerator extends Generator {
     figureItemType: Type;
     figureCaptionType: Type;
     listType: Type;
+    itemType: Type;
     tableType: Type;
     codeType: Type;
 
-    emphType: Type;;
-    boldType: Type;;
-    italicType: Type;;
+    emphType: Type;
+    boldType: Type;
+    italicType: Type;
 
     // Article Types
 
@@ -114,7 +115,7 @@ export class LatexGenerator extends Generator {
         this.blockType = this.typeTable.get("block")!;
         this.errorType = this.typeTable.get("error")!;
         this.argumentsType = this.typeTable.get("arguments")!;
-        this.argumentItemType = this.typeTable.get("argument-item")!;
+        this.argumentType = this.typeTable.get("argument")!;
 
         this.formulaType = this.typeTable.get("formula")!;
         this.elementType = this.typeTable.get("element")!;
@@ -129,6 +130,7 @@ export class LatexGenerator extends Generator {
         this.figureItemType = this.typeTable.get("figure-item")!;
         this.figureCaptionType = this.typeTable.get("figure-caption")!;
         this.listType = this.typeTable.get("list")!;
+        this.itemType = this.typeTable.get("item")!;
         this.tableType = this.typeTable.get("table")!;
         this.codeType = this.typeTable.get("code")!;
         this.emphType = this.typeTable.get("emph")!;
@@ -183,6 +185,7 @@ export class LatexGenerator extends Generator {
         }
     }
 
+    // **************** Generate ****************
 
     // generate
 
@@ -226,104 +229,137 @@ export class LatexGenerator extends Generator {
 
     }
 
-    // introduction and document of latex source
-
-    addIntrodunction(intr: string) {
-        this.introduction += intr;
-    }
-
-    line(text: string) {
-        return text + "\n";
-    }
-    command(name: string, content: string = "") {
-        return `\\${name}{${content}}`;
-    }
-
-    addContent(text: string) {
-        this.document += text;
-    }
-
-
     // GenerateDocument
     // Syntax Tree type: document
+    // (other blocks)
     async generateDocument(node: Node): Promise<string> {
         let res = "";
         let flag = false;
+
+        const blockGenerator: Map<Type, (n: Node) => string> = new Map([
+            [this.titleType, this.generateTitle],
+            [this.authorType, this.generateAuthor],
+            [this.dateType, this.generateDate],
+            [this.sectionType, this.generateSection],
+            [this.subsectionType, this.generateSubsection],
+            [this.subsubsectionType, this.generateSubsubsection],
+        ]);
+
+        const blockGeneratorAsync: Map<Type, (n: Node) => Promise<string>> = new Map([
+            [this.theoremType, this.generateTheorem],
+            [this.definitionType, this.generateDefinition],
+            [this.lemmaType, this.generateLemma],
+            [this.corollaryType, this.generateCorollary],
+            [this.propositionType, this.generateProposition],
+            [this.proofType, this.generateProof],
+        ]);
+        
         for (let n of node.children) {
-            switch (n.type) {
-                case this.settingType:
-                    res += this.generateSetting(n);
-                    flag = false;
-                    break;
-                case this.paragraphType:
-                    if (!flag) {
-                        flag = true;
-                    }
-                    else {
-                        //res += "\n\\hspace*{\\fill}\n\n";
-                        res += "\\vspace{10pt}\n";
-                    }
-                    res += await this.generateParagraph(n);
+            // switch (n.type) {
+            //     case this.settingType:
+            //         res += this.generateSetting(n);
+            //         flag = false;
+            //         break;
+            //     case this.paragraphType:
+            //         if (!flag) {
+            //             flag = true;
+            //         }
+            //         else {
+            //             //res += "\n\\hspace*{\\fill}\n\n";
+            //             res += "\\vspace{10pt}\n";
+            //         }
+            //         res += await this.generateParagraph(n);
 
-                    break;
-                case this.titleType:
-                    res += this.generateTitle(n);
-                    flag = false;
-                    break;
-                case this.authorType:
-                    res += this.generateAuthor(n);
-                    flag = false;
-                    break;
-                case this.dateType:
-                    res += this.generateDate(n);
-                    flag = false;
-                    break;
+            //         break;
+            //     case this.titleType:
+            //         res += this.generateTitle(n);
+            //         flag = false;
+            //         break;
+            //     case this.authorType:
+            //         res += this.generateAuthor(n);
+            //         flag = false;
+            //         break;
+            //     case this.dateType:
+            //         res += this.generateDate(n);
+            //         flag = false;
+            //         break;
 
-                case this.sectionType:
-                    res += this.generateSection(n);
-                    flag = false;
-                    break;
-                case this.subsectionType:
-                    res += this.generateSubsection(n);
-                    flag = false;
-                    break;
-                case this.subsubsectionType:
-                    res += this.generateSubsubsection(n);
-                    flag = false;
-                    break;
-                case this.theoremType:
-                    res += await this.generateTheorem(n);
-                    flag = false;
-                    break;
-                case this.definitionType:
-                    res += await this.generateDefinition(n);
-                    flag = false;
-                    break;
-                case this.lemmaType:
-                    res += await this.generateLemma(n);
-                    flag = false;
-                    break;
-                case this.corollaryType:
-                    res += await this.generateCorollary(n);
-                    flag = false;
-                    break;
-                case this.propositionType:
-                    res += await this.generateProposition(n);
-                    flag = false;
-                    break;
-                case this.proofType:
-                    res += await this.generateProof(n);
-                    flag = false;
-                    break;
-                default:
-                    console.log("generate document error.");
-                    flag = false;
-                    return res;
+            //     case this.sectionType:
+            //         res += this.generateSection(n);
+            //         flag = false;
+            //         break;
+            //     case this.subsectionType:
+            //         res += this.generateSubsection(n);
+            //         flag = false;
+            //         break;
+            //     case this.subsubsectionType:
+            //         res += this.generateSubsubsection(n);
+            //         flag = false;
+            //         break;
+            //     case this.theoremType:
+            //         res += await this.generateTheorem(n);
+            //         flag = false;
+            //         break;
+            //     case this.definitionType:
+            //         res += await this.generateDefinition(n);
+            //         flag = false;
+            //         break;
+            //     case this.lemmaType:
+            //         res += await this.generateLemma(n);
+            //         flag = false;
+            //         break;
+            //     case this.corollaryType:
+            //         res += await this.generateCorollary(n);
+            //         flag = false;
+            //         break;
+            //     case this.propositionType:
+            //         res += await this.generateProposition(n);
+            //         flag = false;
+            //         break;
+            //     case this.proofType:
+            //         res += await this.generateProof(n);
+            //         flag = false;
+            //         break;
+            //     default:
+            //         console.log("generate document error.");
+            //         flag = false;
+            //         return res;
 
+            // }
+            if (n.type === this.settingType) {
+                res += this.generateSetting(n);
+                flag = false;
             }
+            else if (n.type === this.paragraphType) {
+                if (!flag) {
+                    flag = true;
+                }
+                else {
+                    //res += "\n\\hspace*{\\fill}\n\n";
+                    res += "\\vspace{10pt}\n";
+                }
+                res += await this.generateParagraph(n);
+            }
+            else if(blockGenerator.get(n.type) !== undefined) {
+                let gen = blockGenerator.get(n.type)!;
+                res += gen.bind(this)(n);
+                flag = false;
+            }
+            else if(blockGeneratorAsync.get(n.type) !== undefined) {
+                let gen = blockGeneratorAsync.get(n.type)!;
+                res += await gen.bind(this)(n);
+                flag = false;
+            }
+            else {
+                console.log("Generate other block error.");
+                flag = false;
+            }
+
         }
         return res;
     }
+
+    // **************** Generate Settings ****************
 
     // GenerateSetting
     // Syntax Tree type: setting
@@ -338,43 +374,63 @@ export class LatexGenerator extends Generator {
         return "";
     }
 
+    // GeneratePaperSetting
+    // Syntax Tree type: setting
+    generatePaperSetting(parameter: string): string {
+        if (parameter === "a4") {
+            this.addIntrodunction(this.line(this.command("geometry", "a4paper")));
+        }
+        else if (parameter === "b5") {
+            this.addIntrodunction(this.line(this.command("geometry", "b5paper")));
+        }
+        return "";
+    }
+
+    // **************** Generate Paragraph & Text ****************
+
     // GenerateParagraph
     // Syntax Tree type: paragraph
+    // (basic blocks)
     async generateParagraph(node: Node): Promise<string> {
-        if (node.children.length == 0) {
-            console.log("[[empty par]]");
-            //return "[[empty par]]";
-        }
-        let res = "";
-
+        let hasArg = false;
         let titled = false;
-        if (node.content === "titled") {
-            titled = true;
-            res += `\\paragraph{${this.generateText(node.children[1]).slice(0, -1)}}\n`;
+
+        if(node.children.at(0)?.type === this.argumentsType) {
+            hasArg = true;
+            if (this.getArgument(node, "start") === "titled") {
+                titled = true;
+            }
+        }
+
+        let res = "";
+        let start = 0;
+
+        if(hasArg) {
+            if(titled) {
+                res += `\\paragraph{${this.generateText(node.children[1]).slice(0, -1)}}\n`;
+                start = 2;
+            }
+            else {
+                start = 1;
+            }
         }
 
         let flag = false;
-        for (let n of (!titled ? node.children : node.children.slice(2))) {
-
+        for (let n of node.children.slice(start)) {
             switch (n.type) {
                 case this.textType:
-                    if (flag) {
-                        if (n.content === "indent") {
+                    switch (this.getArgument(n, "start")) {
+                        case "indent":
                             res += `\\par `;
-                        }
-                        else {
+                            break;
+                        case "noindent":
                             res += `\\par\\noindent `;
-                        }
-                        //res += `\\newline `;
-                    }
-                    else {
-                        if (n.content === "noindent") {
-                            res += `\\par\\noindent `;
-                        }
-                        else {
-                            res += `\\par `;
-                        }
-                        flag = true;
+                            break;
+                        case "auto":
+                        default:
+                            res += flag ? `\\par\\noindent ` : `\\par `;
+                            flag = true;
+                            break;
                     }
                     res += this.generateText(n);
                     break;
@@ -396,150 +452,28 @@ export class LatexGenerator extends Generator {
                     res += "[[Basic Block]]\n";
                     console.log("Unsupported basic block.");
                     break;
+                default:
+                    console.log("Generate basic block error.");
+                    break;
             }
-            //res += "\n";
         }
-        // if(flag) {
-        //     res = res.slice(0, -1);
-        // }
         return res;
     }
 
-    // GenerateTitle
-    // Syntax Tree type: title
-    generateTitle(node: Node): string {
-        this.addIntrodunction(this.line(`\\title{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
-    }
-
-    // GenerateAuthor
-    // Syntax Tree type: author
-    generateAuthor(node: Node): string {
-        this.addIntrodunction(this.line(`\\author{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
-    }
-
-    // GenerateDate
-    // Syntax Tree type: date
-    generateDate(node: Node): string {
-        this.addIntrodunction(this.line(`\\date{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
-    }
-
-    // GenerateSection
-    // Syntax Tree type: section
-    generateSection(node: Node): string {
-        let num = "";
-        if(node.content === "unnumbered") {
-            num = "*";
-        }
-        return `\\section${num}{${this.generateText(node, true)}}\n`;
-    }
-
-    // GenerateSubsection
-    // Syntax Tree type: subsection
-    generateSubsection(node: Node): string {
-        let num = "";
-        if(node.content === "unnumbered") {
-            num = "*";
-        }
-        return `\\subsection${num}{${this.generateText(node, true)}}\n`;
-    }
-
-    // GenerateSubsubection
-    // Syntax Tree type: subsubsection
-    generateSubsubsection(node: Node): string {
-        let num = "";
-        if(node.content === "unnumbered") {
-            num = "*";
-        }
-        return `\\subsubsection${num}{${this.generateText(node, true)}}\n`;
-    }
-
-    // GenerateTheorem
-    // Syntax Tree type: theorem
-    async generateTheorem(node: Node): Promise<string> {
-        return `\\begin{theorem}${await this.generateParagraph(node)}\\end{theorem}\n`;
-    }
-
-    // GenerateDefinition
-    // Syntax Tree type: definition
-    async generateDefinition(node: Node): Promise<string> {
-        return `\\begin{definition}${await this.generateParagraph(node)}\\end{definition}\n`;
-    }
-
-    // GenerateLemma
-    // Syntax Tree type: lemma
-    async generateLemma(node: Node): Promise<string> {
-        return `\\begin{lemma}${await this.generateParagraph(node)}\\end{lemma}\n`;
-    }
-
-    // GenerateCorollary
-    // Syntax Tree type: corollary
-    async generateCorollary(node: Node): Promise<string> {
-        return `\\begin{corollary}${await this.generateParagraph(node)}\\end{corollary}\n`;
-    }
-
-    // GenerateProposition
-    // Syntax Tree type: proposition
-    async generateProposition(node: Node): Promise<string> {
-        return `\\begin{proposition}${await this.generateParagraph(node)}\\end{proposition}\n`;
-    }
-
-    // GenerateProof
-    // Syntax Tree type: proof
-    async generateProof(node: Node): Promise<string> {
-        return `\\begin{proof}${await this.generateParagraph(node)}\\end{proof}\n`;
-    }
-
-
     // GenerateText
     // Syntax Tree type: text | emph | bold | italic
+    // (format blocks, insertion)
     generateText(node: Node, format = false): string {
-        let res = "";
-        if (node.children.length == 0) {
-            //res += "[[empty text]]";
-            console.log("[[empty text]]");
-            if (!format) {
-                res += "\n";
-            }
-            return res;
+        let start = 0;
+        if(node.children.at(0)?.type === this.argumentsType) {
+            start = 1;
         }
-        let flag = false;
-        for (let n of node.children) {
-            if (flag) {
-                //res += " ";
-            }
-            flag = true;
+
+        let res = "";
+
+        for (let n of node.children.slice(start)) {
             switch (n.type) {
                 case this.wordsType:
-                    // if (n.content.startsWith(" ") && n.content.endsWith(" ")) {
-                    //     //res += "[[blank start]]";
-                    //     res += n.content.slice(1, -1);
-                    //     //res += "[[blank end]]";
-                    // }
-                    // else if (n.content.startsWith(" ")) {
-                    //     //res += "[[blank start]]";
-                    //     res += n.content.slice(1);
-
-                    // }
-                    // else if (n.content.endsWith(" ")) {
-                    //     res += n.content.slice(0,-1);
-                    //     //res += "[[blank end]]";
-                    // }
-                    // else {
                     for (let ch of n.content) {
                         switch (ch) {
                             case "#": case "%": case "{": case "}": case "&": case "_": case "~":
@@ -550,7 +484,6 @@ export class LatexGenerator extends Generator {
                                 res += ch;
                         }
                     }
-                    //}
                     break;
                 case this.referenceType:
                     res += `\\ref{${n.content}}`;
@@ -571,6 +504,9 @@ export class LatexGenerator extends Generator {
                 case this.italicType:
                     res += `\\textit{${this.generateText(n, true)}}`;
                     break;
+                default:
+                    console.log("Generate format block or insertion error.");
+                    break;
             }
         }
         if (!format) {
@@ -579,9 +515,13 @@ export class LatexGenerator extends Generator {
         return res;
     }
 
+    // **************** Core Module ****************
+
     // GenerateFigure
     // Syntax Tree type: figure
     async generateFigure(tnode: Node): Promise<string> {
+        let refLatex = this.generateReferences(tnode);
+
         let node = Node.clone(tnode);
         node.children = node.children.slice(1);
         // \begin{figure}[!htbp]
@@ -637,7 +577,7 @@ export class LatexGenerator extends Generator {
             }
         }
         let caption = node.children[0];
-        text += `\\vspace{-0.6em}\n\\caption{${caption ? this.generateText(caption) : "[[nocaption]]"}}\\vspace{-0.7em}\n\\end{figure}\n`;
+        text += `\\vspace{-0.3em}\n\\caption{${caption ? this.generateText(caption) : "[[nocaption]]"}}${refLatex}\\vspace{-0.7em}\n\\end{figure}\n`;
 
         return text;
     }
@@ -657,22 +597,35 @@ export class LatexGenerator extends Generator {
     // GenerateList
     // Syntax Tree type: list
     async generateList(node: Node): Promise<string> {
-        if (node.children.length == 0) {
-            console.log("[[empty par]]");
-            //return "[[empty par]]";
-        }
         let res = "";
 
-        res += "\\begin{enumerate}";
-        for (let n of node.children) {
+        let numbered = false;
+        if(this.getArgument(node, "style") === "numbered") {
+            numbered = true;
+        }
 
+        res += numbered ? "\\begin{enumerate}\n" : "\\begin{itemize}\n";
+        for (let n of node.children) {
             switch (n.type) {
+                case this.itemType:
+                    res += this.generateItem(n);
+                    break;
                 case this.textType:
-                    res += `\\item `;
+                    switch (this.getArgument(n, "start")) {
+                        case "indent":
+                            res += `\\par `;
+                            break;
+                        case "noindent":
+                        case "auto":
+                        default:
+                            res += `\\par\\noindent `;
+                            break;
+                    }
                     res += this.generateText(n);
                     break;
 
                 case this.formulaType:
+                case this.expressionType:
                     res += this.generateFormula(n);
                     break;
                 case this.figureType:
@@ -686,19 +639,36 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.tableType:
                     res += "[[Basic Block]]\n";
-                    console.log("Unsupported basic block.");
+                    console.log("Unsupported basic block in list.");
                     break;
             }
         }
-        res += "\\end{enumerate}\n";
-
+        res += numbered ? "\\end{enumerate}\n" : "\\end{itemize}\n";
         return res;
     }
+
+    // GenerateItem
+    // Syntax Tree type: item
+    generateItem(node: Node): string {
+        let refLatex = this.generateReferences(node);
+        if(node.children.length === 1) {
+            return `\\item${refLatex} `;
+        }
+        return `\\item[${this.generateText(node)}]${refLatex} `;
+    }
+
+    // **************** Math Module ****************
 
     // GenerateFormula
     // Syntax Tree type: formula
     generateFormula(node: Node, inline: boolean = false): string {
-        let res = inline ? "$" : "\\begin{equation*}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}";
+        let refLatex = this.generateReferences(node);
+        let numbered = "*";
+        if(this.getArgument(node, "style") === "numbered") {
+            numbered = "";
+        }
+
+        let res = inline ? "$" : `\\begin{equation${numbered}}${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}`;
         //if (node.children.at(-1)?.type === this.expressionType) {
             let tmp = this.generateTermOrOperator(node.children.at(-1)!);
             if(tmp.startsWith("{") && tmp.endsWith("}")) {
@@ -706,18 +676,11 @@ export class LatexGenerator extends Generator {
             }
             res += tmp;
         //}
-        res += inline ? "$" : "\\end{equation*}%\n";
+        res += inline ? "$" : `\\end{equation${numbered}}%\n`;
 
         return res;
     }
 
-    // generateExpression(node: Node): string {
-    //     let res = "";
-    //     for (let subnode of node.children) {
-    //         res += this.generateTermOrOperator(subnode);
-    //     }
-    //     return res;
-    // }
 
     // 要保证为 Latex 中一项
     generateTermOrOperator(node: Node): string {
@@ -896,16 +859,180 @@ export class LatexGenerator extends Generator {
         return res;
     }
 
-    // GeneratePaperSetting
-    // Syntax Tree type: setting
-    generatePaperSetting(parameter: string): string {
-        if (parameter === "a4") {
-            this.addIntrodunction(this.line(this.command("geometry", "a4paper")));
-        }
-        else if (parameter === "b5") {
-            this.addIntrodunction(this.line(this.command("geometry", "b5paper")));
+    // **************** Article Moudle ****************
+
+    // GenerateTitle
+    // Syntax Tree type: title
+    generateTitle(node: Node): string {
+        this.addIntrodunction(this.line(`\\title{${this.generateText(node, true)}}`));
+        if (!this.hasMakedTitle) {
+            this.hasMakedTitle = true;
+            return "\\maketitle\n";
         }
         return "";
     }
 
+    // GenerateAuthor
+    // Syntax Tree type: author
+    generateAuthor(node: Node): string {
+        this.addIntrodunction(this.line(`\\author{${this.generateText(node, true)}}`));
+        if (!this.hasMakedTitle) {
+            this.hasMakedTitle = true;
+            return "\\maketitle\n";
+        }
+        return "";
+    }
+
+    // GenerateDate
+    // Syntax Tree type: date
+    generateDate(node: Node): string {
+        this.addIntrodunction(this.line(`\\date{${this.generateText(node, true)}}`));
+        if (!this.hasMakedTitle) {
+            this.hasMakedTitle = true;
+            return "\\maketitle\n";
+        }
+        return "";
+    }
+
+    // GenerateSection
+    // Syntax Tree type: section
+    generateSection(node: Node): string {
+        let refLatex = this.generateReferences(node);
+        let numbered = "*";
+        if(this.getArgument(node, "style") === "numbered") {
+            numbered = "";
+        }
+        return `\\section${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+    }
+
+    // GenerateSubsection
+    // Syntax Tree type: subsection
+    generateSubsection(node: Node): string {
+        let refLatex = this.generateReferences(node);
+        let numbered = "*";
+        if(this.getArgument(node, "style") === "numbered") {
+            numbered = "";
+        }
+        return `\\subsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+    }
+
+    // GenerateSubsubection
+    // Syntax Tree type: subsubsection
+    generateSubsubsection(node: Node): string {
+        let refLatex = this.generateReferences(node);
+        let numbered = "*";
+        if(this.getArgument(node, "style") === "numbered") {
+            numbered = "";
+        }
+        return `\\subsubsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+    }
+
+    // GenerateTheorem
+    // Syntax Tree type: theorem
+    async generateTheorem(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{theorem}${refLatex}${await this.generateParagraph(node)}\\end{theorem}\n`;
+    }
+
+    // GenerateDefinition
+    // Syntax Tree type: definition
+    async generateDefinition(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{definition}${refLatex}${await this.generateParagraph(node)}\\end{definition}\n`;
+    }
+
+    // GenerateLemma
+    // Syntax Tree type: lemma
+    async generateLemma(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{lemma}${refLatex}${await this.generateParagraph(node)}\\end{lemma}\n`;
+    }
+
+    // GenerateCorollary
+    // Syntax Tree type: corollary
+    async generateCorollary(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{corollary}${refLatex}${await this.generateParagraph(node)}\\end{corollary}\n`;
+    }
+
+    // GenerateProposition
+    // Syntax Tree type: proposition
+    async generateProposition(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{proposition}${refLatex}${await this.generateParagraph(node)}\\end{proposition}\n`;
+    }
+
+    // GenerateProof
+    // Syntax Tree type: proof
+    async generateProof(node: Node): Promise<string> {
+        let refLatex = this.generateReferences(node);
+
+        return `\\begin{proof}${refLatex}${await this.generateParagraph(node)}\\end{proof}\n`;
+    }
+
+    // **************** Assistant Function ****************
+
+    getArgument(node: Node, name: string): string {
+        if(node.children.length === 0) {
+            return "";
+        }
+        let args = node.children[0];
+
+        let found: string | undefined;
+        args.children.forEach(argNode => {
+            if(argNode.type === this.argumentType && argNode.content === name) {
+                found = argNode.children[0].content;
+            }
+        });
+
+        return found ?? "";
+    }
+
+    getReferences(node: Node): string[] {
+        if(node.children.length === 0) {
+            return [];
+        }
+        let args = node.children[0];
+
+        let refs: string[] = [];
+        args.children.forEach(argNode => {
+            if(argNode.type === this.referenceType) {
+                refs.push(argNode.content);
+            }
+        });
+
+        return refs;
+    }
+
+    generateReferences(node: Node): string {
+        let refLatex = "";
+        this.getReferences(node).forEach(ref => {
+            refLatex += `\\label{${ref}}`;
+        })
+        return refLatex;
+    }
+
+    // **************** Latex Commands ****************
+    // introduction and document of latex source
+
+    addIntrodunction(intr: string) {
+        this.introduction += intr;
+    }
+
+    line(text: string) {
+        return text + "\n";
+    }
+
+    command(name: string, content: string = "") {
+        return `\\${name}{${content}}`;
+    }
+
+    addContent(text: string) {
+        this.document += text;
+    }
 }

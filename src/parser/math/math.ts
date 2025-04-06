@@ -12,6 +12,7 @@ import { InfixOperator, OperatorTable, OperatorType, PrefixOperator } from "./op
 import { Heap } from "../../foundation/heap"
 import { Ref } from "../../foundation/ref";
 import { format } from "path";
+import { ArgumentsSpecification, ArgumentType } from "../block-handler-table";
 
 
 export class Math extends Module {
@@ -43,7 +44,12 @@ export class Math extends Module {
 
         // Init block handler & insertion handler
         this.parser.basicBlocks.add("formula");
-        this.parser.blockHandlerTable.add("formula", this.formulaBlockHandler, this);
+        const formulaSpec: ArgumentsSpecification = {
+            arguments: new Map([
+                ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "unnumbered" }]
+            ]), allowReference: true
+        };
+        this.parser.blockHandlerTable.add("formula", this.formulaBlockHandler, this, formulaSpec);
 
         this.parser.insertionHandlerTable.add("/", this.formulaInsertionHandler, this);
 

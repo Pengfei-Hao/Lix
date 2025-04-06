@@ -4,6 +4,7 @@ import { Module } from "../module";
 import { Parser } from "../parser";
 import { HighlightType, Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
+import { ArgumentsSpecification, ArgumentType } from "../block-handler-table";
 
 export class Core extends Module {
 
@@ -14,6 +15,7 @@ export class Core extends Module {
     figureCaptionType: Type;
     
     listType: Type;
+    itemType: Type;
     tableType: Type;
     codeType: Type;
     
@@ -26,38 +28,74 @@ export class Core extends Module {
 
         // Init label handle function
 
-        // basic blocks
-        this.parser.basicBlocks.add("figure");
-        this.parser.basicBlocks.add("list");
-        this.parser.basicBlocks.add("table");
-        this.parser.basicBlocks.add("code");
-        this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this);
-        this.parser.blockHandlerTable.add("list", this.listBlockHandler, this);
-        this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
-        this.parser.blockHandlerTable.add("code", this.codeBlockHandler, this);
+        // **************** Basic Blocks ****************
 
-        // format blocks
+        this.parser.basicBlocks.add("figure");
+        const figureSpec: ArgumentsSpecification = {
+            arguments: new Map(),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this, figureSpec);
+
+        this.parser.basicBlocks.add("table");
+        this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
+
+        this.parser.basicBlocks.add("code");
+        const codeSpec: ArgumentsSpecification = {
+            arguments: new Map(),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("code", this.codeBlockHandler, this, codeSpec);
+
+        // List
+        this.parser.basicBlocks.add("list");
+        const listSpec: ArgumentsSpecification = {
+            arguments: new Map([
+                ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "numbered" }],
+            ]),
+            allowReference: false
+        };
+        this.parser.blockHandlerTable.add("list", this.listBlockHandler, this, listSpec);
+
+        // Item
+        this.parser.basicBlocks.add("item");
+        const itemSpec: ArgumentsSpecification = {
+            arguments: new Map([
+                ["level", { type: ArgumentType.enumeration, options: ["first", "second", "third", "fourth"], default: "first" }],
+            ]),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("item", this.itemBlockHandler, this, itemSpec);
+
+        // **************** Format Blocks ****************
+
         this.parser.formatBlocks.add("emph");
-        this.parser.formatBlocks.add("bold");
-        this.parser.formatBlocks.add("italic");
         this.parser.blockHandlerTable.add("emph", this.emphBlockHandler, this);
+        
+        this.parser.formatBlocks.add("bold");
         this.parser.blockHandlerTable.add("bold", this.boldBlockHandler, this);
+        
+        this.parser.formatBlocks.add("italic");
         this.parser.blockHandlerTable.add("italic", this.italicBlockHandler, this);
+
+        // **************** Insertion Handler ****************
 
         this.parser.insertionHandlerTable.add("`", this.inlineCodeHandler, this);
         // 有问题暂时不用
         // this.parser.insertionHandlerTable.add("*", this.inlineBoldHandler, this);
         // this.parser.insertionHandlerTable.add("~", this.inlineEmphHandler, this);
 
+        // **************** Types ****************
+
         // Init syntax tree node type
         this.figureType = this.parser.typeTable.add("figure")!;
         this.figureItemType = this.parser.typeTable.add("figure-item")!;
         this.figureCaptionType = this.parser.typeTable.add("figure-caption")!;
-
-        // Types
         this.listType = this.parser.typeTable.add("list")!;
+        this.itemType = parser.typeTable.add("item")!;
         this.tableType = this.parser.typeTable.add("table")!;
         this.codeType = this.parser.typeTable.add("code")!;
+
         this.emphType = this.parser.typeTable.add("emph")!;
         this.boldType = this.parser.typeTable.add("bold")!;
         this.italicType = this.parser.typeTable.add("italic")!;
@@ -600,5 +638,11 @@ export class Core extends Module {
 
     listBlockHandler(args: Node): Result<Node> {
         return this.parser.paragraphLikeBlockHandler("list", this.listType, args);
+    }
+
+    itemBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.formatLikeBlockHandler("item", this.itemType, args);
+        result.discarded = false;
+        return result;
     }
 }

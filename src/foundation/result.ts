@@ -41,10 +41,11 @@ export class Result<T> {
 
     discarded: boolean;
     analysedContent: T;
+    references: string[];
 
     private promotedToMatched: boolean;
 
-    constructor(content: T, analysedContent: T, messages: Message[] = [], highlights: Highlight[] = [], discarded = false) {
+    constructor(content: T, analysedContent: T, messages: Message[] = [], highlights: Highlight[] = [], discarded = false, references: string[] = []) {
         this.state = ResultState.failing;
         this.content = content;
         this.analysedContent = analysedContent;
@@ -52,6 +53,7 @@ export class Result<T> {
         this.highlights = highlights;
         this.discarded = discarded;
         this.promotedToMatched = false;
+        this.references = references;
     }
 
     get shouldTerminate(): boolean {
@@ -143,6 +145,9 @@ export class Result<T> {
         }
         for(let hlt of result.highlights) {
             this.highlights.push(hlt);
+        }
+        for(let ref of result.references) {
+            this.references.push(ref);
         }
     }
 

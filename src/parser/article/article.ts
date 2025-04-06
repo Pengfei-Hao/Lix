@@ -4,6 +4,7 @@ import { Module } from "../module";
 import { Parser } from "../parser";
 import { Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
+import { ArgumentsSpecification, ArgumentType } from "../block-handler-table";
 
 export class Article extends Module {
 
@@ -36,9 +37,16 @@ export class Article extends Module {
         this.parser.otherBlocks.add("title");
         this.parser.otherBlocks.add("author");
         this.parser.otherBlocks.add("date");
-        this.parser.blockHandlerTable.add("section", this.sectionBlockHandler, this);
-        this.parser.blockHandlerTable.add("subsection", this.subsectionBlockHandler, this);
-        this.parser.blockHandlerTable.add("subsubsection", this.subsubsectionBlockHandler, this);
+
+        const sectionSpec: ArgumentsSpecification = {
+            arguments: new Map([
+                ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "numbered" }],
+            ]),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("section", this.sectionBlockHandler, this, sectionSpec);
+        this.parser.blockHandlerTable.add("subsection", this.subsectionBlockHandler, this, sectionSpec);
+        this.parser.blockHandlerTable.add("subsubsection", this.subsubsectionBlockHandler, this, sectionSpec);
         this.parser.blockHandlerTable.add("title", this.titleBlockHandler, this);
         this.parser.blockHandlerTable.add("author", this.authorBlockHandler, this);
         this.parser.blockHandlerTable.add("date", this.dateBlockHandler, this);
@@ -59,12 +67,16 @@ export class Article extends Module {
         this.parser.otherBlocks.add("corollary");
         this.parser.otherBlocks.add("proof");
 
-        this.parser.blockHandlerTable.add("definition", this.definitionBlockHandler, this);
-        this.parser.blockHandlerTable.add("lemma", this.lemmaBlockHandler, this);
-        this.parser.blockHandlerTable.add("proposition", this.propositionBlockHandler, this);
-        this.parser.blockHandlerTable.add("theorem", this.theoremBlockHandler, this);
-        this.parser.blockHandlerTable.add("corollary", this.corollaryBlockHandler, this);
-        this.parser.blockHandlerTable.add("proof", this.proofBlockHandler, this);
+        const mathEnvSpec: ArgumentsSpecification = {
+            arguments: new Map(),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("definition", this.definitionBlockHandler, this, mathEnvSpec);
+        this.parser.blockHandlerTable.add("lemma", this.lemmaBlockHandler, this, mathEnvSpec);
+        this.parser.blockHandlerTable.add("proposition", this.propositionBlockHandler, this, mathEnvSpec);
+        this.parser.blockHandlerTable.add("theorem", this.theoremBlockHandler, this, mathEnvSpec);
+        this.parser.blockHandlerTable.add("corollary", this.corollaryBlockHandler, this, mathEnvSpec);
+        this.parser.blockHandlerTable.add("proof", this.proofBlockHandler, this, mathEnvSpec);
         
         // 此 definition 与 math 冲突了
         this.definitionType = this.parser.typeTable.add("definition'")!;

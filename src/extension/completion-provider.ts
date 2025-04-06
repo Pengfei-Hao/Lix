@@ -4,6 +4,7 @@ import { LixContext } from './lix-context';
 import { Node } from '../sytnax-tree/node';
 import * as file from 'fs';
 import { Type } from '../sytnax-tree/type';
+import { ArgumentType } from '../parser/block-handler-table';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
     context: LixContext;
@@ -43,7 +44,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
 
                 parser.mathModule.notations.forEach((nota) => {
                     let name = parser.mathModule.notationsToUnicodeSymbols.get(nota);
-                    if(name) {
+                    if (name) {
                         let comp = new vscode.CompletionItem(nota, vscode.CompletionItemKind.Keyword);
                         comp.insertText = name;
                         comp.detail = `Symbol char '${name}'.`;
@@ -75,7 +76,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
             }
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
-            if (this.in(parser.coreModule.figureType, parser, parser.getIndex(position.line, position.character)!)) {
+            if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.getIndex(position.line, position.character)!)) {
                 let list = this.context.getFileList(document.uri);
                 for (let item of list) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
@@ -83,12 +84,51 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         }
+        else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "@") {
+            let compiler = this.context.getCompiler(document.uri);
+            for (let item of compiler.parser.references) {
+                let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Reference);
+                res.push(comp);
+            }
+        }
+        else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && (context.triggerCharacter == "(" || context.triggerCharacter == ",")) {
+            let node = this.where(parser.blockType, parser.syntaxTree, parser.getIndex(position.line, position.character)!);
+            if (node) {
+                if(context.triggerCharacter == "," && !this.where(parser.argumentsType, parser.syntaxTree, parser.getIndex(position.line, position.character)!)) {
+                    return res;
+                }
+                let argNode = node.children.at(0);
+                if(context.triggerCharacter == "(" && argNode && argNode.type === parser.argumentsType && argNode.begin != argNode.end) {
+                    return res;
+                }
+                let compiler = this.context.getCompiler(document.uri);
+                let spec = compiler.parser.blockHandlerTable.getSpecification(node.content);
+                if (spec) {
+                    for (let [name, arg] of spec.arguments) {
+                        let comp = new vscode.CompletionItem(name, vscode.CompletionItemKind.Field);
+                        res.push(comp);
+
+                        if (arg.type === ArgumentType.enumeration) {
+                            for (let opt of arg.options) {
+                                let comp = new vscode.CompletionItem(name + ': ' + opt, vscode.CompletionItemKind.Field);
+                                res.push(comp);
+                            }
+                        }
+                    }
+                    if (spec.allowReference) {
+                        let comp = new vscode.CompletionItem('@', vscode.CompletionItemKind.Field);
+                        res.push(comp);
+                    }
+                }
+            }
+
+        }
         return res;
     }
 
     inMath(parser: Parser, pos: number): boolean {
         let node = parser.syntaxTree;
-        outer: while(true) {
+        outer: while (true) {
             if (node.type === parser.mathModule.formulaType) {
                 return true;
             }
@@ -102,7 +142,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         }
         // 这两种情况是不同的, 上边是指针位于formula内部,下边是formula位于foumula结尾位置.
         node = parser.syntaxTree;
-        outer: while(true) {
+        outer: while (true) {
             if (node.type === parser.mathModule.formulaType) {
                 return true;
             }
@@ -116,11 +156,11 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         }
     }
 
-    in(type: Type, parser: Parser, pos: number): boolean {
-        let node = parser.syntaxTree;
-        outer: while(true) {
+    where(type: Type, oriNode: Node, pos: number): Node | undefined {
+        let node = oriNode;
+        outer: while (true) {
             if (node.type === type) {
-                return true;
+                return node;
             }
             for (let sub of node.children) {
                 if (sub.begin <= pos && pos < sub.end) {
@@ -131,10 +171,10 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
             break;
         }
         // 这两种情况是不同的, 上边是指针位于formula内部,下边是formula位于foumula结尾位置.
-        node = parser.syntaxTree;
-        outer: while(true) {
+        node = oriNode;
+        outer: while (true) {
             if (node.type === type) {
-                return true;
+                return node;
             }
             for (let sub of node.children) {
                 if (sub.begin <= pos && pos <= sub.end) {
@@ -142,7 +182,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                     continue outer;
                 }
             }
-            return false;
+            return undefined;
         }
     }
 }

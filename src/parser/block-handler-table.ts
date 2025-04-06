@@ -11,7 +11,7 @@ export enum ArgumentType {
     enumeration
 }
 
-export type ArgumentsSpecification = Map<string, { type: ArgumentType, options: string[], default: string }>;
+export type ArgumentsSpecification = { arguments: Map<string, { type: ArgumentType, options: string[], default: string }>, allowReference: boolean };
 
 export class BlockHandlerTable {
 
@@ -32,7 +32,7 @@ add(name: string, handler: BlockHandler, thisArg?: unknown, argumentsSpec?: Argu
         return false;
     }
     this.blockHandlers.set(name, handler.bind(thisArg));
-    this.argumentsSpecification.set(name, argumentsSpec ?? new Map());
+    this.argumentsSpecification.set(name, argumentsSpec ?? { arguments: new Map(), allowReference: false});
     return true;
 }
 

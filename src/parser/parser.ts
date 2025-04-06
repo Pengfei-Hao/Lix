@@ -80,6 +80,9 @@ export class Parser {
     // Highlights
     highlights: Highlight[];
 
+    // References
+    references: string[];
+
     // Successful
     state: ResultState;
 
@@ -109,16 +112,16 @@ export class Parser {
 
         // other blocks
         this.otherBlocks = new Set(["paragraph"]);
-        const paragraphSpec: ArgumentsSpecification = new Map([]);
+        const paragraphSpec: ArgumentsSpecification = { arguments: new Map([
+            ["start", { type: ArgumentType.enumeration, options: ["titled", "default"], default: "default" }]
+        ]), allowReference: false };
         this.blockHandlerTable.add("paragraph", this.paragraphBlockHandler, this, paragraphSpec);
 
         // basic blocks (formula is added in math module)
         this.basicBlocks = new Set(["text"]);
-        const textSpec: ArgumentsSpecification = new Map([
-            ["start", { type: ArgumentType.enumeration, options: ["indent", "noindent", "auto"], default: "auto" }],
-            ["path", { type: ArgumentType.string, options: [], default: "" }],
-            ["end", { type: ArgumentType.enumeration, options: ["full", "half"], default: "full" }]
-        ]);
+        const textSpec: ArgumentsSpecification = { arguments: new Map([
+            ["start", { type: ArgumentType.enumeration, options: ["indent", "noindent", "auto"], default: "auto" }]
+        ]), allowReference: false };
         this.blockHandlerTable.add("text", this.textBlockHandler, this, textSpec);
 
         this.formatBlocks = new Set();
@@ -141,6 +144,7 @@ export class Parser {
         this.analysedTree = new Node(this.documentType);
         this.messageList = [];
         this.highlights = [];
+        this.references = [];
         this.state = ResultState.failing;
     }
 
@@ -156,6 +160,7 @@ export class Parser {
         this.analysedTree = new Node(this.documentType);
         this.messageList = [];
         this.highlights = [];
+        this.references = [];
         this.state = ResultState.failing;
 
         // 统一行尾
@@ -178,6 +183,7 @@ export class Parser {
         this.messageList = result.messages;
         this.highlights = result.highlights;
         this.state = result.state;
+        this.references = result.references;
     }
 
     // ************ Core Grammers *************
@@ -358,6 +364,9 @@ export class Parser {
         let nodeRes: Result<Node>;
         let symRes: Result<null>;
 
+        // result.content.children.push(new Node(this.argumentsType));
+        // result.analysedContent.children.push(new Node(this.argumentsType));
+
         while (true) {
             if (this.isEOF()) {
                 break;
@@ -402,67 +411,55 @@ export class Parser {
     }
 
     cleanupText(result: Result<Node>) {
-        let node = result.analysedContent;
+        let analNode = result.analysedContent;
 
+        // 一定不含有一个 Arguments 节点
         // word node 的begin end 没改
-        if (node.children.length === 0) {
+        if (analNode.children.length === 0) {
             result.discarded = true;
             return;
         }
 
         // 将 word 连起来
         let preIsWord = false;
-        for (let i = 0; i < node.children.length; i++) {
-            let ch = node.children[i];
-            if (preIsWord && ch.type === this.wordsType) {
-                let pre = node.children[i - 1];
-                if (pre.content.endsWith(" ") && ch.content.startsWith(" ")) {
-                    ch.content = ch.content.slice(1);
+        for (let i = 0; i < analNode.children.length; i++) {
+            let node = analNode.children[i];
+            if (preIsWord && node.type === this.wordsType) {
+                let preNode = analNode.children[i - 1];
+                if (preNode.content.endsWith(" ") && node.content.startsWith(" ")) {
+                    node.content = node.content.slice(1);
                 }
-                pre.content = pre.content.concat(ch.content);
-                pre.end = ch.end;
-                node.children.splice(i, 1);
+                preNode.content = preNode.content.concat(node.content);
+                preNode.end = node.end;
+                analNode.children.splice(i, 1);
                 i--;
                 continue;
             }
 
-            if (ch.type === this.wordsType) {
-                preIsWord = true;
-            }
-            else {
-                preIsWord = false;
-            }
+            preIsWord = (node.type === this.wordsType);
         }
 
+        // 前边判断了, 这里 length 一定大于等于 1
         // 去除首尾空格
-        let i = 0;
-        let ch = node.children[0];
-        if (ch.type === this.argumentsType) {
-            if (node.children.length <= 1) {
-                result.discarded = (result.analysedContent.children.length === 0);
-                return;
-            }
-            i = 1;
-            ch = node.children[1];
-        }
-        if (ch.type === this.wordsType && ch.content.startsWith(" ")) {
-            ch.content = ch.content.slice(1);
-            if (ch.content.length === 0) {
-                node.children.splice(i, 1);
+        let node = analNode.children[0];
+        if (node.type === this.wordsType && node.content.startsWith(" ")) {
+            node.content = node.content.slice(1);
+            if (node.content.length === 0) {
+                analNode.children.splice(0, 1);
             }
         }
-        if (node.children.length === 0) {
-            result.discarded = (result.analysedContent.children.length === 0);
+        if (analNode.children.length === 0) {
+            result.discarded = true;
             return;
         }
-        ch = node.children.at(-1)!;
-        if (ch.type === this.wordsType && ch.content.endsWith(" ")) {
-            ch.content = ch.content.slice(0, -1);
-            if (ch.content.length === 0) {
-                node.children.splice(-1, 1);
+        node = analNode.children.at(-1)!;
+        if (node.type === this.wordsType && node.content.endsWith(" ")) {
+            node.content = node.content.slice(0, -1);
+            if (node.content.length === 0) {
+                analNode.children.splice(-1, 1);
             }
         }
-        result.discarded = (result.analysedContent.children.length === 0);
+        result.discarded = (analNode.children.length === 0);
     }
 
     // MatchFreeText: failing | skippable | successful
@@ -489,6 +486,9 @@ export class Parser {
     private myMatchFreeText(result: Result<Node>) {
         let node = result.content;
         let analysedNode = result.analysedContent;
+
+        // node.children.push(new Node(this.argumentsType));
+        // analysedNode.children.push(new Node(this.argumentsType));
 
         let text = "";
         let symRes: Result<null>;
@@ -703,6 +703,9 @@ export class Parser {
     private myMatchParFreeText(result: Result<Node>) {
         let node = result.content;
         let analysedNode = result.analysedContent;
+
+        // node.children.push(new Node(this.argumentsType));
+        // analysedNode.children.push(new Node(this.argumentsType));
 
         let text = "";
         let symRes: Result<null>;
@@ -1169,7 +1172,13 @@ export class Parser {
         node.content = name.content.content;
         this.mergeHighlight(result, HighlightType.keyword, name.content);
 
-        result.merge(this.skipBlank());
+        if(this.is(";")) {
+            result.merge(this.match(";"));
+            this.mergeHighlight(result, HighlightType.operator, -1, 0);
+        }
+        else {
+            result.merge(this.skipBlank());
+        }
     }
 
     // MatchInsertion: failing | skippable | successful
@@ -1298,6 +1307,7 @@ export class Parser {
         node.children.push(hdlRes.content);
         // 此处相当于令 analyseNode = hdlRes.analysedContent 浅拷贝
         Node.moveTo(hdlRes.analysedContent, analysedNode);
+        result.discarded = hdlRes.discarded;
 
         result.merge(this.match("]"));
         if (result.shouldTerminate) {
@@ -1317,7 +1327,7 @@ export class Parser {
 
         const argumentTypeToType: Map<ArgumentType, Type> = new Map([[ArgumentType.string, this.stringType], [ArgumentType.number, this.numberType], [ArgumentType.enumeration, this.nameType]]);
 
-        for (let [name, spec] of argumentsSpec) {
+        for (let [name, spec] of argumentsSpec.arguments) {
             let stdArgument = new Node(this.argumentType, name);
             stdArgument.children.push(new Node(argumentTypeToType.get(spec.type)!, spec.default));
             stdArguments.children.push(stdArgument);
@@ -1339,6 +1349,11 @@ export class Parser {
             let argumentValue = argument.children[0];
 
             if (argumentValue.type === this.referenceType) {
+                if(!argumentsSpec.allowReference) {
+                    this.mergeMessage(result, `References is not allowed in block '${blockName}'.`);
+                    result.mergeState(ResultState.skippable);
+                    continue;
+                }
                 if (references.has(argumentValue.content)) {
                     this.mergeMessage(result, `Reference '${argumentValue.content}' is repeated.`);
                     result.mergeState(ResultState.skippable);
@@ -1349,7 +1364,7 @@ export class Parser {
 
             if (argument.content === "") {
                 let notUnique = false;
-                argumentsSpec.forEach((value, key) => {
+                argumentsSpec.arguments.forEach((value, key) => {
                     if (value.options.indexOf(argumentValue.content) !== -1) {
                         if (name !== "") {
                             notUnique = true;
@@ -1369,7 +1384,7 @@ export class Parser {
                 }
             }
 
-            let spec = argumentsSpec.get(name);
+            let spec = argumentsSpec.arguments.get(name);
             if (!spec) {
                 this.mergeMessage(result, `Argument '${name}' not identified.`);
                 result.mergeState(ResultState.skippable);
@@ -1393,6 +1408,7 @@ export class Parser {
 
         references.forEach(value => {
             stdArguments.children.push(new Node(this.referenceType, value));
+            result.references.push(value);
         });
     }
 

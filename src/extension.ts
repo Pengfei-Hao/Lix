@@ -95,7 +95,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// completion provider
 
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", "`")
+		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", "`", "(", "@", ",")
 	);
 
 	// semantic token provider
@@ -159,7 +159,7 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let isDebugging = true;
+let isDebugging = false;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	if(!isDebugging) {
@@ -180,14 +180,14 @@ async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) 
 	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
 
 	vscode.workspace.openTextDocument(getUri(doc.uri, "parse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Two, preview : false, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
 		vscode.window.showTextDocument(doc, opt);
 		
 	});
 
 	let lineA = locate(index, parser.analysedTree)-1+1;
 	vscode.workspace.openTextDocument(getUri(doc.uri, "analyse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Three, preview : false, preserveFocus : true, selection : new vscode.Range(lineA,0,lineA,0)};
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : new vscode.Range(lineA,0,lineA,0)};
 		vscode.window.showTextDocument(doc, opt);
 		
 	});
@@ -305,6 +305,7 @@ async function compile() {
 
 	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
 	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
+	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
 	compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
 	compileTerminal.sendText(`open -a safari "${newPdfUri.fsPath}"`);
 
@@ -413,7 +414,7 @@ async function updateFileList(document: vscode.TextDocument) {
 
 function showFile(uri: vscode.Uri) {
 	vscode.workspace.openTextDocument(uri).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : undefined};
+		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : undefined};
 		vscode.window.showTextDocument(doc,opt);
 		
 	});
