@@ -16,7 +16,7 @@ export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvide
   provideDocumentSemanticTokens(document: vscode.TextDocument): vscode.ProviderResult<vscode.SemanticTokens> {
     
     // analyze the document and return semantic tokens
-    parseFromDocument(document);
+    //parseFromDocument(document);
 
     const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend);
     // on line 1, characters 1-5 are a class declaration

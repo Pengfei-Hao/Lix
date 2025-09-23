@@ -42,12 +42,12 @@ export class Compiler {
 
     async generate(generator = this.curGenerator) {
         await this.parse();
-        await generator.generate(this.parser.analysedTree);
+        await generator.generate(this.parser.analysedTree, this.parser.references);
     }
 
     async generateFromText(text: string, generator = this.curGenerator) {
         this.parseFromText(text);
-        await generator.generate(this.parser.analysedTree);
+        await generator.generate(this.parser.analysedTree, this.parser.references);
     }
 
     async compile(name: string = "latex") {

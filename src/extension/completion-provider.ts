@@ -87,7 +87,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "@") {
             let compiler = this.context.getCompiler(document.uri);
             for (let item of compiler.parser.references) {
-                let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Reference);
+                let comp = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Reference);
                 res.push(comp);
             }
         }

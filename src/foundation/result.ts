@@ -1,3 +1,4 @@
+import { Node } from "../sytnax-tree/node";
 import { Message } from "./message";
 
 export enum HighlightType {
@@ -22,6 +23,23 @@ export class Highlight {
     }
 }
 
+// export enum ReferenceType {
+//     formula,
+//     bibliography,
+//     default
+// }
+
+export class Reference {
+    name: string;
+    // type: ReferenceType;
+    node: Node;
+
+    constructor(name: string, node: Node) {
+        this.name = name;
+        this.node = node;
+    }
+}
+
 export interface IResult<T> {
     merge(result: T): void;
 }
@@ -41,11 +59,11 @@ export class Result<T> {
 
     discarded: boolean;
     analysedContent: T;
-    references: string[];
+    references: Reference[];
 
     private promotedToMatched: boolean;
 
-    constructor(content: T, analysedContent: T, messages: Message[] = [], highlights: Highlight[] = [], discarded = false, references: string[] = []) {
+    constructor(content: T, analysedContent: T, messages: Message[] = [], highlights: Highlight[] = [], discarded = false, references: Reference[] = []) {
         this.state = ResultState.failing;
         this.content = content;
         this.analysedContent = analysedContent;

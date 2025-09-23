@@ -46,7 +46,8 @@ export class Math extends Module {
         this.parser.basicBlocks.add("formula");
         const formulaSpec: ArgumentsSpecification = {
             arguments: new Map([
-                ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "unnumbered" }]
+                ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "unnumbered" }],
+                ["line", { type: ArgumentType.enumeration, options: ["single", "multi"], default: "single" }],
             ]), allowReference: true
         };
         this.parser.blockHandlerTable.add("formula", this.formulaBlockHandler, this, formulaSpec);
@@ -540,6 +541,7 @@ export class Math extends Module {
     // infix
     // prefix
 
+    // analyse 结果是 expression
 
     analyse(result: Result<Node>) {
         result.analysedContent.type = this.expressionType;
@@ -599,11 +601,30 @@ export class Math extends Module {
         result.merge(analRes);
 
         result.analysedContent.children.push(analRes.content);
+
+        this.cleanup(result.analysedContent);
+    }
+
+    // 合并 a[bc[d]e] 这种表达式为 abcde
+    cleanup(node: Node) {
+        for(let subnode of node.children) {
+            this.cleanup(subnode);
+        }
+
+        if(node.type === this.infixType && node.content === "") {
+            for(let i = 0; i < node.children.length; i++) {
+                let subnode = node.children[i];
+                if(subnode.type === this.infixType && subnode.content === "") {
+                    node.children.splice(i, 1, ...subnode.children);
+                    i += subnode.children.length - 1;
+                }
+        }
+        }
     }
 
     // AnalyseFormula: failing | skippable | successful
     // 分析一个 Node 的所有子节点
-    // 结果是 infixOperator
+    // 结果是 infixOperator 或 element, inline-text, prefix
 
     analyseFormula(node: Node): Result<Node> {
         let index = new Ref<number>(0);
@@ -615,7 +636,7 @@ export class Math extends Module {
     }
 
     myAnalyseFormula(node: Node, index: Ref<number>, result: Result<Node>) {
-        let res = this.analyseExpression(node, index);
+        let res = this.analyseSubFormula(node, index);
         result.merge(res);
         if (result.shouldTerminate) {
             result.promoteToSkippable();
@@ -627,15 +648,15 @@ export class Math extends Module {
     // 分析一个 Node 的其中一段
     // 结果是 infixOperator
 
-    analyseExpression(node: Node, index: Ref<number>, endTerm: string[] = []): Result<Node> {
+    analyseSubFormula(node: Node, index: Ref<number>, endTerm: string[] = []): Result<Node> {
         let result = new Result(new Node(this.formulaType), new Node(this.formulaType));
         this.parser.begin("analyse-expression");
-        this.myAnalyseExpression(node, index, endTerm, result);
+        this.myAnalyseSubFormula(node, index, endTerm, result);
         this.parser.end();
         return result;
     }
 
-    myAnalyseExpression(parnode: Node, index: Ref<number>, endTerm: string[], result: Result<Node>) {
+    myAnalyseSubFormula(parnode: Node, index: Ref<number>, endTerm: string[], result: Result<Node>) {
 
         let termHeap = new Heap<Node>();
         let operatorHeap = new Heap<string>();
@@ -729,7 +750,7 @@ export class Math extends Module {
                     return;
                 }
 
-                if (!hasInfixOperator) {
+                if (!hasInfixOperator) { // 连续两个term
                     let lastOp = operatorHeap.top();
                     //  == undefined 必须用, 空串会被判为false
                     // same as below
@@ -1038,7 +1059,7 @@ export class Math extends Module {
 
             while(true) {
 
-                    res = this.analyseExpression(parnode, index, endTerm.concat(["&", ";"]));
+                    res = this.analyseSubFormula(parnode, index, endTerm.concat(["&", ";"]));
                     result.merge(res);
                     if (result.shouldTerminate) {
                         this.parser.mergeMessage(result, "Prefix mat failed.");
@@ -1077,10 +1098,10 @@ export class Math extends Module {
                 case "[expr]":
 
                     if (i + 1 < format.length) {
-                        res = this.analyseExpression(parnode, index, endTerm.concat([format[i + 1]]));
+                        res = this.analyseSubFormula(parnode, index, endTerm.concat([format[i + 1]]));
                     }
                     else {
-                        res = this.analyseExpression(parnode, index, endTerm);
+                        res = this.analyseSubFormula(parnode, index, endTerm);
                     }
                     result.merge(res);
                     if (result.shouldTerminate) {

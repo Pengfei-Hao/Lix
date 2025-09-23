@@ -1,15 +1,18 @@
 import { Compiler } from "../compiler/compiler";
+import { Reference } from "../foundation/result";
 import { Node } from "../sytnax-tree/node";
 import { TypeTable } from "../sytnax-tree/type-table";
 
 export abstract class Generator {
     syntaxTree: Node;
     typeTable: TypeTable;
+    references: Reference[];
     compiler: Compiler;
 
     constructor(typeTable: TypeTable, compiler: Compiler) {
         this.compiler = compiler;
         this.typeTable = typeTable;
+        this.references = [];
         this.output = "";
 
         let doc = typeTable.get("document")!;
@@ -18,6 +21,6 @@ export abstract class Generator {
 
     output: string;
 
-    abstract generate(syntaxTree: Node): Promise<void>;
+    abstract generate(syntaxTree: Node, references: Reference[]): Promise<void>;
 }
 

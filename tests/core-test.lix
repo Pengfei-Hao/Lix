@@ -2,20 +2,82 @@
 [author Lix]
 [date 2024.11.4]
 
-[section Figure Test]
+本文是核心模块的测试文档, 同时也是一份教学手册. 本文档展示了图片、代码、列表、表格等块的用法.
 
-[figure(medium) [Multiple Figure /a^b/ Test] `./fig1.jpg`[A test /∑ i=1 to n :/ figure.] `./fig2.jpg`]
+[section 图片]
 
-[figure(small) [Single Figure Test] `./fig3.jpg`[Single test figure.] ]
+图片使用 `[figure ...]` 插入, 例如
 
-[section Code Test]
+[code``
+[figure [多张图片] `./fig1.jpg` [这是第一张图] `./fig2.jpg` [这是第二张图]]
+[figure [单张图片] `./fig3.jpg` [这个标题会被忽略]]
+``]
+
+[figure [多张图片] `./fig1.jpg` [这是第一张图] `./fig2.jpg` [这是第二张图]]
+[figure [单张图片] `./fig3.jpg` [这个标题会被忽略]]
+
+图片可以被引用, 添加 `@ref-name` 参数即可, 例如
+
+[code ``
+[figure(@fig-1) [引用图片] `./fig3.jpg`]
+``]
+
+[figure(@fig-1) [引用图片] `./fig3.jpg`]
+
+可以使用 `@fig-1` 来引用, 如 图片 @fig-1.
+
+[section 代码]
+
+代码可以在行内或行间插入. 在行内插入代码使用反引号, 例如 `` `examle code` ``. 在行间插入代码使用 `[code ...]`, 如
+
+[code ````
+[code ``
+some codes here.
+``]
 
 [code `
 Latex Code.
 \begin{document}
-$\frac{1}{2}=0.5$
+  $\frac{1}{2}=0.5$
 \end{document}
 
 Lix Code.
 /[1⁄2] = 0.5/
-` `]
+`]
+````]
+
+[code ``
+some codes here.
+``]
+
+[code `
+Latex Code.
+\begin{document}
+  $\frac{1}{2}=0.5$
+\end{document}
+
+Lix Code.
+/[1⁄2] = 0.5/
+`]
+
+注意反引号`` ` ``的个数可以是任意多个, 只要前后匹配即可. 代码的引用方式与图片相同.
+
+[section 列表]
+
+列表使用 `[list ...]` 插入, 例如
+
+[code ``
+[list
+[item ]
+]
+``]
+
+[list
+[item] 第一项
+[item] 第二项
+[item] 第三项 \\
+列表中分段
+[item(second)] 第一小项
+[item(third)] 更小的项
+[item(second)] 第二小项
+]

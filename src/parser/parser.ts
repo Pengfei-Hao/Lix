@@ -8,7 +8,7 @@ import { TypeTable } from "../sytnax-tree/type-table";
 import { BlockHandlerTable, BlockHandler, ArgumentType, ArgumentsSpecification } from "./block-handler-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
-import { Highlight, HighlightType, Result, ResultState } from "../foundation/result";
+import { Highlight, HighlightType, Reference, Result, ResultState } from "../foundation/result";
 import { Message, MessageType } from "../foundation/message";
 import { Core } from "./core/core";
 import { Article } from "./article/article";
@@ -81,7 +81,7 @@ export class Parser {
     highlights: Highlight[];
 
     // References
-    references: string[];
+    references: Reference[];
 
     // Successful
     state: ResultState;
@@ -1296,6 +1296,9 @@ export class Parser {
         // matchArguments will not be failing
         node.children.push(argRes.content);
         analysedNode.children.push(argRes.analysedContent);
+        result.references.forEach(value => {
+            value.node = result.analysedContent;
+        });
 
         let hdlRes = handle!(argRes.content);
         result.merge(hdlRes);
@@ -1408,7 +1411,7 @@ export class Parser {
 
         references.forEach(value => {
             stdArguments.children.push(new Node(this.referenceType, value));
-            result.references.push(value);
+            result.references.push(new Reference(value, result.analysedContent));
         });
     }
 

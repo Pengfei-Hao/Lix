@@ -114,7 +114,7 @@
 	["{", "{\\left\\{${0}\\right\\}}"],
 	["⟨", "{\\left\\langle ${0}\\right\\rangle}"],
 	["|", "{\\left|${0}\\right|}"],
-	["‖", "{\\left\\Vert${0}\\right\\Vert}"],
+	["‖", "{\\left\\Vert ${0}\\right\\Vert}"],
 	["⦃", "{\\left\\{${0}\\right.}"],
 	["⟦", "{\\left[${0}\\right.}"],
 	["⦇", "{\\left(${0}\\right.}"],

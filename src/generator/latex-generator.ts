@@ -9,6 +9,7 @@ import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
 import { FileOperation } from "../compiler/file-operation";
 import { Config } from "../compiler/config";
+import { Reference } from "../foundation/result";
 
 // latex generate
 
@@ -66,6 +67,8 @@ export class LatexGenerator extends Generator {
     subsubsectionType: Type;
     tableofcontentsType: Type;
     newpageType: Type;
+    bibliographyType: Type;
+    bibItemType: Type;
 
     definitionType: Type;
     lemmaType: Type;
@@ -148,6 +151,9 @@ export class LatexGenerator extends Generator {
         this.tableofcontentsType = this.typeTable.get("tableofcontents")!;
         this.newpageType = this.typeTable.get("newpage")!;
 
+        this.bibliographyType = this.typeTable.get("bibliography")!;
+        this.bibItemType = this.typeTable.get("bib-item")!;
+
         this.definitionType = this.typeTable.get("definition'")!;
         this.lemmaType = this.typeTable.get("lemma")!;
         this.propositionType = this.typeTable.get("proposition")!;
@@ -193,8 +199,9 @@ export class LatexGenerator extends Generator {
 
     // generate
 
-    async generate(syntaxTree: Node) {
+    async generate(syntaxTree: Node, references: Reference[]) {
         this.syntaxTree = syntaxTree;
+        this.references = references;
 
         this.introduction = "";
         this.document = "";
@@ -225,7 +232,7 @@ export class LatexGenerator extends Generator {
 	frame               =   lrtb,   % 显示边框
     breaklines          =   true,
 }\n`);
-        this.addIntrodunction(`\\newtheorem{definition}{Definition}[section]\n\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
+        this.addIntrodunction(`\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{definition}[theorem]{Definition}\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
         
         this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
         
@@ -254,6 +261,7 @@ export class LatexGenerator extends Generator {
         ]);
 
         const blockGeneratorAsync: Map<Type, (n: Node) => Promise<string>> = new Map([
+            [this.bibliographyType, this.generateBibliography],
             [this.theoremType, this.generateTheorem],
             [this.definitionType, this.generateDefinition],
             [this.lemmaType, this.generateLemma],
@@ -423,7 +431,16 @@ export class LatexGenerator extends Generator {
                     }
                     break;
                 case this.referenceType:
-                    res += `\\ref{${n.content}}`;
+                    let refnode = this.references.find(value => value.name === n.content)?.node;
+                    if(refnode?.type === this.formulaType || refnode?.type === this.expressionType) {
+                        res += `\\eqref{${n.content}}`;
+                    }
+                    else if(refnode?.type === this.bibItemType) {
+                        res += `\\cite{${n.content}}`;
+                    }
+                    else {
+                        res += `\\ref{${n.content}}`;
+                    }
                     break;
                 case this.formulaType:
                 case this.expressionType:
@@ -601,18 +618,28 @@ export class LatexGenerator extends Generator {
     generateFormula(node: Node, inline: boolean = false): string {
         let refLatex = this.generateReferences(node);
         let numbered = "*";
+        let multiline = false;
         if(this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
+        if(this.getArgument(node, "line") === "multi") {
+            multiline = true;
+        }
 
         let res = inline ? "$" : `\\begin{equation${numbered}}${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}`;
-        //if (node.children.at(-1)?.type === this.expressionType) {
+
+        if (!inline && multiline) {
+            let tmp = this.generateMultilineFormula(node.children.at(-1)!);
+            res += tmp;
+        }
+        else {
             let tmp = this.generateTermOrOperator(node.children.at(-1)!);
             if(tmp.startsWith("{") && tmp.endsWith("}")) {
                 tmp=tmp.slice(1,-1);
             }
             res += tmp;
-        //}
+        }
+
         res += inline ? "$" : `\\end{equation${numbered}}%\n`;
 
         return res;
@@ -631,7 +658,7 @@ export class LatexGenerator extends Generator {
 
             case this.elementType:
                 let sym = this.latexFormula.get(node.content);
-                res += sym ?? `{[[${node.content}]]}`;
+                res += sym ?? `\\text{[[${node.content}]]}`;
                 //res += " ";
                 break;
 
@@ -796,6 +823,40 @@ export class LatexGenerator extends Generator {
         return res;
     }
 
+    generateMultilineFormula(node: Node): string {
+        let res = "";
+        switch (node.type) {
+            case this.prefixType:
+                if (node.content === "mat") {
+                    res += `\\begin{aligned}`;
+                    let brow = false;
+                    for (let row of node.children) {
+                        if (brow) {
+                            res += `\\\\`;
+                        }
+                        brow = true;
+
+                        let bcol = false;
+                        for (let col of row.children) {
+                            let ncode = this.generateTermOrOperator(col);
+                            if (bcol) {
+                                res += `&`;
+                            }
+                            bcol = true;
+                            res += ncode;
+                        }
+                    }
+                    res += `\\end{aligned}`;
+                }
+                return res;
+        }
+        res = this.generateTermOrOperator(node.children.at(-1)!);
+        if (res.startsWith("{") && res.endsWith("}")) {
+            res = res.slice(1, -1);
+        }
+        return res;
+    }
+
     // **************** Article Moudle ****************
 
     // GenerateTitle
@@ -874,6 +935,48 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: newpage
     generateNewpage(node: Node): string {
         return `\\newpage\n`;
+    }
+
+
+    // GenerateBibliography
+    // Syntax Tree type: bibliography
+    async generateBibliography(node: Node): Promise<string> {
+        let res = "";
+
+        res += `\\begin{thebibliography}{1}\n`;
+        for (let n of node.children) {
+            switch (n.type) {
+                case this.bibItemType:
+                    res += this.generateBibItem(n);
+                    break;
+                case this.textType:
+                    switch (this.getArgument(n, "start")) {
+                        case "indent":
+                            res += `\\par `;
+                            break;
+                        case "noindent":
+                        case "auto":
+                        default:
+                            res += `\\par\\noindent `;
+                            break;
+                    }
+                    res += this.generateText(n);
+                    break;
+                default:
+                    console.log("Unsupported basic block in bibliography.");
+                    break;
+            }
+        }
+        res += `\\end{thebibliography}`;
+        return res;
+    }
+
+    // GenerateBibItem
+    // Syntax Tree type: bib-item
+    generateBibItem(node: Node): string {
+        let refLatex = "";
+        refLatex += this.getReferences(node).at(0) ?? "";
+        return `\\bibitem{${refLatex}} `;
     }
 
     // GenerateTheorem

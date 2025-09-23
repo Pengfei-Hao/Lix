@@ -18,6 +18,7 @@ import { updateDiagnostic } from './extension/diagnostic-provider';
 import { ResultState } from './foundation/result';
 import { DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
+import { LixFoldingRangeProvider } from './extension/folding-range-provider';
 
 
 let config: VSCodeConfig;
@@ -98,6 +99,12 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.languages.registerCompletionItemProvider(docSel, new LixCompletionProvider(lixContext), "[", "`", "(", "@", ",")
 	);
 
+	// folding range provider
+
+	context.subscriptions.push(
+		vscode.languages.registerFoldingRangeProvider(docSel, new LixFoldingRangeProvider(lixContext))
+	);
+
 	// semantic token provider
 
 	let tokenTypes = ['keyword', 'operator', 'string', 'function', 'variable', 'comment', 'class', 'type'];
@@ -126,9 +133,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 	vscode.workspace.onDidOpenTextDocument(onOpen)
 	// );
 
-	// context.subscriptions.push(
-	// 	vscode.workspace.onDidChangeTextDocument(onChange)
-	// );
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeTextDocument(onChange)
+	);
 
 	// context.subscriptions.push(
 	// 	vscode.workspace.onDidCloseTextDocument(onClose)
@@ -239,14 +246,21 @@ function onTerminalClosed(terminal: vscode.Terminal) {
 // 	*/
 // }
 
-// async function onChange(document: vscode.TextDocumentChangeEvent) {
-// 	//console.log(`Document '${document.document.fileName}' changed.`);
-// 	//return;
-// 	// if(document.document.languageId !== "lix") {
-// 	// 	return;
-// 	// }
-// 	// parseFile();
-// }
+async function onChange(event: vscode.TextDocumentChangeEvent) {
+	//console.log(`Document '${document.document.fileName}' changed.`);
+	//return;
+	// if(document.document.languageId !== "lix") {
+	// 	return;
+	// }
+	// parseFile();
+
+	if(getDocument(event.document) === undefined) {
+		return;
+	}
+
+	parseFromDocument(event.document, false);
+
+}
 
 // async function onClose(document: vscode.TextDocument) {
 // 	//console.log(`Document '${document.fileName}' closed.`);
@@ -306,7 +320,7 @@ async function compile() {
 
 	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
 	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
-	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
+	//compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
 	compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
 	//compileTerminal.sendText(`open "${newPdfUri.fsPath}"`);
 	//workspace.openTextDocument(newPdfUri).then(doc => vscode.window.showTextDocument(doc));
@@ -369,7 +383,7 @@ export async function generateLatexFromDocument(document: vscode.TextDocument): 
 	return generator;
 }
 
-export function parseFromDocument(document: vscode.TextDocument): Parser {
+export function parseFromDocument(document: vscode.TextDocument, updateDocument = true): Parser {
 
 	updateFileList(document);
 
@@ -395,8 +409,10 @@ export function parseFromDocument(document: vscode.TextDocument): Parser {
 			st = "failing";
 			break;
 	}
-	documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
-	documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString());
+	if(updateDocument) {
+		documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
+		documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString());
+	}
 
 	return parser;
 }

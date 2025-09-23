@@ -19,6 +19,9 @@ export class Article extends Module {
     tableofcontentsType: Type;
     newpageType: Type;
 
+    bibliographyType: Type;
+    bibItemType: Type;
+
     definitionType: Type;
     lemmaType: Type;
     propositionType: Type;
@@ -66,6 +69,22 @@ export class Article extends Module {
         this.subsubsectionType = this.parser.typeTable.add("subsubsection")!;
         this.tableofcontentsType = this.parser.typeTable.add("tableofcontents")!;
         this.newpageType = this.parser.typeTable.add("newpage")!;
+
+
+        // Bibliography
+        this.parser.otherBlocks.add("bibliography");
+        this.parser.blockHandlerTable.add("bibliography", this.bibliographyBlockHandler, this);
+
+        // BibItem
+        this.parser.basicBlocks.add("bib-item");
+        const itemSpec: ArgumentsSpecification = {
+            arguments: new Map(),
+            allowReference: true
+        };
+        this.parser.blockHandlerTable.add("bib-item", this.bibItemBlockHandler, this, itemSpec);
+
+        this.bibliographyType = this.parser.typeTable.add("bibliography")!;
+        this.bibItemType = this.parser.typeTable.add("bib-item")!;
 
         // 此 definition 与 math 冲突了
         this.parser.otherBlocks.add("definition");
@@ -226,6 +245,17 @@ export class Article extends Module {
         //     this.parser.index = preIndex;
         // }
         // return result;
+    }
+
+
+    bibliographyBlockHandler(args: Node): Result<Node> {
+        return this.parser.paragraphLikeBlockHandler("bibliography", this.bibliographyType, args);
+    }
+
+    bibItemBlockHandler(args: Node): Result<Node> {
+        let result = this.parser.formatLikeBlockHandler("bib-item", this.bibItemType, args);
+        result.discarded = false;
+        return result;
     }
 
     /*
