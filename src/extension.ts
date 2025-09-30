@@ -19,6 +19,7 @@ import { ResultState } from './foundation/result';
 import { DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
 import { LixFoldingRangeProvider } from './extension/folding-range-provider';
+import './foundation/format';
 
 
 let config: VSCodeConfig;
@@ -359,7 +360,45 @@ function bu(f : ()=>void, thisArg?: unknown) {
 	return f.bind(thisArg)
 }
 function helloWorld() {
-	bu(test)();
+	//bu(test)();
+	// ✅ 数字占位符
+	console.log("${0}+${1}".format("${1} + 1", "2"));
+	// => "${0} + 1+2"
+
+	// ✅ 命名占位符
+	console.log("Hello ${user}, you have ${count} messages".format({ user: "Alice", count: 5 }));
+	// => "Hello Alice, you have 5 messages"
+
+	// ✅ 数字 + 命名混合
+	console.log("${0} loves ${food}".format("Bob", { food: "🍣" }));
+	// => "Bob loves 🍣"
+
+	// ✅ 缺失占位符 → 保留
+	console.log("Missing: ${x}, ${0}".format("A"));
+	// => "Missing: ${x}, A"
+
+	// 你的特殊例子（关键：被插入的 "${1} + 1" 不会被再次替换）
+console.log("${0}+${1}".format("${1} + 1", "2"));
+// => "${0} + 1+2"
+
+// 命名参数
+console.log("${user} has ${count} items".format({ user: "Alice", count: 3 })); 
+// => "Alice has 3 items"
+
+// 嵌套属性
+console.log("Name: ${user.name}, City: ${user.address.city}".format({
+  user: { name: "Bob", address: { city: "NYC" } }
+}));
+// => "Name: Bob, City: NYC"
+
+// 转义：想保留字面 ${0}，写成 $${0}
+console.log("literal: $${0} and ${0}".format("X"));
+// => "literal: ${0} and X"
+
+// 参数不足（默认非 strict） => 保留原样
+console.log("Missing: ${0}, ${1}".format("A"));
+// => "Missing: A, ${1}"
+
 }
 
 async function debug() {
@@ -376,7 +415,7 @@ async function debug() {
 
 export async function generateLatexFromDocument(document: vscode.TextDocument): Promise<Generator> {
 	let compiler = lixContext.getCompiler(document.uri);
-	let generator = compiler.curGenerator; // latex
+	let generator = compiler.getGenerator("markdown")!; // latex
 	await compiler.generateFromText(document.getText(), generator);
 
 	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);

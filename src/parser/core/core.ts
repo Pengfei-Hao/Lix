@@ -17,6 +17,7 @@ export class Core extends Module {
     listType: Type;
     itemType: Type;
     tableType: Type;
+    tableCellType: Type;
     codeType: Type;
     
     emphType: Type;
@@ -38,7 +39,7 @@ export class Core extends Module {
         this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this, figureSpec);
 
         this.parser.basicBlocks.add("table");
-        this.parser.blockHandlerTable.add("table", this.parser.textBlockHandler, this.parser);
+        this.parser.blockHandlerTable.add("table", this.tableBlockHandler, this);
 
         this.parser.basicBlocks.add("code");
         const codeSpec: ArgumentsSpecification = {
@@ -94,6 +95,7 @@ export class Core extends Module {
         this.listType = this.parser.typeTable.add("list")!;
         this.itemType = parser.typeTable.add("item")!;
         this.tableType = this.parser.typeTable.add("table")!;
+        this.tableCellType = this.parser.typeTable.add("tableCell")!;
         this.codeType = this.parser.typeTable.add("code")!;
 
         this.emphType = this.parser.typeTable.add("emph")!;
@@ -644,5 +646,219 @@ export class Core extends Module {
         let result = this.parser.formatLikeBlockHandler("item", this.itemType, args);
         result.discarded = false;
         return result;
+    }
+
+        // TextBlockHandler: failing | skippable | successful
+
+
+    tableBlockHandler(args: Node): Result<Node> {
+        return this.parser.prepareMatch(this.tableType, "table-block-handler", this.myTableBlockHandler, this, this.parser.defaultAnalysis, this.parser);
+
+        // let result = new Result<Node>(new Node(this.codeType));
+        // let preIndex = this.parser.index;
+        // this.parser.begin("code-block-handler");
+        // this.myCodeBlockHandler(result, args);
+        // this.parser.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.parser.index;
+        // if (result.failed) {
+        //     this.parser.index = preIndex;
+        // }
+        // return result;
+    }
+
+    private myTableBlockHandler(result: Result<Node>, args: Node = new Node(this.parser.argumentsType)) {
+        let node = result.content;
+
+        let symRes: Result<null>;
+        let nodeRes: Result<Node>;
+        result.mergeState(ResultState.successful);
+
+        let column = new Node(this.tableCellType);
+        result.content.children.push(column);
+
+        while (true) {
+            if (this.parser.isEOF()) {
+                result.mergeState(ResultState.skippable);
+                this.parser.mergeMessage(result, "Code block ended abruptly.");
+                return;
+            }
+            else if (this.parser.is("]")) {
+                break;
+
+            }
+
+            else if ((symRes = this.parser.match("&")).matched) {
+                result.merge(symRes);
+                result.highlights.push(this.parser.getHighlight(HighlightType.operator, 0, -1));
+            }
+            else if ((symRes = this.parser.match(";")).matched) {
+                result.merge(symRes);
+                this.parser.mergeHighlight(result, HighlightType.operator, 0, -1);
+                column = new Node(this.tableCellType);
+                result.content.children.push(column);
+
+            }
+            else if ((nodeRes = this.matchTableCell()).matched) {
+                result.merge(nodeRes);
+                column.children.push(nodeRes.analysedContent);
+            }
+
+            else {
+                // 理论上不会出现
+                result.mergeState(ResultState.failing);
+                this.parser.mergeMessage(result, "[[Logical Error]] Matching table cell failed.");
+                return;
+            }
+
+        }
+    }
+
+    matchTableCell(): Result<Node> {
+        return this.parser.prepareMatch(this.tableCellType, "table-cell", this.myMatchTableCell, this, this.parser.cleanupText, this.parser);
+
+        // let result = new Result<Node>(new Node(this.textType));
+        // result.analysedContent = new Node(this.textType);
+        // let preIndex = this.index;
+        // this.begin("text-block-handler");
+        // this.myTextBlockHandler(result, args);
+        // this.end();
+        // result.content.begin = preIndex;
+        // result.content.end = this.index;
+        // this.cleanupText(result.analysedContent);
+        // result.discarded = (result.analysedContent.children.length === 0);
+        // if (result.failed) {
+        //     this.index = preIndex;
+        // }
+        // return result;
+    }
+
+    private myMatchTableCell(result: Result<Node>) {
+        let node = result.content;
+        let analysedNode = result.analysedContent;
+
+        let text = "";
+        let symRes: Result<null>;
+        let blkRes: Result<number>;
+        let nodeRes: Result<Node>;
+
+        let preIndex = 0, curIndex: number;
+
+        // node.children.push(args);
+
+        const mergeWordsNode = () => {
+            if (text !== "") {
+                node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                analysedNode.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                text = "";
+            }
+        }
+
+        const resetIndex = () => {
+            if (text === "") {
+                preIndex = curIndex;
+            }
+        }
+
+        result.mergeState(ResultState.successful);
+
+        // for (let arg of args.children) {
+        //     if (arg.content === "noindent") {
+        //         node.content = "noindent";
+        //     }
+        //     if (arg.content === "indent") {
+        //         node.content = "indent";
+        //     }
+        // }
+
+        while (true) {
+            curIndex = this.parser.index;
+
+            if (this.parser.isEOF()) {
+                mergeWordsNode();
+                this.parser.mergeMessage(result, "Text block ended abruptly.");
+                result.mergeState(ResultState.skippable);
+                break;
+            }
+            else if (this.parser.is("]")) {
+                mergeWordsNode();
+                break;
+            }
+            else if (this.parser.is("&")) {
+                mergeWordsNode();
+                break;
+            }
+            else if (this.parser.is(";")) {
+                mergeWordsNode();
+                break;
+            }
+            else if (this.parser.isMultilineBlankGeThanOne()) {
+                mergeWordsNode();
+                this.parser.mergeMessage(result, "Text block ended abruptly.");
+                result.mergeState(ResultState.skippable);
+                return;
+            }
+
+            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
+                resetIndex();
+                result.merge(blkRes);
+                text += " ";
+
+                if (blkRes.content > 1) {
+                    this.parser.mergeMessage(result, "Text block cannot contain linebreaks more than 1.", MessageType.warning);
+                    //result.mergeState(ResultState.skippable);
+                }
+            }
+
+            else if ((symRes = this.parser.match("\\\\")).matched) {
+                resetIndex();
+                this.parser.mergeMessage(result, "Text block should not have \\\\.", MessageType.warning);
+                text += "\\\\";
+                //result.mergeState(ResultState.skippable);
+            }
+
+            else if ((nodeRes = this.parser.matchEscapeChar()).matched) {
+                resetIndex();
+                result.merge(nodeRes);
+                text += nodeRes.content.content;
+            }
+
+            else if ((nodeRes = this.parser.matchInsertion()).matched) {
+                mergeWordsNode();
+                result.merge(nodeRes);
+                // 不会失败
+                this.parser.mergeNodeToChildren(result, nodeRes);
+            }
+
+            else if (this.parser.isBasicBlock()) {
+                mergeWordsNode();
+
+                this.parser.mergeMessage(result, "Text block should not have basic block");
+                result.mergeState(ResultState.skippable);
+                this.parser.skipByBrackets();
+            }
+
+            else if (this.parser.isOtherBlock()) {
+                mergeWordsNode();
+                this.parser.mergeMessage(result, "Text block should not have other block");
+                result.mergeState(ResultState.skippable);
+                this.parser.skipByBrackets();
+            }
+
+            else if ((nodeRes = this.parser.matchFormatBlock()).matched) {
+                // 只能是 format block 前边判断过
+                mergeWordsNode();
+                result.merge(nodeRes);
+                // match block 不会失败
+                this.parser.mergeNodeToChildren(result, nodeRes);
+            }
+
+            else {
+                resetIndex();
+                result.mergeState(ResultState.successful);
+                text += this.parser.curChar();
+                this.parser.move();
+            }
+        }
     }
 }

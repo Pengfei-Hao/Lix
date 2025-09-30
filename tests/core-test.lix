@@ -7,7 +7,7 @@
 [section 图片]
 
 图片使用 `[figure ...]` 插入, 例如
-
+ 
 [code``
 [figure [多张图片] `./fig1.jpg` [这是第一张图] `./fig2.jpg` [这是第二张图]]
 [figure [单张图片] `./fig3.jpg` [这个标题会被忽略]]
@@ -80,4 +80,13 @@ Lix Code.
 [item(second)] 第一小项
 [item(third)] 更小的项
 [item(second)] 第二小项
+]
+
+[section 表格]
+
+表格使用 `[table ...]` 插入, 例如
+
+[table 
+a /a^b_c/ & b [bold Bold] & c `code`;
+d & e & f
 ]

@@ -10,21 +10,20 @@ import { Compiler } from "../compiler/compiler";
 import { FileOperation } from "../compiler/file-operation";
 import { Config } from "../compiler/config";
 import { Reference } from "../foundation/result";
-import { isatty } from "tty";
 
-// latex generate
+// markdown generate
 
-export class LatexGenerator extends Generator {
+export class MarkdownGenerator extends Generator {
 
     // Basic Types
 
-    documentType: Type;;
-    paragraphType: Type;;
-    textType: Type;;
-    wordsType: Type;;
+    documentType: Type;
+    paragraphType: Type;
+    textType: Type;
+    wordsType: Type;
     nameType: Type;
-    referenceType: Type;;
-    settingType: Type;;
+    referenceType: Type;
+    settingType: Type;
     settingParameterType: Type;;
     blockType: Type;
     errorType: Type;
@@ -78,12 +77,6 @@ export class LatexGenerator extends Generator {
     proofType: Type;
     corollaryType: Type;
 
-    // Introduction & Document
-    introduction: string;
-    document: string;
-
-    hasMakedTitle: boolean;
-
     // Generator of specific type of node
     //nodeGeneratorTable: Map<string, (node: Node) => string>;
 
@@ -104,11 +97,6 @@ export class LatexGenerator extends Generator {
         super(typeTable, compiler);
         this.config = compiler.config;
         this.fileOperation = compiler.fileOperation;
-
-        this.introduction = "";
-        this.document = "";
-
-        this.hasMakedTitle = false;
 
         this.documentType = this.typeTable.get("document")!;
         this.paragraphType = this.typeTable.get("paragraph")!;
@@ -204,43 +192,9 @@ export class LatexGenerator extends Generator {
         this.syntaxTree = syntaxTree;
         this.references = references;
 
-        this.introduction = "";
-        this.document = "";
-        this.hasMakedTitle = false;
-
         this.output = "";
 
-        this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
-        this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
-        this.addIntrodunction(this.line(this.command("usepackage", "amsmath")));
-        this.addIntrodunction(this.line(this.command("usepackage", "amssymb")));
-        this.addIntrodunction(this.line(this.command("usepackage", "amsthm")));
-        this.addIntrodunction(this.line(this.command("usepackage", "graphicx")));
-        this.addIntrodunction(this.line(this.command("usepackage", "subcaption")));
-        this.addIntrodunction(this.line(this.command("usepackage", "circuitikz")));
-        this.addIntrodunction(this.line(this.command("usepackage", "listings")));
-        this.addIntrodunction(`\\lstset{
-	basicstyle          =   \\ttfamily,          % 基本代码风格
-	keywordstyle        =   \\bfseries,          % 关键字风格
-	commentstyle        =   \\rmfamily\\itshape,  % 注释的风格，斜体
-	stringstyle         =   \\ttfamily,  % 字符串风格
-	flexiblecolumns,                % 别问为什么，加上这个
-	numbers             =   left,   % 行号的位置在左边
-	showspaces          =   false,  % 是否显示空格，显示了有点乱，所以不现实了
-	numberstyle         =   \\ttfamily,    % 行号的样式，小五号，tt等宽字体
-	showstringspaces    =   false,
-	captionpos          =   t,      % 这段代码的名字所呈现的位置，t指的是top上面
-	frame               =   lrtb,   % 显示边框
-    breaklines          =   true,
-}\n`);
-        this.addIntrodunction(`\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{definition}[theorem]{Definition}\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
-        
-        this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
-        
-        this.addContent(await this.generateDocument(this.syntaxTree));
-
-        this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
-
+        this.output = await this.generateDocument(this.syntaxTree);
     }
 
     // GenerateDocument
@@ -282,7 +236,7 @@ export class LatexGenerator extends Generator {
                 }
                 else {
                     //res += "\n\\hspace*{\\fill}\n\n";
-                    res += "\\vspace{10pt}\n";
+                    res += "\n";
                 }
                 res += await this.generateParagraph(n);
             }
@@ -323,12 +277,12 @@ export class LatexGenerator extends Generator {
     // GeneratePaperSetting
     // Syntax Tree type: setting
     generatePaperSetting(parameter: string): string {
-        if (parameter === "a4") {
-            this.addIntrodunction(this.line(this.command("geometry", "a4paper")));
-        }
-        else if (parameter === "b5") {
-            this.addIntrodunction(this.line(this.command("geometry", "b5paper")));
-        }
+        // if (parameter === "a4") {
+        //     this.addIntrodunction(this.line(this.command("geometry", "a4paper")));
+        // }
+        // else if (parameter === "b5") {
+        //     this.addIntrodunction(this.line(this.command("geometry", "b5paper")));
+        // }
         return "";
     }
 
@@ -365,19 +319,26 @@ export class LatexGenerator extends Generator {
         for (let n of node.children.slice(start)) {
             switch (n.type) {
                 case this.textType:
-                    switch (this.getArgument(n, "start")) {
-                        case "indent":
-                            res += `\\par `;
-                            break;
-                        case "noindent":
-                            res += `\\par\\noindent `;
-                            break;
-                        case "auto":
-                        default:
-                            res += flag ? `\\par\\noindent ` : `\\par `;
-                            flag = true;
-                            break;
+                    if (!flag) {
+                        flag = true;
                     }
+                    else {
+                        //res += "\n\\hspace*{\\fill}\n\n";
+                        res += "\n";
+                    }
+                    // switch (this.getArgument(n, "start")) {
+                    //     case "indent":
+                    //         res += `\\par `;
+                    //         break;
+                    //     case "noindent":
+                    //         res += `\\par\\noindent `;
+                    //         break;
+                    //     case "auto":
+                    //     default:
+                    //         res += flag ? `\\par\\noindent ` : `\\par `;
+                    //         flag = true;
+                    //         break;
+                    // }
                     res += this.generateText(n);
                     break;
 
@@ -433,15 +394,16 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.referenceType:
                     let refnode = this.references.find(value => value.name === n.content)?.node;
-                    if(refnode?.type === this.formulaType || refnode?.type === this.expressionType) {
-                        res += `\\eqref{${n.content}}`;
-                    }
-                    else if(refnode?.type === this.bibItemType) {
-                        res += `\\cite{${n.content}}`;
-                    }
-                    else {
-                        res += `\\ref{${n.content}}`;
-                    }
+                    // if(refnode?.type === this.formulaType || refnode?.type === this.expressionType) {
+                    //     res += `\\eqref{${n.content}}`;
+                    // }
+                    // else if(refnode?.type === this.bibItemType) {
+                    //     res += `\\cite{${n.content}}`;
+                    // }
+                    // else {
+                    //     res += `\\ref{${n.content}}`;
+                    // }
+                    res += "[[ref]]";
                     break;
                 case this.formulaType:
                 case this.expressionType:
@@ -451,13 +413,13 @@ export class LatexGenerator extends Generator {
                     res += this.generateCode(n, true);
                     break;
                 case this.emphType:
-                    res += `\\emph{${this.generateText(n, true)}}`;
+                    res += `*${this.generateText(n, true)}*`;
                     break;
                 case this.boldType:
-                    res += `\\textbf{${this.generateText(n, true)}}`;
+                    res += `**${this.generateText(n, true)}**`;
                     break;
                 case this.italicType:
-                    res += `\\textit{${this.generateText(n, true)}}`;
+                    res += `*${this.generateText(n, true)}*`;
                     break;
                 default:
                     console.log("Generate format block or insertion error.");
@@ -541,10 +503,10 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: code
     generateCode(node: Node, inline = false): string {
         if (inline) {
-            return `\\verb|${node.content}|`;
+            return `\`${node.content}\``;
         }
         else {
-            return `\\begin{lstlisting}\n${node.content}\n\\end{lstlisting}\n`
+            return `\`\`\`\n${node.content}\n\`\`\`\n`
         }
 
     }
@@ -627,7 +589,7 @@ export class LatexGenerator extends Generator {
             multiline = true;
         }
 
-        let res = inline ? "$" : `\\begin{equation${numbered}}${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n`;
+        let res = inline ? "$" : `$$\n`;
 
         if (!inline && multiline) {
             let tmp = this.generateMultilineFormula(node.children.at(-1)!);
@@ -641,7 +603,7 @@ export class LatexGenerator extends Generator {
             res += tmp;
         }
 
-        res += inline ? "$" : `\n\\end{equation${numbered}}%\n`;
+        res += inline ? "$" : `\n$$\n`;
 
         return res;
     }
@@ -888,34 +850,19 @@ export class LatexGenerator extends Generator {
     // GenerateTitle
     // Syntax Tree type: title
     generateTitle(node: Node): string {
-        this.addIntrodunction(this.line(`\\title{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
+        return `\n# ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateAuthor
     // Syntax Tree type: author
     generateAuthor(node: Node): string {
-        this.addIntrodunction(this.line(`\\author{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
+        return `Author: ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateDate
     // Syntax Tree type: date
     generateDate(node: Node): string {
-        this.addIntrodunction(this.line(`\\date{${this.generateText(node, true)}}`));
-        if (!this.hasMakedTitle) {
-            this.hasMakedTitle = true;
-            return "\\maketitle\n";
-        }
-        return "";
+        return `Date: ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateSection
@@ -926,7 +873,7 @@ export class LatexGenerator extends Generator {
         if(this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
-        return `\\section${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        return `\n## ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateSubsection
@@ -937,7 +884,7 @@ export class LatexGenerator extends Generator {
         if(this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
-        return `\\subsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        return `\n### ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateSubsubection
@@ -948,19 +895,19 @@ export class LatexGenerator extends Generator {
         if(this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
-        return `\\subsubsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        return `\n#### ${this.generateText(node, true)}\n\n`;
     }
 
     // GenerateTableofcontents
     // Syntax Tree type: tableofcontents
     generateTableofcontents(node: Node): string {
-        return `\\tableofcontents\n`;
+        return ``;
     }
 
     // GenerateNewpage
     // Syntax Tree type: newpage
     generateNewpage(node: Node): string {
-        return `\\newpage\n`;
+        return ``;
     }
 
 
@@ -969,7 +916,7 @@ export class LatexGenerator extends Generator {
     async generateBibliography(node: Node): Promise<string> {
         let res = "";
 
-        res += `\\begin{thebibliography}{1}\n`;
+        res += `## References\n`;
         for (let n of node.children) {
             switch (n.type) {
                 case this.bibItemType:
@@ -993,7 +940,7 @@ export class LatexGenerator extends Generator {
                     break;
             }
         }
-        res += `\\end{thebibliography}`;
+        res += `\n\n`;
         return res;
     }
 
@@ -1098,19 +1045,7 @@ export class LatexGenerator extends Generator {
     // **************** Latex Commands ****************
     // introduction and document of latex source
 
-    addIntrodunction(intr: string) {
-        this.introduction += intr;
-    }
-
     line(text: string) {
         return text + "\n";
-    }
-
-    command(name: string, content: string = "") {
-        return `\\${name}{${content}}`;
-    }
-
-    addContent(text: string) {
-        this.document += text;
     }
 }

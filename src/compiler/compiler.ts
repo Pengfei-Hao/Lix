@@ -1,5 +1,6 @@
 import { Generator } from "../generator/generator";
 import { LatexGenerator } from "../generator/latex-generator";
+import { MarkdownGenerator } from "../generator/markdown-generator";
 import { Parser } from "../parser/parser";
 import { Config } from "./config";
 import { FileOperation } from "./file-operation";
@@ -21,6 +22,7 @@ export class Compiler {
         this.curGenerator = new LatexGenerator(this.parser.typeTable, this);
         this.generator = new Map();
         this.generator.set("latex", this.curGenerator);
+        this.generator.set("markdown", new MarkdownGenerator(this.parser.typeTable, this));
     }
 
     async parse() {
