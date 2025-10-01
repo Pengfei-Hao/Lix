@@ -8,11 +8,11 @@ import { SymbolTable } from "./symbol-table";
 import { HighlightType, Result, ResultState } from "../../foundation/result";
 import { MessageType } from "../../foundation/message";
 import { Message } from "../../foundation/message";
-import { InfixOperator, OperatorTable, OperatorType, PrefixOperator } from "./operator-table";
+import { InfixOperator, OperatorTable, OperatorType, PrefixOperator, PrefixOperatorPattern, PrefixOperatorType } from "./operator-table";
 import { Heap } from "../../foundation/heap"
 import { Ref } from "../../foundation/ref";
-import { format } from "path";
 import { ArgumentsSpecification, ArgumentType } from "../block-handler-table";
+import "../../foundation/union"
 
 
 export class Math extends Module {
@@ -77,7 +77,7 @@ export class Math extends Module {
 
         // Init math symbols from math.json
         let json = parser.configs.get("math");
-        let config: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: string[][], InfixOperator: string[][] } = JSON.parse(json);
+        let config: { Notations: string[], UnicodeSymbolsAndNotations: string[][], Symbols: string, PrefixOperator: { type: string, options: string[] }[][], InfixOperator: { symbols: string, patterns: string[] }[] } = JSON.parse(json);
 
         // 字母组合
         for (let notation of config.Notations) {
@@ -103,22 +103,42 @@ export class Math extends Module {
         this.operatorTable = new OperatorTable();
 
         for (let prefix of config.PrefixOperator) {
-            this.operatorTable.addPrefixOperator(prefix);
+            let patterns: PrefixOperatorPattern[] = [];
+            for(let pattern of prefix) {
+                switch(pattern.type) {
+                    case "enumeration":
+                        patterns.push(new PrefixOperatorPattern(PrefixOperatorType.enumeration, new Set(pattern.options)));
+                        break;
+                    case "term":
+                        patterns.push(new PrefixOperatorPattern(PrefixOperatorType.term, new Set(pattern.options)));
+                        break;
+                    case "expression":
+                        patterns.push(new PrefixOperatorPattern(PrefixOperatorType.expression, new Set(pattern.options)));
+                        break;
+                    case "matrix":
+                        patterns.push(new PrefixOperatorPattern(PrefixOperatorType.matrix, new Set(pattern.options)));
+                        break;
+                    default:
+                        console.log("Wrong prefix operator type.");
+                }
+            }
+            this.operatorTable.addPrefixOperator(patterns);
         }
 
         let medium = 0;
         for (medium = 0; medium < config.InfixOperator.length; medium++) {
-            if (config.InfixOperator[medium][0] === "") {
+            if (config.InfixOperator[medium].symbols === "") {
+                this.operatorTable.addInfixOperator("", new Set(), 0);
                 break;
             }
         }
 
         for (let i = medium - 1; i >= 0; i--) {
-            this.operatorTable.insertAtTop(config.InfixOperator[i]);
+            this.operatorTable.insertInfixOperatorAtTop(config.InfixOperator[i].symbols, new Set(config.InfixOperator[i].patterns));
         }
 
         for (let i = medium + 1; i < config.InfixOperator.length; i++) {
-            this.operatorTable.insertAtBottom(config.InfixOperator[i]);
+            this.operatorTable.insertInfixOperatorAtBottom(config.InfixOperator[i].symbols, new Set(config.InfixOperator[i].patterns));
         }
 
     }
@@ -648,7 +668,7 @@ export class Math extends Module {
     // 分析一个 Node 的其中一段
     // 结果是 infixOperator
 
-    analyseSubFormula(node: Node, index: Ref<number>, endTerm: string[] = []): Result<Node> {
+    analyseSubFormula(node: Node, index: Ref<number>, endTerm: Set<string> = new Set()): Result<Node> {
         let result = new Result(new Node(this.formulaType), new Node(this.formulaType));
         this.parser.begin("analyse-expression");
         this.myAnalyseSubFormula(node, index, endTerm, result);
@@ -656,7 +676,7 @@ export class Math extends Module {
         return result;
     }
 
-    myAnalyseSubFormula(parnode: Node, index: Ref<number>, endTerm: string[], result: Result<Node>) {
+    myAnalyseSubFormula(parnode: Node, index: Ref<number>, endTerm: Set<string>, result: Result<Node>) {
 
         let termHeap = new Heap<Node>();
         let operatorHeap = new Heap<string>();
@@ -682,7 +702,7 @@ export class Math extends Module {
                 // cur operator = Blank operator
                 let lastOp = operatorHeap.top();
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= OperatorTable.BlankOperator.priority) {
+                if (lastOp === undefined || this.operatorTable.lessThanOrEqualTo(lastOp, "")) {
                     operatorHeap.push("");
                     termHeap.push(res!.content);
                     hasInfixOperator = false;
@@ -701,7 +721,7 @@ export class Math extends Module {
             if (constructing) {
                 let lastOp = operatorHeap.top();
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= this.operatorTable.getInfixOperator(curOp!)!.priority) {
+                if (lastOp === undefined || this.operatorTable.lessThanOrEqualTo(lastOp, curOp!)) {
                     operatorHeap.push(curOp!);
                     hasInfixOperator = true;
                     constructing = false;
@@ -754,7 +774,7 @@ export class Math extends Module {
                     let lastOp = operatorHeap.top();
                     //  == undefined 必须用, 空串会被判为false
                     // same as below
-                    if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= OperatorTable.BlankOperator.priority) {
+                    if (lastOp === undefined || this.operatorTable.lessThanOrEqualTo(lastOp, "")) {
                         operatorHeap.push("");
                         termHeap.push(res.content);
                         hasInfixOperator = false;
@@ -769,7 +789,7 @@ export class Math extends Module {
                 }
             }
 
-            else if ((res = this.analyseOperator(parnode, index)).matched) {
+            else if ((res = this.analyseOperator(parnode, index, endTerm)).matched) {
                 result.merge(res);
 
                 if (hasInfixOperator) {
@@ -781,8 +801,8 @@ export class Math extends Module {
                 let lastOp = operatorHeap.top();
                 curOp = res.content.content;
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp == undefined || this.operatorTable.getInfixOperator(lastOp)!.priority <= this.operatorTable.getInfixOperator(curOp)!.priority) {
-                    operatorHeap.push(curOp!);
+                if (lastOp === undefined || this.operatorTable.lessThanOrEqualTo(lastOp, curOp)) {
+                    operatorHeap.push(curOp);
                     hasInfixOperator = true;
                 }
                 else {
@@ -807,14 +827,14 @@ export class Math extends Module {
 
         let topOp: string | undefined;
         // 必须要用 != undefined, 空字符串会被判定为 false
-        while ((topOp = operatorHeap.top()) != undefined && this.operatorTable.getInfixOperator(topOp)!.priority === this.operatorTable.getInfixOperator(lastOp)!.priority) {
+        while ((topOp = operatorHeap.top()) !== undefined && this.operatorTable.equalTo(topOp, lastOp)) {
 
             nNode.content = topOp.concat(nNode.content);
             operatorHeap.pop();
             nNode.children.push(termHeap.pop()!);
         }
 
-        let pat = this.operatorTable.getInfixOperator(lastOp)!.pattern;
+        let pat = this.operatorTable.getInfixOperator(lastOp)!.patterns;
 
         if (pat.size != 0) {
             if (!pat.has(nNode.content)) {
@@ -830,22 +850,20 @@ export class Math extends Module {
         return true;
     }
 
-    isEOF(node: Node, index: Ref<number>, endTerm: string[]): boolean {
+    isEOF(node: Node, index: Ref<number>, endTerm: Set<string>): boolean {
         if (index.value === node.children.length) {
             return true;
         }
         let child = node.children[index.value];
-        for (let op of endTerm) {
-            if ((child.type === this.elementType) && child.content === op) {
-                return true;
-            }
+        if (child.type === this.elementType && endTerm.has(child.content)) {
+            return true;
         }
         return false;
     }
 
     // AnalyseTerm: failing | matched | skippable | successful
 
-    analyseTerm(node: Node, index: Ref<number>, endTerm: string[]): Result<Node> {
+    analyseTerm(node: Node, index: Ref<number>, endTerm: Set<string>): Result<Node> {
         let result = new Result(new Node(this.elementType), new Node(this.elementType));
         this.parser.begin("analyse-term");
         this.myAnalyseTerm(node, index, result, endTerm);
@@ -856,10 +874,10 @@ export class Math extends Module {
         return result;
     }
 
-    myAnalyseTerm(parnode: Node, index: Ref<number>, result: Result<Node>, endTerm: string[]) {
+    myAnalyseTerm(parnode: Node, index: Ref<number>, result: Result<Node>, endTerm: Set<string>) {
         let msg = result.messages;
 
-        if (this.isEOF(parnode, index, [])) {
+        if (this.isEOF(parnode, index, endTerm)) {
             //this.parser.mergeMessage(result, "Term should not be empty."));
             return;
         }
@@ -898,67 +916,7 @@ export class Math extends Module {
                 result.mergeState(ResultState.successful);
                 this.parser.mergeHighlight(result, HighlightType.operator, node);
 
-                // let nNode = new Node(this.prefixType);
-                let format = prefixOp.format;
-                // nNode.begin = node.begin;
-
-                // nNode.content = format[0];
-                // index.value++;
-
-                // for (let i = 1; i < format.length; i++) {
-                //     let res: Result<Node>;
-                //     switch (format[i]) {
-                //         case "[expr]":
-
-                //             if (i + 1 < format.length) {
-                //                 res = this.analyseExpression(parnode, index, [format[i + 1]]);
-                //             }
-                //             else {
-                //                 res = this.analyseExpression(parnode, index);
-                //             }
-                //             result.merge(res);
-                //             if (result.shouldTerminate) {
-                //                 this.parser.mergeMessage(result, "Prefix match [expr] failed."));
-                //                 return;
-                //             }
-                //             nNode.children.push(res.content);
-                //             break;
-
-                //         case "[term]":
-                //             res = this.analyseTerm(parnode, index);
-
-                //             result.merge(res);
-                //             if (result.shouldTerminate) {
-                //                 this.parser.mergeMessage(result, "Prefix match [term] failed."));
-                //                 return;
-                //             }
-                //             nNode.children.push(res.content);
-                //             break;
-
-                //         default:
-                //             if (this.isEOF(parnode, index, [])) {
-                //                 result.mergeState(ResultState.failing);
-                //                 this.parser.mergeMessage(result, "Prefix match element ended abruptly."));
-                //                 return;
-                //             }
-
-                //             node = parnode.children[index.value];
-                //             if (node.type === this.elementType && node.content === format[i]) {
-                //                 result.mergeState(ResultState.successful);
-                //                 this.parser.mergeHighlight(result, HighlightType.operator, node));
-                //                 index.value++;
-                //                 break;
-                //             }
-                //             else {
-                //                 result.mergeState(ResultState.failing);
-                //                 this.parser.mergeMessage(result, "Prefix match element failed."));
-                //                 return;
-                //             }
-                //     }
-                // }
-
-                // nNode.end = parnode.children[index.value - 1].end;
-                let nNode = this.readPrefixOperator(parnode, index, result, format, endTerm);
+                let nNode = this.readPrefixOperator(parnode, index, result, prefixOp.patterns, endTerm);
                 if(nNode === undefined) {
                     return;
                 }
@@ -980,25 +938,6 @@ export class Math extends Module {
                 //result.promoteToSkippable();
                 index.value++;
             }
-            // else {
-            //     result.GuaranteeMatched();
-            //     if(!this.symbols.has(node.content) && !this.notations.has(node.content)) {
-            //         result.mergeState(ResultState.failing);
-            //         this.parser.mergeMessage(result, `Element '${node.content}' not recognized.`));
-            //         result.promoteToSkippable();
-            //     }
-            //     else {
-
-            //         result.mergeState(ResultState.successful);
-
-            //         this.parser.mergeHighlight(result, HighlightType.variable, node));
-
-            //         result.content = Node.clone(node);
-            //         //result.content.type = this.termType;
-            //     }
-            //     index.value++;
-
-            // }
         }
         else if (node.type === this.escapeElementType) {
 
@@ -1019,25 +958,69 @@ export class Math extends Module {
                 //result.promoteToSkippable();
                 index.value++;
             }
-                // result.GuaranteeMatched();
-                // if(!this.symbols.has(node.content) && !this.notations.has(node.content)) {
-                //     result.mergeState(ResultState.failing);
-                //     this.parser.mergeMessage(result, `Escape element ${node.content} not recognized.`));
-                //     result.promoteToSkippable();
-                // }
-                // else {
-                //     result.mergeState(ResultState.successful);
-                //     this.parser.mergeHighlight(result, HighlightType.variable, node));
-
-                //     result.content = Node.clone(node);
-                //     result.content.type = this.elementType;
-                // }
-                // index.value++;
             
         }
     }
 
-    readPrefixOperator(parnode: Node, index: Ref<number>, result: Result<Node>, format: string[], endTerm: string[]): Node | undefined {
+    analyseMatrix(node: Node, index: Ref<number>, endTerm: Set<string> = new Set()): Result<Node> {
+        let result = new Result(new Node(this.prefixType), new Node(this.prefixType));
+        this.parser.begin("analyse-matrix");
+        this.myAnalyseMatrix(node, index, endTerm, result);
+        this.parser.end();
+        return result;
+    }
+
+    myAnalyseMatrix(parnode: Node, index: Ref<number>, endTerm: Set<string>, result: Result<Node>) {
+
+        let res: Result<Node>;
+        if (this.isEOF(parnode, index, endTerm)) {
+
+            result.mergeState(ResultState.successful);
+            return;
+        }
+        let node = parnode.children[index.value];
+        result.content.begin = node.begin;
+        let rowNode = new Node(this.prefixType);
+        result.content.children.push(rowNode);
+
+        while (true) {
+
+            res = this.analyseSubFormula(parnode, index, endTerm.union(new Set(["&", ";"])));
+            result.merge(res);
+            if (result.shouldTerminate) {
+                this.parser.mergeMessage(result, "Prefix mat failed.");
+                return undefined;
+            }
+            rowNode.children.push(res.content);
+
+            if (this.isEOF(parnode, index, endTerm)) {
+                rowNode.begin = rowNode.children[0].begin;
+                rowNode.end = rowNode.children.at(-1)!.end;
+                break;
+            }
+
+            node = parnode.children[index.value];
+            if (node.type === this.elementType && node.content === "&") {
+                result.mergeState(ResultState.successful);
+                this.parser.mergeHighlight(result, HighlightType.operator, node);
+                index.value++;
+            }
+            else { // node.content == ";"
+                rowNode.begin = rowNode.children[0].begin;
+                rowNode.end = rowNode.children.at(-1)!.end;
+                rowNode = new Node(this.prefixType);
+                result.content.children.push(rowNode);
+
+                result.mergeState(ResultState.successful);
+                this.parser.mergeHighlight(result, HighlightType.operator, node);
+                index.value++;
+            }
+        }
+        result.content.end = parnode.children[index.value - 1].end;
+
+    }
+
+    readPrefixOperator(parnode: Node, index: Ref<number>, result: Result<Node>, patterns: PrefixOperatorPattern[], endTerm: Set<string>): Node | undefined {
 
         let node = parnode.children[index.value]
         let nNode = new Node(this.prefixType);
@@ -1045,60 +1028,56 @@ export class Math extends Module {
 
         nNode.begin = node.begin;
 
-        nNode.content = format[0];
-        index.value++;
+        // if(patterns[0] === "mat" || patterns[0] === "cases") {
+        //     let res: Result<Node>;
+        //     if(this.isEOF(parnode, index, endTerm)) {
+        //         return nNode;
+        //     }
 
-        if(format[0] === "mat" || format[0] === "cases") {
+        //     let rowNode = new Node(this.prefixType);
+        //     nNode.children.push(rowNode);
+
+        //     while(true) {
+
+        //             res = this.analyseSubFormula(parnode, index, endTerm.concat(["&", ";"]));
+        //             result.merge(res);
+        //             if (result.shouldTerminate) {
+        //                 this.parser.mergeMessage(result, "Prefix mat failed.");
+        //                 return undefined;
+        //             }
+        //             rowNode.children.push(res.content);
+        //             node = parnode.children[index.value];
+        //             if(this.isEOF(parnode, index, endTerm)) {
+        //                 rowNode.begin = rowNode.children[0].begin;
+        //                 rowNode.end = rowNode.children.at(-1)!.end;
+        //                 break;
+        //             }
+        //             else if(node.type === this.elementType && node.content === "&") {
+        //                 result.mergeState(ResultState.successful);
+        //                 this.parser.mergeHighlight(result, HighlightType.operator, node);
+        //                 index.value++;
+        //             }
+        //             else {
+        //                 rowNode.begin = rowNode.children[0].begin;
+        //                 rowNode.end = rowNode.children.at(-1)!.end;
+        //                 rowNode = new Node(this.prefixType);
+        //                 nNode.children.push(rowNode);
+
+        //                 result.mergeState(ResultState.successful);
+        //                 this.parser.mergeHighlight(result, HighlightType.operator, node);
+        //                 index.value++;
+        //             }
+        //     }
+        //     nNode.end = parnode.children[index.value - 1].end;
+        //     return nNode; 
+        // }
+
+        for (let i = 0; i < patterns.length; i++) {
             let res: Result<Node>;
-            if(this.isEOF(parnode, index, endTerm)) {
-                return nNode;
-            }
-
-            let rowNode = new Node(this.prefixType);
-            nNode.children.push(rowNode);
-
-            while(true) {
-
-                    res = this.analyseSubFormula(parnode, index, endTerm.concat(["&", ";"]));
-                    result.merge(res);
-                    if (result.shouldTerminate) {
-                        this.parser.mergeMessage(result, "Prefix mat failed.");
-                        return undefined;
-                    }
-                    rowNode.children.push(res.content);
-                    node = parnode.children[index.value];
-                    if(this.isEOF(parnode, index, endTerm)) {
-                        rowNode.begin = rowNode.children[0].begin;
-                        rowNode.end = rowNode.children.at(-1)!.end;
-                        break;
-                    }
-                    else if(node.type === this.elementType && node.content === "&") {
-                        result.mergeState(ResultState.successful);
-                        this.parser.mergeHighlight(result, HighlightType.operator, node);
-                        index.value++;
-                    }
-                    else {
-                        rowNode.begin = rowNode.children[0].begin;
-                        rowNode.end = rowNode.children.at(-1)!.end;
-                        rowNode = new Node(this.prefixType);
-                        nNode.children.push(rowNode);
-
-                        result.mergeState(ResultState.successful);
-                        this.parser.mergeHighlight(result, HighlightType.operator, node);
-                        index.value++;
-                    }
-            }
-            nNode.end = parnode.children[index.value - 1].end;
-            return nNode; 
-        }
-
-        for (let i = 1; i < format.length; i++) {
-            let res: Result<Node>;
-            switch (format[i]) {
-                case "[expr]":
-
-                    if (i + 1 < format.length) {
-                        res = this.analyseSubFormula(parnode, index, endTerm.concat([format[i + 1]]));
+            switch (patterns[i].type) {
+                case PrefixOperatorType.expression:
+                    if (i + 1 < patterns.length && patterns[i + 1].type === PrefixOperatorType.enumeration) {
+                        res = this.analyseSubFormula(parnode, index, endTerm.union(patterns[i + 1].options));
                     }
                     else {
                         res = this.analyseSubFormula(parnode, index, endTerm);
@@ -1111,7 +1090,7 @@ export class Math extends Module {
                     nNode.children.push(res.content);
                     break;
 
-                case "[term]":
+                case PrefixOperatorType.term:
                     res = this.analyseTerm(parnode, index, endTerm);
 
                     result.merge(res);
@@ -1122,19 +1101,31 @@ export class Math extends Module {
                     nNode.children.push(res.content);
                     break;
 
-                default:
+                case PrefixOperatorType.matrix:
+                    res = this.analyseMatrix(parnode, index, endTerm);
+
+                    result.merge(res);
+                    if (result.shouldTerminate) {
+                        this.parser.mergeMessage(result, "Prefix match [matrix] failed.");
+                        return undefined;
+                    }
+                    nNode.children.push(res.content);
+                    break;
+
+                case PrefixOperatorType.enumeration:
                     // 此处 endTerm 必须设为 [], 就近匹配, 例如 (()) 第一个右括号要跟第二个左括号结合
-                    if (this.isEOF(parnode, index, [])) {
+                    if (this.isEOF(parnode, index, new Set())) {
                         result.mergeState(ResultState.failing);
                         this.parser.mergeMessage(result, "Prefix match element ended abruptly.");
                         return undefined;
                     }
 
                     node = parnode.children[index.value];
-                    if (node.type === this.elementType && node.content === format[i]) {
+                    if (node.type === this.elementType && patterns[i].options.has(node.content)) {
                         result.mergeState(ResultState.successful);
                         this.parser.mergeHighlight(result, HighlightType.operator, node);
                         index.value++;
+                        nNode.content += node.content;
                         break;
                     }
                     else {
@@ -1151,19 +1142,19 @@ export class Math extends Module {
 
     // AnalyseOperator: failing | matched | skippable | successful
 
-    analyseOperator(node: Node, index: Ref<number>): Result<Node> {
+    analyseOperator(node: Node, index: Ref<number>, endTerm: Set<string>): Result<Node> {
         let result = new Result(new Node(this.termType), new Node(this.termType));
         this.parser.begin("analyse-operator");
-        this.myAnalyseOperator(node, index, result);
+        this.myAnalyseOperator(node, index, endTerm, result);
         this.parser.end();
         //result.content.begin = preIndex;
         //result.content.end = this.index;
         return result;
     }
 
-    myAnalyseOperator(parnode: Node, index: Ref<number>, result: Result<Node>) {
+    myAnalyseOperator(parnode: Node, index: Ref<number>, endTerm: Set<string>, result: Result<Node>) {
         let msg = result.messages;
-        if (this.isEOF(parnode, index, [])) {
+        if (this.isEOF(parnode, index, endTerm)) {
             //msg.push(this.getMessage("Operator should not be empty.", index));
             return;
         }

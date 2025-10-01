@@ -167,7 +167,7 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let isDebugging = false;
+let isDebugging = true;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	if(!isDebugging) {

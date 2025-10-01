@@ -2024,6 +2024,23 @@ export class Parser {
                 }
             }
         }
+
+        if ((symRes = this.match("%")).matched) {
+            result.merge(symRes);
+            node.content += "%";
+        }
+        else if ((symRes = this.match("px")).matched) {
+            result.merge(symRes);
+            node.content += "px";
+        }
+        else if ((symRes = this.match("em")).matched) {
+            result.merge(symRes);
+            node.content += "em";
+        }
+        else if ((symRes = this.match("cm")).matched) {
+            result.merge(symRes);
+            node.content += "cm";
+        }
     }
 
     // MatchSinglelineBlank: failing | skippable | successful

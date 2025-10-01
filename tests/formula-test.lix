@@ -57,13 +57,15 @@ Lix 中的上下标记号与 LaTeX 一致, 使用 `^`, `_` 来分别表示上标
 [formula: ((a+b)+c), (@lim), (lim i=1→n: a_n), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
 此处有几点需要注意, 由于巨算符的特性, 如果在括号内使用巨算符, 需要将其用方括号包起来, 否则右半个括号也会作为巨算符的一部分; 最后一个尖括号使用 `langle, rangle`.
 
-单边的括号 (暂定) 使用 
+单边的括号使用 
 [code ``
-lwcurly, rwcurly, lwangle, rwangle, lwparenthesis, rwparenthesis,lwsquare, rwsquare``],
+lwangle, rwangle
+``],
 效果如下
 [code ``
-[formula ⦃ @∑, ⦇ [a ⁄ b],⦊ [mat a; b], ⦇⟧ lim x→∞: f(x)]``]
-[formula ⦃ @∑, ⦇ [a ⁄ b],⦇⦊ [mat a; b],⦊⦇ [mat a; b], ⦇⟧ lim x→∞: f(x)]
+[formula {@∑⦊,  ([a ⁄ b]⦊,⦉mat a; b⟩,(mat a; b⟩, (lim x→∞: f(x)\]]
+``]
+[formula {@∑⦊,  ([a ⁄ b]⦊,⦉mat a; b⟩,(mat a; b⟩, (lim x→∞: f(x)\]]
 
 [subsection 分数和根号]
 要输入分数可以使用 `frac`, 在按 Tab 键后会变成一条斜线, (注意, 这条斜线不是键盘上的反斜线) 表示分数. 例如 `a c ⁄ b d` 表示 /a c ⁄ b d/. 分数默认会将左边的所有符号作为分子, 将右边所有符号作为分母, 这与上下标的默认行为不同. 如果想仅将式子的一部分作为分母, 用括号将其包住:
@@ -127,7 +129,7 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 [section 示例]
 首先是行间公式的例子:
 [formula 
-[lim norm h ↦ 0 : norm [f(x+h)-f(x)-A h]_F ⁄ norm h_E]=0
+[lim ‖h‖ → 0 : ‖f(x+h)-f(x)-A h‖_F ⁄ ‖h‖_E]=0
 ]
 [formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
 [formula ∑ i=1 to N: i × i]
@@ -135,11 +137,11 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 [formula lim i,j→∞ : ( ∑ i=1 to n : f(i) ) ( ∑ j=1 to n: g(j) )
 = lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)]
 [formula [1 ⁄ "d"t] (mat a & b & c;d & e & f;g & h & i) = (mat x₁ & x₂ & x₃)×(mat y₁;y₂;y₃)]
-[formula ⦃ mat
+[formula cases
 ["d"x₁⁄"d"t] = A(𝐱) ;
 ["d"x₂⁄"d"t] = A(𝐱)
 ]
 
-然后是行内公式的例子: /𝜌(x,y) = norm [x-y]/, /𝜌(x,M) = norm [x-z]/, /f(x)=[x⁄1+x]/, /lim x→∞: sin x⁄x/, /f(x)⁄g(x)/
+然后是行内公式的例子: /𝜌(x,y) = ‖x-y‖/, /𝜌(x,M) = ‖x-z‖/, /f(x)=[x⁄1+x]/, /lim x→∞: sin x⁄x/, /f(x)⁄g(x)/
 
 

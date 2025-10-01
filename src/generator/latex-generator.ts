@@ -680,7 +680,7 @@ export class LatexGenerator extends Generator {
                     }
                     res += `\\begin{matrix}\n`;
                     let brow = false;
-                    for (let row of node.children) {
+                    for (let row of node.children[0].children) {
                         if (brow) {
                             res += `\\\\`;
                         }

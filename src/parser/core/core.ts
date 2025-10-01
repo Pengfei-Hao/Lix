@@ -33,7 +33,9 @@ export class Core extends Module {
 
         this.parser.basicBlocks.add("figure");
         const figureSpec: ArgumentsSpecification = {
-            arguments: new Map(),
+            arguments: new Map([
+                ["size", { type: ArgumentType.number, options: [], default: "100%" }],
+            ]),
             allowReference: true
         };
         this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this, figureSpec);

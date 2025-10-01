@@ -102,7 +102,7 @@
 
 "Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
 
-"PrefixOperator": [
+"PrefixOperatorO": [
 	["lim", "[expr]", ":", "[expr]"],
 	["∑", "[expr]", "to", "[expr]", ":", "[expr]"],
 	["∏", "[expr]", "to", "[expr]", ":", "[expr]"],
@@ -139,10 +139,55 @@
 	["vec", "[term]"]
 ],
 
-"InfixOperator": [
+"PrefixOperator": [
+	[
+		{ "type": "enumeration", "options" : ["lim"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : [":"] },
+		{ "type": "expression", "options" : [] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : ["to"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : [":"] },
+		{ "type": "expression", "options" : [] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "|", "‖", "⦉"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "|", "‖", "⦊"] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["cases", "mat"] },
+		{ "type": "matrix", "options" : [] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec"] },
+		{ "type": "term", "options" : [] }
+	]
+],
+
+"InfixOperatorO": [
 	["^_", "^", "_", "^_", "_^"],
 	[""],
 	["⁄", "⁄"]
+],
+
+"InfixOperator": [
+	{
+		"symbols": ["^", "_"],
+		"patterns": ["^", "_", "^_", "_^"]
+	},
+	{
+		"symbols": [""],
+		"patterns": []
+	},
+	{
+		"symbols": ["⁄"],
+		"patterns": ["⁄"]
+	}
 ]
 
 }
