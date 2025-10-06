@@ -23,9 +23,9 @@ export class LixFoldingRangeProvider implements vscode.FoldingRangeProvider {
             }
         }
 
-        const sectionType = parser.typeTable.get("section")!;
-        const subsectionType = parser.typeTable.get("subsection")!;
-        const subsubsectionType = parser.typeTable.get("subsubsection")!;
+        const sectionType = parser.typeTable.get("section");
+        const subsectionType = parser.typeTable.get("subsection");
+        const subsubsectionType = parser.typeTable.get("subsubsection");
 
         let secStartLine: number | undefined = undefined;
         let subsecStartLine: number | undefined = undefined;

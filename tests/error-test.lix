@@ -1,0 +1,114 @@
+Setting
+
+#
+#setting
+#setting: options
+
+Paragraph & Text
+
+Some text. #setting:
+Some text. [paragraph]
+Some text. [text Text]
+Some text.
+
+Free text. \\
+Escape char \n, \[ \]
+Insertion @, @ref, @ref;
+
+[paragraph]
+[paragraph
+
+[paragraph [paragraph]]
+[paragraph
+
+]
+[paragraph Some text.\\
+Escape char \n, \[ \]
+Insertion @, @ref, @ref;
+#setting
+]
+[paragraph
+[text]
+[text [text]]
+[text [paragraph]]
+[text Some text.\\
+Escape char \n, \[ \]
+Insertion @, @ref, @ref;
+]
+]
+[paragraph [text
+
+[paragraph [text
+
+]]
+
+[text]
+[text
+
+[text [text]]
+[text [paragraph]]
+[text
+
+]
+[text Some text.\\
+Escape char \n, \[ \]
+Insertion @, @ref, @ref;
+]
+
+Block
+
+[paragraph: Some text.]
+[paragraph Some text.]
+[paragraph(start: default) Some text.]
+[paragraph(start: titled) Some text.]
+[paragraph(start: indent) Some text.]
+[paragraph(default) Some text.]
+[paragraph(titled) Some text.]
+[paragraph(indent) Some text.]
+[paragraph(start: default, start: titled) Some text.]
+[paragraph(start: titled, start: default) Some text.]
+[paragraph(start: titled, start: default, @ref-par) Some text.]
+[paragraph(start: titled start: default) Some text.]
+[paragraph(, start: default) Some text.]
+[paragraph(start: titled, start: default, ) Some text.]
+[paragraph(start: titled, start: default Some text
+.]
+[paragraph start: titled, start: default) Some text.]
+[paragraph(start: titled, start: default: Some text
+.]
+[paragraph(): Some text().]
+
+[paragraph
+[text: Some text.]
+[text Some text.]
+[text(start: default) Some text.]
+[text(start: titled) Some text.]
+[text(start: indent) Some text.]
+[text(default) Some text.]
+[text(titled) Some text.]
+[text(indent) Some text.]
+[text(start: default, start: titled) Some text.]
+[text(start: titled, start: default) Some text.]
+[text(start: titled, start: default, @ref-par) Some text.]
+[text(start: titled start: default) Some text.]
+[text(, start: default) Some text.]
+[text(start: titled, start: default, ) Some text.]
+[text(start: titled, start: default Some text().]
+[text start: titled, start: default) Some text.]
+[text(start: titled, start: default: Some text().]
+[text(): Some text().]]
+
+Formula
+
+[formula abc 错 😀😆 𝛷log bit 123 gamma123 ["abc" "dd] ]
+
+[formula @abc \abc @a \a @𝜙 \𝜙 @错 \😀 \] @] `abc\`\`` def]
+[formula A 
+
+]
+[formula a^b c^d_e f^g^h i_j_k ]
+[formula [] [^] [^_] [⁄_^_] [aa^tf_𝕕] [^b_c] [a^b_] [a^_c] [^_c] [^b_] [a^_]]
+[formula [lim a hat : t] b [lim : t] ( a b ]
+[formula mat a & b; c & lim & ]
+[formula(multi) a & b; c & lim t→∞: f(t) & ]
+/a & b; c & lim t→∞: f(t) & /

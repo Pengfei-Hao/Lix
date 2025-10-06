@@ -2,9 +2,9 @@ import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
-import { HighlightType, Result, ResultState } from "../../foundation/result";
+import { HighlightType, NodeResult, ResultState } from "../result";
 import { MessageType } from "../../foundation/message";
-import { ArgumentsSpecification, ArgumentType } from "../block-handler-table";
+import { BlockOption, ArgumentType } from "../block-table";
 
 export class Core extends Module {
 
@@ -32,58 +32,58 @@ export class Core extends Module {
         // **************** Basic Blocks ****************
 
         this.parser.basicBlocks.add("figure");
-        const figureSpec: ArgumentsSpecification = {
-            arguments: new Map([
+        const figureSpec: BlockOption = {
+            argumentOptions: new Map([
                 ["size", { type: ArgumentType.number, options: [], default: "100%" }],
             ]),
             allowReference: true
         };
-        this.parser.blockHandlerTable.add("figure", this.figureBlockHandler, this, figureSpec);
+        this.parser.blockTable.add("figure", this.figureBlockHandler, this, figureSpec);
 
         this.parser.basicBlocks.add("table");
-        this.parser.blockHandlerTable.add("table", this.tableBlockHandler, this);
+        this.parser.blockTable.add("table", this.tableBlockHandler, this);
 
         this.parser.basicBlocks.add("code");
-        const codeSpec: ArgumentsSpecification = {
-            arguments: new Map(),
+        const codeSpec: BlockOption = {
+            argumentOptions: new Map(),
             allowReference: true
         };
-        this.parser.blockHandlerTable.add("code", this.codeBlockHandler, this, codeSpec);
+        this.parser.blockTable.add("code", this.codeBlockHandler, this, codeSpec);
 
         // List
         this.parser.basicBlocks.add("list");
-        const listSpec: ArgumentsSpecification = {
-            arguments: new Map([
+        const listSpec: BlockOption = {
+            argumentOptions: new Map([
                 ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "numbered" }],
             ]),
             allowReference: false
         };
-        this.parser.blockHandlerTable.add("list", this.listBlockHandler, this, listSpec);
+        this.parser.blockTable.add("list", this.listBlockHandler, this, listSpec);
 
         // Item
         this.parser.basicBlocks.add("item");
-        const itemSpec: ArgumentsSpecification = {
-            arguments: new Map([
+        const itemSpec: BlockOption = {
+            argumentOptions: new Map([
                 ["level", { type: ArgumentType.enumeration, options: ["first", "second", "third", "fourth"], default: "first" }],
             ]),
             allowReference: true
         };
-        this.parser.blockHandlerTable.add("item", this.itemBlockHandler, this, itemSpec);
+        this.parser.blockTable.add("item", this.itemBlockHandler, this, itemSpec);
 
         // **************** Format Blocks ****************
 
         this.parser.formatBlocks.add("emph");
-        this.parser.blockHandlerTable.add("emph", this.emphBlockHandler, this);
+        this.parser.blockTable.add("emph", this.emphBlockHandler, this);
         
         this.parser.formatBlocks.add("bold");
-        this.parser.blockHandlerTable.add("bold", this.boldBlockHandler, this);
+        this.parser.blockTable.add("bold", this.boldBlockHandler, this);
         
         this.parser.formatBlocks.add("italic");
-        this.parser.blockHandlerTable.add("italic", this.italicBlockHandler, this);
+        this.parser.blockTable.add("italic", this.italicBlockHandler, this);
 
         // **************** Insertion Handler ****************
 
-        this.parser.insertionHandlerTable.add("`", this.inlineCodeHandler, this);
+        this.parser.insertionTable.add("`", this.inlineCodeHandler, this);
         // 有问题暂时不用
         // this.parser.insertionHandlerTable.add("*", this.inlineBoldHandler, this);
         // this.parser.insertionHandlerTable.add("~", this.inlineEmphHandler, this);
@@ -91,18 +91,18 @@ export class Core extends Module {
         // **************** Types ****************
 
         // Init syntax tree node type
-        this.figureType = this.parser.typeTable.add("figure")!;
-        this.figureItemType = this.parser.typeTable.add("figure-item")!;
-        this.figureCaptionType = this.parser.typeTable.add("figure-caption")!;
-        this.listType = this.parser.typeTable.add("list")!;
-        this.itemType = parser.typeTable.add("item")!;
-        this.tableType = this.parser.typeTable.add("table")!;
-        this.tableCellType = this.parser.typeTable.add("tableCell")!;
-        this.codeType = this.parser.typeTable.add("code")!;
+        this.figureType = this.parser.typeTable.add("figure");
+        this.figureItemType = this.parser.typeTable.add("figure-item");
+        this.figureCaptionType = this.parser.typeTable.add("figure-caption");
+        this.listType = this.parser.typeTable.add("list");
+        this.itemType = parser.typeTable.add("item");
+        this.tableType = this.parser.typeTable.add("table");
+        this.tableCellType = this.parser.typeTable.add("tableCell");
+        this.codeType = this.parser.typeTable.add("code");
 
-        this.emphType = this.parser.typeTable.add("emph")!;
-        this.boldType = this.parser.typeTable.add("bold")!;
-        this.italicType = this.parser.typeTable.add("italic")!;
+        this.emphType = this.parser.typeTable.add("emph");
+        this.boldType = this.parser.typeTable.add("bold");
+        this.italicType = this.parser.typeTable.add("italic");
 
     }
 
@@ -166,7 +166,7 @@ export class Core extends Module {
     //     }
     // }
 
-    emphBlockHandler(args: Node): Result<Node> {
+    emphBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("emph", this.emphType, args);
 
         // let result = new Result<Node>(new Node(this.parser.textType));
@@ -184,7 +184,7 @@ export class Core extends Module {
         // return result;
     }
 
-    boldBlockHandler(args: Node): Result<Node> {
+    boldBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("bold", this.boldType, args);
         
         // let result = new Result<Node>(new Node(this.parser.textType));
@@ -202,7 +202,7 @@ export class Core extends Module {
         // return result;
     }
 
-    italicBlockHandler(args: Node): Result<Node> {
+    italicBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("italic", this.italicType, args);
 
         // let result = new Result<Node>(new Node(this.parser.textType));
@@ -264,7 +264,7 @@ export class Core extends Module {
 
         result.merge(this.parser.match(endWith));
         if(result.shouldTerminate) {
-            this.parser.mergeMessage(result, `Missing '${endWith}' in inline format.`));
+            result.addMessage(`Missing '${endWith}' in inline format.`), MessageType.error, this.parser.index);
             return;
         }
         result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
@@ -274,7 +274,7 @@ export class Core extends Module {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                 }
-                this.parser.mergeMessage(result, "Inline format ended abruptly."));
+                result.addMessage("Inline format ended abruptly."), MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -292,7 +292,7 @@ export class Core extends Module {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                     text = "";
                 }
-                this.parser.mergeMessage(result, "Inline format ended abruptly."));
+                result.addMessage("Inline format ended abruptly."), MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -304,7 +304,7 @@ export class Core extends Module {
                 result.merge(blnRes);
                 text += " ";
                 if (blnRes.content > 1) {
-                    this.parser.mergeMessage(result, "Inline format cannot contain linebreaks more than 1.", MessageType.warning));
+                    result.addMessage("Inline format cannot contain linebreaks more than 1.", MessageType.warning), MessageType.error, this.parser.index);
                     //result.mergeState(ResultState.skippable);
                 }
             }
@@ -313,7 +313,7 @@ export class Core extends Module {
                 if(text === "") {
                     preIndex = curIndex;
                 }
-                this.parser.mergeMessage(result, "Inline format should not have \\\\.", MessageType.warning));
+                result.addMessage("Inline format should not have \\\\.", MessageType.warning), MessageType.error, this.parser.index);
                 text += "\\\\";
                 //result.mergeState(ResultState.skippable);
             }
@@ -341,7 +341,7 @@ export class Core extends Module {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                     text = "";
                 }
-                this.parser.mergeMessage(result, "Inline format should not have block."));
+                result.addMessage("Inline format should not have block."), MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 this.parser.skipByBrackets();
             }
@@ -358,14 +358,14 @@ export class Core extends Module {
 
         result.merge(this.parser.match(endWith));
         if(result.shouldTerminate) {
-            this.parser.mergeMessage(result, `Missing '${endWith}' in inline format.`));
+            result.addMessage(`Missing '${endWith}' in inline format.`), MessageType.error, this.parser.index);
             return;
         }
         result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
     }
     */
 
-    figureBlockHandler(args: Node): Result<Node> {
+    figureBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.figureType, "figure-block-handler", this.myFigureBlockHandler, this, this.parser.defaultAnalysis);
 
         // let result = new Result<Node>(new Node(this.figureType));
@@ -381,9 +381,9 @@ export class Core extends Module {
         // return result;
     }
 
-    private myFigureBlockHandler(result: Result<Node>, args: Node = new Node(this.parser.argumentsType)) {
+    private myFigureBlockHandler(result: NodeResult, args: Node = new Node(this.parser.argumentsType)) {
         
-        let node = result.content;
+        let node = result.node;
 
         // for(let n of args.children) {
         //     if(n.content == "small" || n.content == "medium" || n.content == "large") {
@@ -394,33 +394,33 @@ export class Core extends Module {
 
         result.merge(this.parser.match("["));
         if (result.shouldTerminate) {
-            this.parser.mergeMessage(result, "Missing '[' in figure.");
+            result.addMessage("Missing '[' in figure.", MessageType.error, this.parser.index);
             return;
         }
 
         let ndRes = this.figureCaptionHandler();
         result.merge(ndRes);
         if (result.shouldTerminate) {
-            this.parser.mergeMessage(result, "Match caption failed.");
+            result.addMessage("Match caption failed.", MessageType.error, this.parser.index);
             return;
         }
-        node.children.push(ndRes.content);
+        node.children.push(ndRes.node);
 
         result.merge(this.parser.match("]"));
         if (result.shouldTerminate) {
-            this.parser.mergeMessage(result, "Missing ']' in figure.");
+            result.addMessage("Missing ']' in figure.", MessageType.error, this.parser.index);
             return;
         }
 
         this.parser.skipBlank();
 
-        let symRes: Result<null>;
+        let symRes: BasicResult;
 
         while (true) {
             let itemNode = new Node(this.figureItemType, "");
             if(this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                this.parser.mergeMessage(result, "Figure block ended abruptly.");
+                result.addMessage("Figure block ended abruptly.", MessageType.error, this.parser.index);
                 return;
             }
             else if(this.parser.is("]")) {
@@ -429,20 +429,20 @@ export class Core extends Module {
 
             result.merge(this.parser.match("`"));
             if(result.shouldTerminate) {
-                this.parser.mergeMessage(result, "Missing '`' in figure.");
+                result.addMessage("Missing '`' in figure.", MessageType.error, this.parser.index);
                 return;
             }
             itemNode.begin = this.parser.index - 1;
 
             while(true) {
                 if(this.parser.isEOF()) {
-                    this.parser.mergeMessage(result, "Abruptly end.");
+                    result.addMessage("Abruptly end.", MessageType.error, this.parser.index);
                     result.mergeState(ResultState.skippable);
                     return;
                 }
                 else if((symRes = this.parser.match("\n")).matched) {
                     result.merge(symRes);
-                    this.parser.mergeMessage(result, "Figure path should not have line break.");
+                    result.addMessage("Figure path should not have line break.", MessageType.error, this.parser.index);
                     return;
                 }
                 else if((symRes = this.parser.match("`")).matched) {
@@ -466,14 +466,14 @@ export class Core extends Module {
                 let ndRes = this.figureCaptionHandler();
                 result.merge(ndRes);
                 if (result.shouldTerminate) {
-                    this.parser.mergeMessage(result, "Match sub-caption failed.");
+                    result.addMessage("Match sub-caption failed.", MessageType.error, this.parser.index);
                     return;
                 }
-                itemNode.children.push(ndRes.content);
+                itemNode.children.push(ndRes.node);
         
                 result.merge(this.parser.match("]"));
                 if (result.shouldTerminate) {
-                    this.parser.mergeMessage(result, "Missing ']' in sub-figure.");
+                    result.addMessage("Missing ']' in sub-figure.", MessageType.error, this.parser.index);
                     return;
                 }
             }
@@ -482,7 +482,7 @@ export class Core extends Module {
         }
     }
 
-    figureCaptionHandler(args: Node = new Node(this.parser.argumentsType)): Result<Node> {
+    figureCaptionHandler(args: Node = new Node(this.parser.argumentsType)): NodeResult {
         return this.parser.textLikeBlockHandler("figure-caption", this.figureCaptionType, args);
 
         // let result = new Result<Node>(new Node(this.figureCaptionType));
@@ -499,7 +499,7 @@ export class Core extends Module {
         // return result;
     }
 
-    inlineCodeHandler(): Result<Node> {
+    inlineCodeHandler(): NodeResult {
         return this.parser.prepareMatch(this.codeType, "inline-code-handler", this.myInlineCodeHandler, this, this.parser.defaultAnalysis);
 
         // let result = new Result<Node>(new Node(this.codeType));
@@ -515,10 +515,10 @@ export class Core extends Module {
         // return result;
     }
 
-    private myInlineCodeHandler(result: Result<Node>) {
-        let node = result.content;
+    private myInlineCodeHandler(result: NodeResult) {
+        let node = result.node;
 
-        let symRes: Result<null>;
+        let symRes: BasicResult;
         let count = 0;
         while((symRes = this.parser.match("`")).matched) {
             result.merge(symRes);
@@ -532,13 +532,13 @@ export class Core extends Module {
         while (true) {
             if(this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                this.parser.mergeMessage(result, "Inline code ended abruptly.");
+                result.addMessage("Inline code ended abruptly.", MessageType.error, this.parser.index);
                 return;
             }
 
-            else if(this.parser.isMultilineBlankGeThanOne()) {
+            else if(this.parser.isMultilineBlankGtOne()) {
                 result.mergeState(ResultState.skippable);
-                this.parser.mergeMessage(result, "Inline code ended abruptly.");
+                result.addMessage("Inline code ended abruptly.", MessageType.error, this.parser.index);
                 return;
             }
 
@@ -565,7 +565,7 @@ export class Core extends Module {
         }
     }
 
-    codeBlockHandler(args: Node): Result<Node> {
+    codeBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.codeType, "code-block-handler", this.myCodeBlockHandler, this, this.parser.defaultAnalysis);
 
         // let result = new Result<Node>(new Node(this.codeType));
@@ -581,12 +581,12 @@ export class Core extends Module {
         // return result;
     }
 
-    private myCodeBlockHandler(result: Result<Node>, args: Node = new Node(this.parser.argumentsType)) {
-        let node = result.content;
+    private myCodeBlockHandler(result: NodeResult, args: Node = new Node(this.parser.argumentsType)) {
+        let node = result.node;
 
         result.merge(this.parser.skipBlank());
 
-        let symRes: Result<null>;
+        let symRes: BasicResult;
         let count = 0;
         while((symRes = this.parser.match("`")).matched) {
             result.merge(symRes);
@@ -600,7 +600,7 @@ export class Core extends Module {
 
         result.merge(this.parser.match("\n"));
         if(result.shouldTerminate) {
-            this.parser.mergeMessage(result, "First line should not have codes.");
+            result.addMessage("First line should not have codes.", MessageType.error, this.parser.index);
             return;
         }
 
@@ -608,7 +608,7 @@ export class Core extends Module {
         while (true) {
             if(this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                this.parser.mergeMessage(result, "Code block ended abruptly.");
+                result.addMessage("Code block ended abruptly.", MessageType.error, this.parser.index);
                 return;
             }
             else if(this.parser.is("]")) {
@@ -640,11 +640,11 @@ export class Core extends Module {
         }
     }
 
-    listBlockHandler(args: Node): Result<Node> {
+    listBlockHandler(args: Node): NodeResult {
         return this.parser.paragraphLikeBlockHandler("list", this.listType, args);
     }
 
-    itemBlockHandler(args: Node): Result<Node> {
+    itemBlockHandler(args: Node): NodeResult {
         let result = this.parser.formatLikeBlockHandler("item", this.itemType, args);
         result.discarded = false;
         return result;
@@ -653,7 +653,7 @@ export class Core extends Module {
         // TextBlockHandler: failing | skippable | successful
 
 
-    tableBlockHandler(args: Node): Result<Node> {
+    tableBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.tableType, "table-block-handler", this.myTableBlockHandler, this, this.parser.defaultAnalysis, this.parser);
 
         // let result = new Result<Node>(new Node(this.codeType));
@@ -669,20 +669,20 @@ export class Core extends Module {
         // return result;
     }
 
-    private myTableBlockHandler(result: Result<Node>, args: Node = new Node(this.parser.argumentsType)) {
-        let node = result.content;
+    private myTableBlockHandler(result: NodeResult, args: Node = new Node(this.parser.argumentsType)) {
+        let node = result.node;
 
-        let symRes: Result<null>;
-        let nodeRes: Result<Node>;
+        let symRes: BasicResult;
+        let nodeRes: NodeResult;
         result.mergeState(ResultState.successful);
 
         let column = new Node(this.tableCellType);
-        result.content.children.push(column);
+        result.node.children.push(column);
 
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                this.parser.mergeMessage(result, "Code block ended abruptly.");
+                result.addMessage("Code block ended abruptly.", MessageType.error, this.parser.index);
                 return;
             }
             else if (this.parser.is("]")) {
@@ -698,25 +698,25 @@ export class Core extends Module {
                 result.merge(symRes);
                 this.parser.mergeHighlight(result, HighlightType.operator, 0, -1);
                 column = new Node(this.tableCellType);
-                result.content.children.push(column);
+                result.node.children.push(column);
 
             }
             else if ((nodeRes = this.matchTableCell()).matched) {
                 result.merge(nodeRes);
-                column.children.push(nodeRes.analysedContent);
+                column.children.push(nodeRes.analysedNode);
             }
 
             else {
                 // 理论上不会出现
                 result.mergeState(ResultState.failing);
-                this.parser.mergeMessage(result, "[[Logical Error]] Matching table cell failed.");
+                result.addMessage("[[Logical Error]] Matching table cell failed.", MessageType.error, this.parser.index);
                 return;
             }
 
         }
     }
 
-    matchTableCell(): Result<Node> {
+    matchTableCell(): NodeResult {
         return this.parser.prepareMatch(this.tableCellType, "table-cell", this.myMatchTableCell, this, this.parser.cleanupText, this.parser);
 
         // let result = new Result<Node>(new Node(this.textType));
@@ -735,14 +735,14 @@ export class Core extends Module {
         // return result;
     }
 
-    private myMatchTableCell(result: Result<Node>) {
-        let node = result.content;
-        let analysedNode = result.analysedContent;
+    private myMatchTableCell(result: NodeResult) {
+        let node = result.node;
+        let analysedNode = result.analysedNode;
 
         let text = "";
-        let symRes: Result<null>;
-        let blkRes: Result<number>;
-        let nodeRes: Result<Node>;
+        let symRes: BasicResult;
+        let blkRes: NodeResult<number>;
+        let nodeRes: NodeResult;
 
         let preIndex = 0, curIndex: number;
 
@@ -778,7 +778,7 @@ export class Core extends Module {
 
             if (this.parser.isEOF()) {
                 mergeWordsNode();
-                this.parser.mergeMessage(result, "Text block ended abruptly.");
+                result.addMessage("Text block ended abruptly.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 break;
             }
@@ -794,9 +794,9 @@ export class Core extends Module {
                 mergeWordsNode();
                 break;
             }
-            else if (this.parser.isMultilineBlankGeThanOne()) {
+            else if (this.parser.isMultilineBlankGtOne()) {
                 mergeWordsNode();
-                this.parser.mergeMessage(result, "Text block ended abruptly.");
+                result.addMessage("Text block ended abruptly.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -806,15 +806,15 @@ export class Core extends Module {
                 result.merge(blkRes);
                 text += " ";
 
-                if (blkRes.content > 1) {
-                    this.parser.mergeMessage(result, "Text block cannot contain linebreaks more than 1.", MessageType.warning);
+                if (blkRes.node > 1) {
+                    result.addMessage("Text block cannot contain linebreaks more than 1.", MessageType.warning, MessageType.error, this.parser.index);
                     //result.mergeState(ResultState.skippable);
                 }
             }
 
             else if ((symRes = this.parser.match("\\\\")).matched) {
                 resetIndex();
-                this.parser.mergeMessage(result, "Text block should not have \\\\.", MessageType.warning);
+                result.addMessage("Text block should not have \\\\.", MessageType.warning, MessageType.error, this.parser.index);
                 text += "\\\\";
                 //result.mergeState(ResultState.skippable);
             }
@@ -822,7 +822,7 @@ export class Core extends Module {
             else if ((nodeRes = this.parser.matchEscapeChar()).matched) {
                 resetIndex();
                 result.merge(nodeRes);
-                text += nodeRes.content.content;
+                text += nodeRes.node.content;
             }
 
             else if ((nodeRes = this.parser.matchInsertion()).matched) {
@@ -835,14 +835,14 @@ export class Core extends Module {
             else if (this.parser.isBasicBlock()) {
                 mergeWordsNode();
 
-                this.parser.mergeMessage(result, "Text block should not have basic block");
+                result.addMessage("Text block should not have basic block", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 this.parser.skipByBrackets();
             }
 
-            else if (this.parser.isOtherBlock()) {
+            else if (this.parser.isStructuralBlock()) {
                 mergeWordsNode();
-                this.parser.mergeMessage(result, "Text block should not have other block");
+                result.addMessage("Text block should not have other block", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 this.parser.skipByBrackets();
             }

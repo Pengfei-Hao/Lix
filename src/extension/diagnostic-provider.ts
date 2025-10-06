@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { LixContext } from './lix-context';
 import { MessageType } from '../foundation/message';
-import { ResultState } from '../foundation/result';
+import { ResultState } from '../parser/result';
 import { diagnosticCollection } from '../extension';
 
 

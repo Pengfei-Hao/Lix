@@ -82,7 +82,7 @@ error-block -> <block> + name != other, basic, format
 
 // otherBlocks: paragraph
 
-other-block -> <block> + name = paragraph
+structural-block -> <block> + name = paragraph
 // paragraph-block-handler 在 paragraph & text 节中
 
 // basicBlocks: text, formula, figure, list, table, code
@@ -107,12 +107,12 @@ format-block -> <block> + name = emph, bold, italic
 
 // free-paragraph 的错误处理放到 free-text 中, 因为free-text 是一个 <not-end>, 因此只会在 end 条件停下来. 此处只要 free-text 加 * 的终止条件作为全集, 其他或条件构成这个全集不交并即可.
 
-free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-ge-than-1> | *<other-block> | *#)
+free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<structural-block> | *#)
 
 escape-char -> \ [[]()#@/]
 
-multiline-blank-le-than-or-eq-1 -> ...
-multiline-blank-ge-than-1 -> ...
+multiline-blank-leq-1 -> ...
+multiline-blank-gt-1 -> ...
 
 insertion -> <symbol> <skip-blank> <insertion-block-handler>
 
@@ -121,14 +121,14 @@ reference -> @ <name> <skip-blank>
 // inline-formula 在 math 节中
 
 // embeded formula 要放到 blank 之后, 因为注释的前缀也是 /
-free-text -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-ge-than-1> | \ \ | *<other-block> | *<basic-block> | *#)
+free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<structural-block> | *<basic-block> | *#)
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
-paragraph-block-handler -> repeat (<par-free-text> | <basic-block> | !<other-block>) end (!EOF | ])
+paragraph-block-handler -> repeat (<par-free-text> | <basic-block> | !<structural-block>) end (!EOF | ])
 
-par-free-text -> repeat (<multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *] | \ \ | *<basic-block> | *<other-block>)
+par-free-text -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *] | \ \ | *<basic-block> | *<structural-block>)
 
-text-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<other-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
+text-block-handler -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
 ```
 
 ### Math
@@ -138,7 +138,7 @@ text-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | !<multiline-bl
 ```
 formula -> 
 
-elements -> repeat (<element> | [ <elements> | <multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> ) end (!EOF | ] | ` | / )
+elements -> repeat (<element> | [ <elements> | <multiline-blank-leq-1> | !<multiline-blank-gt-1> ) end (!EOF | ] | ` | / )
 
 element -> ( repeat([A-Za-z0-9]) end (*<repeat-failing>) ) | <element-char> | ( ` repeat(<not-end>) end(!EOF | *` ) ` )
 
@@ -146,7 +146,7 @@ formula-insertion-handler -> / <elements> + endWith /
 formula-block-handler -> <elements> + endWith ]
 
 
-elements -> repeat(<multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | <formula> | <defination> | <escape-element> | <inline-text> | <element> | !<not-end>) end (!EOF | EndWith...)
+elements -> repeat(<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <formula> | <defination> | <escape-element> | <inline-text> | <element> | !<not-end>) end (!EOF | EndWith...)
 defination -> ` <elements> `
 formula -> [ <elements> ]
 
@@ -182,7 +182,7 @@ expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)
 ```
 // core
 
-figure-block-handler -> <multiline-blank-le-than-or-eq-1> repeat (<single-figure> <multiline-blank-le-than-or-eq-1>) end (])
+figure-block-handler -> <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])
 single-figure -> ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler>
 
 list-block-handler -> ...
@@ -191,11 +191,11 @@ table-block-handler -> ...
 
 code-block-handler -> ...
 
-emph-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | !<multiline-blank-ge-than-1> | <escape-char> | <reference> | <inline-formula> | !<format-block> | !<basic-block> | !<other-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
+emph-block-handler -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | !<format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
 
-bold-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
+bold-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
 
-italic-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
+italic-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
 
 ```
 
@@ -686,12 +686,13 @@ promote: m + sk = sk
 
 #### Foundation
 
-终结符号使用函数 `match` 以及 `is`, 对于 EOF 使用 `isEOF`:
+本节都是词法分析部分, `match` 函数返回的结果为 `Result<T>` 或 `BasicResult`, 均不产生语法树节点
+
+终结符号使用函数 `match`, `matchChar`, `matchUnicodeChar` 以及 `is`, 对于 EOF 使用 `isEOF`:
 * state: f, s
 * messages: []
 * highlights: []
-* content: null
-* analysedContent: undefined
+* reference: []
 
 `name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)`
 * state: f, s
@@ -736,8 +737,8 @@ promote: m + sk = sk
 * analysedContent: undefined
 
 // 下面是 multiline-blank 的带参数形式, 对应于同名的 is 函数, 其 Result 结构与上文相同, 不再重复
-`multiline-blank-le-than-or-eq-1 -> <multiline-blank> + blank <= 1`
-`multiline-blank-ge-than-1 -> <multiline-blank> + blank > 1`
+`multiline-blank-leq-1 -> <multiline-blank> + blank <= 1`
+`multiline-blank-gt-1 -> <multiline-blank> + blank > 1`
 
 `skip-blank -> singleline-blank | NULL`
 * state: sk, s
@@ -757,7 +758,7 @@ promote: m + sk = sk
 
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
 
-`document -> NULL | repeat (<setting> | <free-paragraph> | <block>) end (EOF)`
+`document -> repeat (<setting> | <free-paragraph> | <block>) end (EOF)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
@@ -765,7 +766,7 @@ promote: m + sk = sk
   document: ""
     paragraph...
     setting...
-    other-block...
+    structural-block...
 
 
 // setting
@@ -806,7 +807,7 @@ promote: m + sk = sk
     reference: "[[checked reference name]]"...
 
 
-`block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler>`
+`block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -822,7 +823,7 @@ promote: m + sk = sk
 // 下面是带参数的 block, 其分别对应 同名 is 函数, 其 Result 的结构与 block 相同, 不再重复.
 
 // otherBlocks: paragraph, section ...
-`other-block -> <block> + name = paragraph`
+`structural-block -> <block> + name = paragraph`
 // paragraph-block-handler 在 paragraph & text 节中
 // section-block-handler, ... 在 Aritcle 节中
 
@@ -842,7 +843,7 @@ promote: m + sk = sk
 
 // free-paragraph 的错误处理放到 free-text 中, 因为free-text 是一个 <not-end>, 因此只会在 end 条件停下来. 此处只要 free-text 加 * 的终止条件作为全集, 其他或条件构成这个全集不交并即可.
 
-`free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-ge-than-1> | *<other-block> | *<setting>)`
+`free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<non-basic-format-block> | *<setting>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
@@ -883,7 +884,7 @@ promote: m + sk = sk
 // inline-formula 在 math 节中
 
 // embeded formula 要放到 blank 之后, 因为注释的前缀也是 /
-`free-text -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-ge-than-1> | \ \ | *<other-block> | *<basic-block> | *<setting>)`
+`free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<non-format-block> | *<setting>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -899,7 +900,7 @@ promote: m + sk = sk
     [[cleaned format block: emph, bold]]...
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
-`paragraph-block-handler -> 0-repeat (<par-free-text> | <basic-block> | !<other-block>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
+`paragraph-block-handler -> NULL | repeat (<par-free-text> | <basic-block> | !<non-basic-format-block>) end (*EOF | *<multiline-blank-gt-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -912,7 +913,7 @@ promote: m + sk = sk
     [[cleaned text]]...
     [[cleaned basic block]]...
 
-`par-free-text -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-ge-than-1> | *] | \ \ | *<basic-block> | *<other-block>)`
+`par-free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | *] | \ \ | *<basic-block> | *<structural-block>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -927,7 +928,7 @@ promote: m + sk = sk
     [[cleaned insertion: reference, formula]]...
     [[cleaned format block: emph, bold]]...
 
-`text-block-handler -> 0-repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<other-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
+`text-block-handler -> 0-repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (*EOF | !<multiline-blank-gt-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -965,7 +966,7 @@ promote: m + sk = sk
   * children: []
 
 
-`elements -> 0-repeat(<multiline-blank-le-than-or-eq-1> | <escape-element> | <formula> | <defination> | <inline-text> | <element>) end (!EOF | !<multiline-blank-ge-than-1> | *EndWith...)`
+`elements -> 0-repeat(<multiline-blank-leq-1> | <escape-element> | <formula> | <defination> | <inline-text> | <element>) end (!EOF | !<multiline-blank-gt-1> | *EndWith...)`
 `` defination -> ` <elements> ` ``
 `formula -> [ <elements> ]`
 * state: sk, s, matchElements 中对上述模式匹配中有默认的处理机制 (跳过该字符), 所以不会出现 f, 直到遇到结束条件之一.
@@ -1044,7 +1045,7 @@ infix -> <expression> <operator> <expression>
 
 // core
 
-`figure-block-handler -> <multiline-blank-le-than-or-eq-1> repeat (<single-figure> <multiline-blank-le-than-or-eq-1>) end (])`
+`figure-block-handler -> <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])`
 `` single-figure -> ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler> ``
 * state: f, sk, s
 * messages: [Inherited, New]
@@ -1068,7 +1069,7 @@ table-block-handler -> ...
   * children: []
 
 
-`emph-block-handler -> repeat (<multiline-blank-le-than-or-eq-1> | <escape-char> | <reference> | <inline-formula> | !<block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-ge-than-1> | *])`
+`emph-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | !<block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-gt-1> | *])`
 `bold-block-handler -> ...`
 `italic-block-handler -> ...`
 * state: f, sk, s

@@ -15,7 +15,7 @@ import { blockProvider, formulaProvider } from './extension/tree-data-provider';
 import { LatexProvider } from './extension/document-provider';
 import { LixSemanticProvider } from './extension/semantic-provider';
 import { updateDiagnostic } from './extension/diagnostic-provider';
-import { ResultState } from './foundation/result';
+import { ResultState } from './parser/result';
 import { DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
 import { LixFoldingRangeProvider } from './extension/folding-range-provider';
@@ -415,7 +415,7 @@ async function debug() {
 
 export async function generateLatexFromDocument(document: vscode.TextDocument): Promise<Generator> {
 	let compiler = lixContext.getCompiler(document.uri);
-	let generator = compiler.getGenerator("markdown")!; // latex
+	let generator = compiler.getGenerator("latex")!; // latex
 	await compiler.generateFromText(document.getText(), generator);
 
 	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);

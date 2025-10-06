@@ -1,5 +1,5 @@
 import { Compiler } from "../compiler/compiler";
-import { Reference } from "../foundation/result";
+import { Reference } from "../parser/result";
 import { Node } from "../sytnax-tree/node";
 import { TypeTable } from "../sytnax-tree/type-table";
 
@@ -15,7 +15,7 @@ export abstract class Generator {
         this.references = [];
         this.output = "";
 
-        let doc = typeTable.get("document")!;
+        let doc = typeTable.get("document");
         this.syntaxTree = new Node(doc);
     }
 

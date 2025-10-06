@@ -9,7 +9,7 @@ import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
 import { FileOperation } from "../compiler/file-operation";
 import { Config } from "../compiler/config";
-import { Reference } from "../foundation/result";
+import { Reference } from "../parser/result";
 import { isatty } from "tty";
 
 // latex generate
@@ -33,17 +33,13 @@ export class LatexGenerator extends Generator {
 
     // Math Types
     formulaType: Type;
-    definationType: Type;
-
+    //definitionType: Type;
     elementType: Type;
-    //escapeElementType: Type;
     inlineTextType: Type;
-
-    expressionType: Type;
-    //termType: Type;
     infixType: Type;
     prefixType: Type;
-
+    matrixType: Type;
+    
     // Core Types
 
     figureType: Type;
@@ -110,65 +106,64 @@ export class LatexGenerator extends Generator {
 
         this.hasMakedTitle = false;
 
-        this.documentType = this.typeTable.get("document")!;
-        this.paragraphType = this.typeTable.get("paragraph")!;
-        this.textType = this.typeTable.get("text")!;
-        this.wordsType = this.typeTable.get("words")!;
-        this.nameType = this.typeTable.get("name")!;
-        this.referenceType = this.typeTable.get("reference")!;
-        this.settingType = this.typeTable.get("setting")!;
-        this.settingParameterType = this.typeTable.get("setting-parameter")!;
-        this.blockType = this.typeTable.get("block")!;
-        this.errorType = this.typeTable.get("error")!;
-        this.argumentsType = this.typeTable.get("arguments")!;
-        this.argumentType = this.typeTable.get("argument")!;
+        this.documentType = this.typeTable.get("document");
+        this.paragraphType = this.typeTable.get("paragraph");
+        this.textType = this.typeTable.get("text");
+        this.wordsType = this.typeTable.get("words");
+        this.nameType = this.typeTable.get("name");
+        this.referenceType = this.typeTable.get("reference");
+        this.settingType = this.typeTable.get("setting");
+        this.settingParameterType = this.typeTable.get("setting-parameter");
+        this.blockType = this.typeTable.get("block");
+        this.errorType = this.typeTable.get("error");
+        this.argumentsType = this.typeTable.get("arguments");
+        this.argumentType = this.typeTable.get("argument");
 
-        this.formulaType = this.typeTable.get("formula")!;
-        this.elementType = this.typeTable.get("element")!;
-        this.definationType = this.typeTable.get("defination")!;
-        this.inlineTextType = this.typeTable.get("inline-text")!;
-        this.expressionType = this.typeTable.get("expression")!;
-        //this.termType = this.typeTable.get("term")!;
-        this.infixType = this.typeTable.get("infix")!;
-        this.prefixType = this.typeTable.get("prefix")!;
+        this.formulaType = this.typeTable.get("formula");
+        //this.definitionType = this.typeTable.get("definition");
+        this.elementType = this.typeTable.get("element");
+        this.inlineTextType = this.typeTable.get("inline-text");
+        this.infixType = this.typeTable.get("infix");
+        this.prefixType = this.typeTable.get("prefix");
+        this.matrixType = this.typeTable.get("matrix");
 
-        this.figureType = this.typeTable.get("figure")!;
-        this.figureItemType = this.typeTable.get("figure-item")!;
-        this.figureCaptionType = this.typeTable.get("figure-caption")!;
-        this.listType = this.typeTable.get("list")!;
-        this.itemType = this.typeTable.get("item")!;
-        this.tableType = this.typeTable.get("table")!;
-        this.codeType = this.typeTable.get("code")!;
-        this.emphType = this.typeTable.get("emph")!;
-        this.boldType = this.typeTable.get("bold")!;
-        this.italicType = this.typeTable.get("italic")!;
+        this.figureType = this.typeTable.get("figure");
+        this.figureItemType = this.typeTable.get("figure-item");
+        this.figureCaptionType = this.typeTable.get("figure-caption");
+        this.listType = this.typeTable.get("list");
+        this.itemType = this.typeTable.get("item");
+        this.tableType = this.typeTable.get("table");
+        this.codeType = this.typeTable.get("code");
+        this.emphType = this.typeTable.get("emph");
+        this.boldType = this.typeTable.get("bold");
+        this.italicType = this.typeTable.get("italic");
 
-        this.titleType = this.typeTable.get("title")!;
-        this.authorType = this.typeTable.get("author")!;
-        this.dateType = this.typeTable.get("date")!;
-        this.sectionType = this.typeTable.get("section")!;
-        this.subsectionType = this.typeTable.get("subsection")!;
-        this.subsubsectionType = this.typeTable.get("subsubsection")!;
-        this.tableofcontentsType = this.typeTable.get("tableofcontents")!;
-        this.newpageType = this.typeTable.get("newpage")!;
+        this.titleType = this.typeTable.get("title");
+        this.authorType = this.typeTable.get("author");
+        this.dateType = this.typeTable.get("date");
+        this.sectionType = this.typeTable.get("section");
+        this.subsectionType = this.typeTable.get("subsection");
+        this.subsubsectionType = this.typeTable.get("subsubsection");
+        this.tableofcontentsType = this.typeTable.get("tableofcontents");
+        this.newpageType = this.typeTable.get("newpage");
 
-        this.bibliographyType = this.typeTable.get("bibliography")!;
-        this.bibItemType = this.typeTable.get("bib-item")!;
+        this.bibliographyType = this.typeTable.get("bibliography");
+        this.bibItemType = this.typeTable.get("bib-item");
 
-        this.definitionType = this.typeTable.get("definition'")!;
-        this.lemmaType = this.typeTable.get("lemma")!;
-        this.propositionType = this.typeTable.get("proposition")!;
-        this.theoremType = this.typeTable.get("theorem")!;
-        this.corollaryType = this.typeTable.get("corollary")!;
-        this.proofType = this.typeTable.get("proof")!;
-        // this.fractionType = this.typeTable.get("fraction")!;
-        // this.sqrtType = this.typeTable.get("sqrt")!;
-        // this.sumType = this.typeTable.get("sum")!;
-        // this.limitType = this.typeTable.get("limit")!;
-        // this.integralType = this.typeTable.get("integral")!;
-        // this.scriptType = this.typeTable.get("script")!;
-        // this.bracketsType = this.typeTable.get("brackets")!;
-        // this.matrixType = this.typeTable.get("matrix")!;
+        this.definitionType = this.typeTable.get("definition'");
+        this.lemmaType = this.typeTable.get("lemma");
+        this.propositionType = this.typeTable.get("proposition");
+        this.theoremType = this.typeTable.get("theorem");
+        this.corollaryType = this.typeTable.get("corollary");
+        this.proofType = this.typeTable.get("proof");
+        // this.fractionType = this.typeTable.get("fraction");
+        // this.sqrtType = this.typeTable.get("sqrt");
+        // this.sumType = this.typeTable.get("sum");
+        // this.limitType = this.typeTable.get("limit");
+        // this.integralType = this.typeTable.get("integral");
+        // this.scriptType = this.typeTable.get("script");
+        // this.bracketsType = this.typeTable.get("brackets");
+        // this.matrixType = this.typeTable.get("matrix");
 
         // Init node generator table
         // this.nodeGeneratorTable = new Map([
@@ -382,7 +377,6 @@ export class LatexGenerator extends Generator {
                     break;
 
                 case this.formulaType:
-                case this.expressionType:
                     res += this.generateFormula(n);
                     break;
                 case this.figureType:
@@ -433,7 +427,7 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.referenceType:
                     let refnode = this.references.find(value => value.name === n.content)?.node;
-                    if(refnode?.type === this.formulaType || refnode?.type === this.expressionType) {
+                    if(refnode?.type === this.formulaType) {
                         res += `\\eqref{${n.content}}`;
                     }
                     else if(refnode?.type === this.bibItemType) {
@@ -444,7 +438,6 @@ export class LatexGenerator extends Generator {
                     }
                     break;
                 case this.formulaType:
-                case this.expressionType:
                     res += this.generateFormula(n, true);
                     break;
                 case this.codeType:
@@ -477,7 +470,7 @@ export class LatexGenerator extends Generator {
     async generateFigure(tnode: Node): Promise<string> {
         let refLatex = this.generateReferences(tnode);
 
-        let node = Node.clone(tnode);
+        let node = tnode.clone();
         node.children = node.children.slice(1);
         // \begin{figure}[!htbp]
         // \centering
@@ -580,7 +573,6 @@ export class LatexGenerator extends Generator {
                     break;
 
                 case this.formulaType:
-                case this.expressionType:
                     res += this.generateFormula(n);
                     break;
                 case this.figureType:
@@ -627,27 +619,19 @@ export class LatexGenerator extends Generator {
             multiline = true;
         }
 
-        let res = inline ? "$" : `\\begin{equation${numbered}}${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n`;
+        let res = inline ? "$" : `\\begin{equation${numbered}}\n${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n`;
+        res += multiline ? `\\begin{aligned}\n` : ``;
 
-        if (!inline && multiline) {
-            let tmp = this.generateMultilineFormula(node.children.at(-1)!);
-            res += tmp;
-        }
-        else {
-            let tmp = this.generateTermOrOperator(node.children.at(-1)!);
-            // if(tmp.startsWith("{") && tmp.endsWith("}")) {
-            //     tmp=tmp.slice(1,-1);
-            // }
-            res += tmp;
-        }
-
+        res += this.generateTermOrOperator(node.children.at(-1)!);
+        
+        res += multiline ? `\n\\end{aligned}` : ``;
         res += inline ? "$" : `\n\\end{equation${numbered}}%\n`;
 
         return res;
     }
 
 
-    // 要保证为 Latex 中一项
+    // 生成的 Latex 保证为 Latex 中的一项或多项
     generateTermOrOperator(node: Node): string {
         let res = "";
         let code: string | undefined;
@@ -665,22 +649,10 @@ export class LatexGenerator extends Generator {
             case this.elementType:
                 let sym = this.latexFormula.get(node.content);
                 res += sym ?? `\\text{[[${node.content}]]}`;
-                //res += " ";
                 break;
-
-            // Terms, 生成的 Latex 保证为 Latex 中的一项或多项
-            case this.prefixType:
-                let cases = false;
-                if (node.content === "cases") {
-                    cases = true;
-                }
-                if (node.content === "mat" || cases) {
-                    if (cases) {
-                        res += `\\left\\{`
-                    }
-                    res += `\\begin{matrix}\n`;
+            case this.matrixType:
                     let brow = false;
-                    for (let row of node.children[0].children) {
+                    for (let row of node.children) {
                         if (brow) {
                             res += `\\\\`;
                         }
@@ -696,12 +668,10 @@ export class LatexGenerator extends Generator {
                             res += ncode;
                         }
                     }
-                    res += `\n\\end{matrix}`;
-                    if (cases) {
-                        res += `\\right.`
-                    }
                     break;
-                }
+
+            // Terms, 生成的 Latex 保证为 Latex 中的一项或多项
+            case this.prefixType:
                 code = this.latexOperator.get(node.content);
                 if (code !== undefined) {
                     for (let i = 0; i < node.children.length; i++) {
@@ -723,53 +693,6 @@ export class LatexGenerator extends Generator {
                 else {
                     res += `\\text{[[Prefix Error]]}`;
                 }
-                // switch (node.content) {
-                //     case "lim":
-                //         res += `{\\lim_${this.generateTermOrOperator(node.children[0])}${this.generateTermOrOperator(node.children[1])}}`;
-                //         break;
-                //     case "⋃":
-                //         res += `{\\bigcup_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
-                //         break;
-                //     case "⋂":
-                //         res += `{\\bigcap_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
-                //         break;
-                //     case "∑":
-                //         res += `{\\sum_${this.generateTermOrOperator(node.children[0])}^${this.generateTermOrOperator(node.children[1])}${this.generateTermOrOperator(node.children[2])}}`;
-                //         break;
-                //     case "dot":
-                //         res += `{\\dot{${this.generateTermOrOperator(node.children[0])}}}`;
-                //         break;
-                //     case "hat":
-                //         res += `{\\hat{${this.generateTermOrOperator(node.children[0])}}}`;
-                //         break;
-                //     case "vec":
-                //         res += `{\\vec{${this.generateTermOrOperator(node.children[0])}}}`;
-                //         break;
-                //     case "√":
-                //         res += `{\\sqrt ${this.generateTermOrOperator(node.children[0])}}`;
-                //         break;
-                //     case "cases":
-                //         res += `{${this.generateTermOrOperator(node.children[0])}}`;
-                //         break;
-                //     case "norm":
-                //         res += `{\\Vert ${this.generateTermOrOperator(node.children[0])} \\Vert}`;
-                //         break;
-                //     case "tilde":
-                //         res += `{\\widetilde{${this.generateTermOrOperator(node.children[0])}}}`;
-                //         break;
-                //     case "mat":
-                //         res += `{${this.generateTermOrOperator(node.children[0])}}`;
-                //         break;
-                //     case "(":
-                //         res += `{\\left(${this.generateTermOrOperator(node.children[0])}\\right)}`;
-                //         break;
-                //     case "{":
-                //         res += `{\\left\\{${this.generateTermOrOperator(node.children[0])}\\right\\}}`;
-                //         break;
-                //     case "⟨":
-                //         res += `{\\left\\langle${this.generateTermOrOperator(node.children[0])}\\right\\rangle}`;
-                //         break;
-                // }
                 break;
 
             case this.infixType:
@@ -846,40 +769,6 @@ export class LatexGenerator extends Generator {
 
         }
 
-        return res;
-    }
-
-    generateMultilineFormula(node: Node): string {
-        let res = "";
-        switch (node.type) {
-            case this.prefixType:
-                if (node.content === "mat") {
-                    res += `\\begin{aligned}`;
-                    let brow = false;
-                    for (let row of node.children) {
-                        if (brow) {
-                            res += `\\\\`;
-                        }
-                        brow = true;
-
-                        let bcol = false;
-                        for (let col of row.children) {
-                            let ncode = this.generateTermOrOperator(col);
-                            if (bcol) {
-                                res += `&`;
-                            }
-                            bcol = true;
-                            res += ncode;
-                        }
-                    }
-                    res += `\\end{aligned}`;
-                }
-                return res;
-        }
-        res = this.generateTermOrOperator(node.children.at(-1)!);
-        // if (res.startsWith("{") && res.endsWith("}")) {
-        //     res = res.slice(1, -1);
-        // }
         return res;
     }
 

@@ -131,7 +131,7 @@ export class OperatorTable {
 
     // Compare
 
-    lessThanOrEqualTo(symbolL: string, symbolR: string): boolean {
+    leq(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
         if(priL && priR) {
@@ -143,7 +143,7 @@ export class OperatorTable {
         }
     }
 
-    equalTo(symbolL: string, symbolR: string): boolean {
+    eq(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
         if(priL && priR) {
@@ -155,7 +155,7 @@ export class OperatorTable {
         }
     }
 
-    greaterThan(symbolL: string, symbolR: string): boolean {
+    gt(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
         if(priL && priR) {

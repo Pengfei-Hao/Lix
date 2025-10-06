@@ -15,7 +15,7 @@ export class blockProvider implements vscode.TreeDataProvider<string> {
         }
         if(!element) {
             let res = [];
-            for(let label of this.context.getCompiler(document.uri).parser.blockHandlerTable.blockHandlers.keys()) {
+            for(let label of this.context.getCompiler(document.uri).parser.blockTable.handlers.keys()) {
                 res.push(label);
             }
             return res;

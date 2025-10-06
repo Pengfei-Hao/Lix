@@ -9,7 +9,7 @@ import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
 import { FileOperation } from "../compiler/file-operation";
 import { Config } from "../compiler/config";
-import { Reference } from "../foundation/result";
+import { Reference } from "../parser/result";
 
 // markdown generate
 
@@ -32,7 +32,7 @@ export class MarkdownGenerator extends Generator {
 
     // Math Types
     formulaType: Type;
-    definationType: Type;
+    //definationType: Type;
 
     elementType: Type;
     //escapeElementType: Type;
@@ -98,65 +98,65 @@ export class MarkdownGenerator extends Generator {
         this.config = compiler.config;
         this.fileOperation = compiler.fileOperation;
 
-        this.documentType = this.typeTable.get("document")!;
-        this.paragraphType = this.typeTable.get("paragraph")!;
-        this.textType = this.typeTable.get("text")!;
-        this.wordsType = this.typeTable.get("words")!;
-        this.nameType = this.typeTable.get("name")!;
-        this.referenceType = this.typeTable.get("reference")!;
-        this.settingType = this.typeTable.get("setting")!;
-        this.settingParameterType = this.typeTable.get("setting-parameter")!;
-        this.blockType = this.typeTable.get("block")!;
-        this.errorType = this.typeTable.get("error")!;
-        this.argumentsType = this.typeTable.get("arguments")!;
-        this.argumentType = this.typeTable.get("argument")!;
+        this.documentType = this.typeTable.get("document");
+        this.paragraphType = this.typeTable.get("paragraph");
+        this.textType = this.typeTable.get("text");
+        this.wordsType = this.typeTable.get("words");
+        this.nameType = this.typeTable.get("name");
+        this.referenceType = this.typeTable.get("reference");
+        this.settingType = this.typeTable.get("setting");
+        this.settingParameterType = this.typeTable.get("setting-parameter");
+        this.blockType = this.typeTable.get("block");
+        this.errorType = this.typeTable.get("error");
+        this.argumentsType = this.typeTable.get("arguments");
+        this.argumentType = this.typeTable.get("argument");
 
-        this.formulaType = this.typeTable.get("formula")!;
-        this.elementType = this.typeTable.get("element")!;
-        this.definationType = this.typeTable.get("defination")!;
-        this.inlineTextType = this.typeTable.get("inline-text")!;
-        this.expressionType = this.typeTable.get("expression")!;
-        //this.termType = this.typeTable.get("term")!;
-        this.infixType = this.typeTable.get("infix")!;
-        this.prefixType = this.typeTable.get("prefix")!;
+        this.formulaType = this.typeTable.get("formula");
+        this.elementType = this.typeTable.get("element");
+        //this.definationType = this.typeTable.get("defination");
+        this.inlineTextType = this.typeTable.get("inline-text");
+        this.expressionType = this.typeTable.get("expression");
+        //this.termType = this.typeTable.get("term");
+        this.infixType = this.typeTable.get("infix");
+        this.prefixType = this.typeTable.get("prefix");
 
-        this.figureType = this.typeTable.get("figure")!;
-        this.figureItemType = this.typeTable.get("figure-item")!;
-        this.figureCaptionType = this.typeTable.get("figure-caption")!;
-        this.listType = this.typeTable.get("list")!;
-        this.itemType = this.typeTable.get("item")!;
-        this.tableType = this.typeTable.get("table")!;
-        this.codeType = this.typeTable.get("code")!;
-        this.emphType = this.typeTable.get("emph")!;
-        this.boldType = this.typeTable.get("bold")!;
-        this.italicType = this.typeTable.get("italic")!;
+        this.figureType = this.typeTable.get("figure");
+        this.figureItemType = this.typeTable.get("figure-item");
+        this.figureCaptionType = this.typeTable.get("figure-caption");
+        this.listType = this.typeTable.get("list");
+        this.itemType = this.typeTable.get("item");
+        this.tableType = this.typeTable.get("table");
+        this.codeType = this.typeTable.get("code");
+        this.emphType = this.typeTable.get("emph");
+        this.boldType = this.typeTable.get("bold");
+        this.italicType = this.typeTable.get("italic");
 
-        this.titleType = this.typeTable.get("title")!;
-        this.authorType = this.typeTable.get("author")!;
-        this.dateType = this.typeTable.get("date")!;
-        this.sectionType = this.typeTable.get("section")!;
-        this.subsectionType = this.typeTable.get("subsection")!;
-        this.subsubsectionType = this.typeTable.get("subsubsection")!;
-        this.tableofcontentsType = this.typeTable.get("tableofcontents")!;
-        this.newpageType = this.typeTable.get("newpage")!;
+        this.titleType = this.typeTable.get("title");
+        this.authorType = this.typeTable.get("author");
+        this.dateType = this.typeTable.get("date");
+        this.sectionType = this.typeTable.get("section");
+        this.subsectionType = this.typeTable.get("subsection");
+        this.subsubsectionType = this.typeTable.get("subsubsection");
+        this.tableofcontentsType = this.typeTable.get("tableofcontents");
+        this.newpageType = this.typeTable.get("newpage");
 
-        this.bibliographyType = this.typeTable.get("bibliography")!;
-        this.bibItemType = this.typeTable.get("bib-item")!;
+        this.bibliographyType = this.typeTable.get("bibliography");
+        this.bibItemType = this.typeTable.get("bib-item");
 
-        this.definitionType = this.typeTable.get("definition'")!;
-        this.lemmaType = this.typeTable.get("lemma")!;
-        this.propositionType = this.typeTable.get("proposition")!;
-        this.theoremType = this.typeTable.get("theorem")!;
-        this.corollaryType = this.typeTable.get("corollary")!;
-        this.proofType = this.typeTable.get("proof")!;
-        // this.fractionType = this.typeTable.get("fraction")!;
-        // this.sqrtType = this.typeTable.get("sqrt")!;
-        // this.sumType = this.typeTable.get("sum")!;
-        // this.limitType = this.typeTable.get("limit")!;
-        // this.integralType = this.typeTable.get("integral")!;
-        // this.scriptType = this.typeTable.get("script")!;
-        // this.bracketsType = this.typeTable.get("brackets")!;
-        // this.matrixType = this.typeTable.get("matrix")!;
+        this.definitionType = this.typeTable.get("definition'");
+        this.lemmaType = this.typeTable.get("lemma");
+        this.propositionType = this.typeTable.get("proposition");
+        this.theoremType = this.typeTable.get("theorem");
+        this.corollaryType = this.typeTable.get("corollary");
+        this.proofType = this.typeTable.get("proof");
+        // this.fractionType = this.typeTable.get("fraction");
+        // this.sqrtType = this.typeTable.get("sqrt");
+        // this.sumType = this.typeTable.get("sum");
+        // this.limitType = this.typeTable.get("limit");
+        // this.integralType = this.typeTable.get("integral");
+        // this.scriptType = this.typeTable.get("script");
+        // this.bracketsType = this.typeTable.get("brackets");
+        // this.matrixType = this.typeTable.get("matrix");
 
         // Init node generator table
         // this.nodeGeneratorTable = new Map([
@@ -439,7 +439,7 @@ export class MarkdownGenerator extends Generator {
     async generateFigure(tnode: Node): Promise<string> {
         let refLatex = this.generateReferences(tnode);
 
-        let node = Node.clone(tnode);
+        let node = tnode.clone();
         node.children = node.children.slice(1);
         // \begin{figure}[!htbp]
         // \centering

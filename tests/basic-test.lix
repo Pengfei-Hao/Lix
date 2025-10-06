@@ -25,10 +25,10 @@ This is a new paragraph.
 
 [section Paragraph Block Test]
 
-[paragraph (center) 
+[paragraph (center,start: titled) 
 Paragraph block test. This is a paragraph block. [emph Empasize some words.] Some words. [bold Make these words bold.] \\
 A new line of words. 
-[text New line of words again. ]
+[text(start: indent) New line of words again. ]
 ]
 
 # setting-3: param of setting 3
@@ -49,13 +49,13 @@ Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp to : 
 
 [subsection Formulas]
 
-/min_[x∊X] F(x₁,x₂,…,x_s) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
+/min_[x∊X] F(x₁,x₂,…,x_s ∑) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
 
 /x^k_i = min_[x_i∊X^k_i] {⟨g^k_i, x_i-x^[k-1]_i⟩ + [L^[k-1] ⁄ 2] norm [x_i-x^[k-1]_i]²₂ + r_i(x_i) }  / 
 
 [section Comment Test]
 
-[text (center,large) Comment test. /* comment */ This is a multiline comment.  /* comment
+[text (center,large) Comment test. /* comment */ This [text a] is a multiline comment.  /* comment
 comment */ Another multiline comment.
 This is a line comment. // line comment.
 Embeded comment. /* comment /* Embeded comment. */ */
@@ -64,7 +64,7 @@ abcd // line comment.
 
 [section Reference Test]
 
-Reference test. This is a reference @reference. [emph @refer].
+Reference test. This is a reference @reference;. [emph @refer].
 
 [section Error Test]
 
@@ -80,3 +80,4 @@ Reference test. This is a reference @reference. [emph @refer].
 / a [ b 错 c ] c d /* commit */ (t) * ↦ f ∑ 𝒜 h "hello"/ 
 
 / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp /
+[paragraph [text a]]

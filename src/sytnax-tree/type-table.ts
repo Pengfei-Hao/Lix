@@ -1,15 +1,12 @@
 import { Type } from "./type";
-import { Parser } from "../parser/parser";
-
+import { LixError } from "../foundation/error";
 
 export class TypeTable {
-    parser: Parser;
+
     private names: Map<string, Type>;
     private count: number;
 
-    constructor(parser: Parser) {
-        this.parser = parser;
-
+    constructor() {
         this.names = new Map();
         this.count = 0;
     }
@@ -18,14 +15,18 @@ export class TypeTable {
         return this.names.get(name) != undefined;
     }
 
-    get(name: string): Type | undefined {
-        return this.names.get(name);
+    get(name: string): Type {
+        let type = this.names.get(name);
+        if(type === undefined) {
+            return this.names.get("name")!;
+            throw new LixError(`Type '${name}' do not exist.`);
+        }
+        return type;
     }
 
-    add(name: string): Type | undefined {
+    add(name: string): Type {
         if(this.has(name)) {
-            console.log(`Type '${name}' is defined.`);
-            return undefined;
+            throw new LixError(`Type '${name}' repeated.`);
         }
 
         let newType = new Type(name, this);

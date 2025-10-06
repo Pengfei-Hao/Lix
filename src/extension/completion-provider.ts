@@ -4,7 +4,7 @@ import { LixContext } from './lix-context';
 import { Node } from '../sytnax-tree/node';
 import * as file from 'fs';
 import { Type } from '../sytnax-tree/type';
-import { ArgumentType } from '../parser/block-handler-table';
+import { ArgumentType } from '../parser/block-table';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
     context: LixContext;
@@ -66,7 +66,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
 
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "[") {
             if (!this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
-                for (let item of parser.blockHandlerTable.blockHandlers.keys()) {
+                for (let item of parser.blockTable.handlers.keys()) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Function);
                     comp.insertText = item + " ";
                     comp.kind = vscode.CompletionItemKind.Keyword;
@@ -102,9 +102,9 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                     return res;
                 }
                 let compiler = this.context.getCompiler(document.uri);
-                let spec = compiler.parser.blockHandlerTable.getSpecification(node.content);
+                let spec = compiler.parser.blockTable.getOption(node.content);
                 if (spec) {
-                    for (let [name, arg] of spec.arguments) {
+                    for (let [name, arg] of spec.argumentOptions) {
                         let comp = new vscode.CompletionItem(name, vscode.CompletionItemKind.Field);
                         res.push(comp);
 

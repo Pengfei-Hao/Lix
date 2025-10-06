@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { LixContext } from './lix-context';
-import { HighlightType } from '../foundation/result';
+import { HighlightType } from '../parser/result';
 import { parseFromDocument } from '../extension';
 
 export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvider {
@@ -43,8 +43,8 @@ export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvide
           type = "comment";
           break;
       }
-      let lp = parser.getLineAndCharacter(hlt.begin) ?? { line: -1, character: -1 };
-      let lpe = parser.getLineAndCharacter(hlt.end) ?? { line: -1, character: -1 };
+      let lp = parser.getLineAndCharacter(hlt.begin);
+      let lpe = parser.getLineAndCharacter(hlt.end);
 
       if(lp.line != lpe.line) {
         console.log(`${lp.line},${lp.character}:${lpe.line},${lpe.character}`);

@@ -1,9 +1,9 @@
 import { Parser } from "../parser";
 import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
-import { Result } from "../../foundation/result";
+import { NodeResult } from "../result";
 
-type HandleFunction = (node: Node) => Result<Node>;
+type HandleFunction = (node: Node) => NodeResult;
 
 export class SymbolTable {
 

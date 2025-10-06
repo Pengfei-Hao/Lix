@@ -12,37 +12,53 @@ export class Node {
 
     
     constructor(type: Type, content: string = "", children: Node[] = [], begin: number = -1, end: number = -1) {
-            this.type = type;
-            this.content = content;
-            this.children = children;
-            this.begin = begin;
-            this.end = end;
+        this.type = type;
+        this.content = content;
+        this.children = children;
+        this.begin = begin;
+        this.end = end;
     }
 
-    static clone(node: Node): Node {
-        let newNode = new Node(node.type, node.content);
-        newNode.begin = node.begin;
-        newNode.end = node.end;
+    private static clone(node: Node): Node {
+        let newNode = new Node(node.type, node.content, [], node.begin, node.end);
         for(let subNode of node.children) {
             newNode.children.push(Node.clone(subNode));
         }
         return newNode;
     }
 
-    static moveTo(from: Node, to: Node) {
-        to.type = from.type;
-        to.content = from.content;
-        to.begin = from.begin;
-        to.end = from.end;
-        from.children.forEach(value => to.children.push(value));
+    clone(): Node {
+        return Node.clone(this);
     }
 
-    static copyTo(from: Node, to: Node) {
+    // This will overwrite type, content, begin, end, and add subnodes.
+    private static moveTo(from: Node, to: Node) {
         to.type = from.type;
         to.content = from.content;
         to.begin = from.begin;
         to.end = from.end;
-        from.children.forEach(value => to.children.push(Node.clone(value)));
+        from.children.forEach(subNode => to.children.push(subNode));
+        from.content = "";
+        from.begin = -1;
+        from.end = -1;
+        from.children = [];
+    }
+
+    moveTo(to: Node) {
+        Node.moveTo(this, to);
+    }
+
+    // This will overwrite type, content, begin, end, and add subnodes.
+    private static copyTo(from: Node, to: Node) {
+        to.type = from.type;
+        to.content = from.content;
+        to.begin = from.begin;
+        to.end = from.end;
+        from.children.forEach(subNode => to.children.push(subNode.clone()));
+    }
+
+    copyTo(to: Node) {
+        Node.copyTo(this, to);
     }
 
     private myToString(level: string): string {
