@@ -5,15 +5,11 @@ export enum OperatorType {
 }
 
 export class InfixOperator {
-    
-    symbols: string;
-    patterns: Set<string>;
-    priority: number;
-
-    constructor(symbols: string, patterns: Set<string>, priority: number) {
-        this.priority = priority;
-        this.symbols = symbols;
-        this.patterns = patterns;
+    constructor(
+        public symbols: string,
+        public patterns: Set<string>,
+        public priority: number
+    ) {
     }
 }
 
@@ -25,54 +21,32 @@ export enum PrefixOperatorType {
 }
 
 export class PrefixOperatorPattern {
-    type: PrefixOperatorType;
-    options: Set<string>;
-
-    constructor(type: PrefixOperatorType, options: Set<string>) {
-        this.type = type;
-        this.options = options;
+    constructor(
+        public type: PrefixOperatorType,
+        public options: Set<string>
+    ) {
     }
 }
 
 export class PrefixOperator {
-    patterns: PrefixOperatorPattern[];
-
-    constructor(patterns: PrefixOperatorPattern[]) {
-        this.patterns = patterns;
+    constructor(
+        public patterns: PrefixOperatorPattern[]
+    ) {
     }
 }
 
 
 export class OperatorTable {
 
-    private infixOperators: InfixOperator[];
-    private infixSymbols: Map<string, InfixOperator>;
+    private infixOperators: InfixOperator[] = [];
+    private infixSymbols: Map<string, InfixOperator> = new Map();
 
-    private prefixOperators: PrefixOperator[];
-    private max: number;
-    private min: number;
-    private prefixSymbols: Map<string, PrefixOperator>;
-
-    //static BlankOperator: InfixOperator = new InfixOperator(0, "", new Set());
-    // infix:
-    // [placeholder] / [placeholder]
-    // [placeholder] ^ [placeholder] _ [placeholder]
-
-    // prefix:
-    // sum [placeholder] to [placeholder] : [placeholder]
-    // hat [placeholder]
-
+    private prefixOperators: PrefixOperator[] = [];
+    private max: number = 0;
+    private min: number = 0;
+    private prefixSymbols: Map<string, PrefixOperator> = new Map();
 
     constructor() {
-        this.infixOperators = [];
-        //this.infixOperators.push(OperatorTable.BlankOperator);
-        this.prefixOperators = [];
-        this.max = 0;
-        this.min = 0;
-        this.infixSymbols = new Map();
-        this.prefixSymbols = new Map();
-        //this.infixSymbols.set("", OperatorTable.BlankOperator);
-
     }
 
     // Insert
@@ -82,33 +56,33 @@ export class OperatorTable {
         let op = new InfixOperator(symbols, patterns, priority);
         this.infixOperators.push(op);
 
-        for(let sym of symbols) {
-            if(this.infixSymbols.get(sym) !== undefined) {
+        for (let sym of symbols) {
+            if (this.infixSymbols.get(sym) !== undefined) {
                 console.log("Infix operator repeated.");
             }
             this.infixSymbols.set(sym, op);
         }
-        if(priority > this.max) {
+        if (priority > this.max) {
             this.max = priority;
         }
-        if(priority < this.min) {
+        if (priority < this.min) {
             this.min = priority;
         }
     }
 
     addPrefixOperator(patterns: PrefixOperatorPattern[]) {
-        if(patterns.length === 0 || patterns[0].type !== PrefixOperatorType.enumeration || patterns[0].options.size === 0) {
+        if (patterns.length === 0 || patterns[0].type !== PrefixOperatorType.enumeration || patterns[0].options.size === 0) {
             console.log("Prefix operator pattern is wrong.");
             return;
         }
         let op = new PrefixOperator(patterns);
         this.prefixOperators.push(op);
-        for(let sym of patterns[0].options) {
-            if(this.prefixSymbols.get(sym) !== undefined) {
+        for (let sym of patterns[0].options) {
+            if (this.prefixSymbols.get(sym) !== undefined) {
                 console.log("Prefix operator repeated.");
             }
             this.prefixSymbols.set(sym, op);
-        } 
+        }
     }
 
     insertInfixOperatorAtTop(symbols: string, patterns: Set<string>) {
@@ -121,11 +95,11 @@ export class OperatorTable {
 
     // Find
 
-    getInfixOperator(symbol: string) : InfixOperator | undefined {
+    getInfixOperator(symbol: string): InfixOperator | undefined {
         return this.infixSymbols.get(symbol);
     }
 
-    getPrefixOperator(symbol: string) : PrefixOperator | undefined {
+    getPrefixOperator(symbol: string): PrefixOperator | undefined {
         return this.prefixSymbols.get(symbol);
     }
 
@@ -134,7 +108,7 @@ export class OperatorTable {
     leq(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
-        if(priL && priR) {
+        if (priL && priR) {
             return priL.priority <= priR.priority;
         }
         else {
@@ -146,7 +120,7 @@ export class OperatorTable {
     eq(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
-        if(priL && priR) {
+        if (priL && priR) {
             return priL.priority == priR.priority;
         }
         else {
@@ -158,7 +132,7 @@ export class OperatorTable {
     gt(symbolL: string, symbolR: string): boolean {
         let priL = this.getInfixOperator(symbolL);
         let priR = this.getInfixOperator(symbolR);
-        if(priL && priR) {
+        if (priL && priR) {
             return priL.priority > priR.priority;
         }
         else {

@@ -1,27 +1,22 @@
 import { Type } from "./type";
 
 export class Node {
-    public type: Type;
 
-    public content: string;
+    constructor(
+        public type: Type,
 
-    public children: Node[];
+        public content: string = "",
 
-    public begin: number;
-    public end: number;
+        public children: Node[] = [],
 
-    
-    constructor(type: Type, content: string = "", children: Node[] = [], begin: number = -1, end: number = -1) {
-        this.type = type;
-        this.content = content;
-        this.children = children;
-        this.begin = begin;
-        this.end = end;
+        public begin: number = -1,
+        public end: number = -1
+    ) {
     }
 
     private static clone(node: Node): Node {
         let newNode = new Node(node.type, node.content, [], node.begin, node.end);
-        for(let subNode of node.children) {
+        for (let subNode of node.children) {
             newNode.children.push(Node.clone(subNode));
         }
         return newNode;
@@ -62,10 +57,7 @@ export class Node {
     }
 
     private myToString(level: string): string {
-        if(this.type === undefined) {
-            console.log("a");
-        }
-        let res = `${level}${this.type.name}: "${this.content}", range: [${this.begin}, ${this.end})`
+        let res = `${level}${this.type.name}: "${this.content.replace(/[\n\r]/g, "\\n")}", range: [${this.begin}, ${this.end})`
         if (this.children.length === 0) {
             return res;
         }

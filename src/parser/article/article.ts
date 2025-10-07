@@ -2,9 +2,9 @@ import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
-import { NodeResult, ResultState } from "../result";
+import { NodeResult, Result, ResultState } from "../result";
 import { MessageType } from "../../foundation/message";
-import { BlockOption, ArgumentType } from "../block-table";
+import { BlockOption, ArgumentType, BlockType } from "../block-table";
 
 export class Article extends Module {
 
@@ -33,78 +33,72 @@ export class Article extends Module {
     constructor(parser: Parser) {
         super(parser);
 
-        // Init label handle function
+        // **************** Section ****************
 
-        // other blocks
-        this.parser.otherBlocks.add("section");
-        this.parser.otherBlocks.add("subsection");
-        this.parser.otherBlocks.add("subsubsection");
-        this.parser.otherBlocks.add("tableofcontents");
-        this.parser.otherBlocks.add("newpage");
-        this.parser.otherBlocks.add("title");
-        this.parser.otherBlocks.add("author");
-        this.parser.otherBlocks.add("date");
-
-        const sectionSpec: BlockOption = {
+        const sectionOption: BlockOption = {
+            type: BlockType.structural,
             argumentOptions: new Map([
                 ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "numbered" }],
             ]),
             allowReference: true
         };
-        this.parser.blockTable.add("section", this.sectionBlockHandler, this, sectionSpec);
-        this.parser.blockTable.add("subsection", this.subsectionBlockHandler, this, sectionSpec);
-        this.parser.blockTable.add("subsubsection", this.subsubsectionBlockHandler, this, sectionSpec);
-        this.parser.blockTable.add("tableofcontents", this.tableofcontentsBlockHandler, this);
-        this.parser.blockTable.add("newpage", this.newpageBlockHandler, this);
-        this.parser.blockTable.add("title", this.titleBlockHandler, this);
-        this.parser.blockTable.add("author", this.authorBlockHandler, this);
-        this.parser.blockTable.add("date", this.dateBlockHandler, this);
+        this.parser.blockTable.add("section", this.sectionBlockHandler, this, sectionOption);
+        this.parser.blockTable.add("subsection", this.subsectionBlockHandler, this, sectionOption);
+        this.parser.blockTable.add("subsubsection", this.subsubsectionBlockHandler, this, sectionOption);
 
-        // Init syntax tree node type
-        this.titleType = this.parser.typeTable.add("title");
-        this.authorType = this.parser.typeTable.add("author");
-        this.dateType = this.parser.typeTable.add("date");
         this.sectionType = this.parser.typeTable.add("section");
         this.subsectionType = this.parser.typeTable.add("subsection");
         this.subsubsectionType = this.parser.typeTable.add("subsubsection");
+
+        // **************** Document ****************
+
+        const defaultOption: BlockOption = {
+            type: BlockType.structural,
+            argumentOptions: new Map(),
+            allowReference: false
+        };
+        this.parser.blockTable.add("tableofcontents", this.tableofcontentsBlockHandler, this, defaultOption);
+        this.parser.blockTable.add("newpage", this.newpageBlockHandler, this, defaultOption);
+        this.parser.blockTable.add("title", this.titleBlockHandler, this, defaultOption);
+        this.parser.blockTable.add("author", this.authorBlockHandler, this, defaultOption);
+        this.parser.blockTable.add("date", this.dateBlockHandler, this, defaultOption);
+
         this.tableofcontentsType = this.parser.typeTable.add("tableofcontents");
         this.newpageType = this.parser.typeTable.add("newpage");
+        this.titleType = this.parser.typeTable.add("title");
+        this.authorType = this.parser.typeTable.add("author");
+        this.dateType = this.parser.typeTable.add("date");
 
+        // **************** Bibliography ****************
 
-        // Bibliography
-        this.parser.otherBlocks.add("bibliography");
-        this.parser.blockTable.add("bibliography", this.bibliographyBlockHandler, this);
+        // bibliography
+        this.parser.blockTable.add("bibliography", this.bibliographyBlockHandler, this, defaultOption);
 
-        // BibItem
-        this.parser.basicBlocks.add("bib-item");
-        const itemSpec: BlockOption = {
+        // bibliography item
+        this.parser.blockTable.add("bib-item", this.bibItemBlockHandler, this, {
+            type: BlockType.subblock,
             argumentOptions: new Map(),
             allowReference: true
-        };
-        this.parser.blockTable.add("bib-item", this.bibItemBlockHandler, this, itemSpec);
+        });
 
         this.bibliographyType = this.parser.typeTable.add("bibliography");
         this.bibItemType = this.parser.typeTable.add("bib-item");
 
-        // 此 definition 与 math 冲突了
-        this.parser.otherBlocks.add("definition");
-        this.parser.otherBlocks.add("lemma");
-        this.parser.otherBlocks.add("proposition");
-        this.parser.otherBlocks.add("theorem");
-        this.parser.otherBlocks.add("corollary");
-        this.parser.otherBlocks.add("proof");
+        // **************** Math Envirionment ****************
 
-        const mathEnvSpec: BlockOption = {
+        const mathOption: BlockOption = {
+            type: BlockType.structural,
             argumentOptions: new Map(),
             allowReference: true
         };
-        this.parser.blockTable.add("definition", this.definitionBlockHandler, this, mathEnvSpec);
-        this.parser.blockTable.add("lemma", this.lemmaBlockHandler, this, mathEnvSpec);
-        this.parser.blockTable.add("proposition", this.propositionBlockHandler, this, mathEnvSpec);
-        this.parser.blockTable.add("theorem", this.theoremBlockHandler, this, mathEnvSpec);
-        this.parser.blockTable.add("corollary", this.corollaryBlockHandler, this, mathEnvSpec);
-        this.parser.blockTable.add("proof", this.proofBlockHandler, this, mathEnvSpec);
-        
+        // 此 definition 与 math 冲突了
+        this.parser.blockTable.add("definition", this.definitionBlockHandler, this, mathOption);
+        this.parser.blockTable.add("lemma", this.lemmaBlockHandler, this, mathOption);
+        this.parser.blockTable.add("proposition", this.propositionBlockHandler, this, mathOption);
+        this.parser.blockTable.add("theorem", this.theoremBlockHandler, this, mathOption);
+        this.parser.blockTable.add("corollary", this.corollaryBlockHandler, this, mathOption);
+        this.parser.blockTable.add("proof", this.proofBlockHandler, this, mathOption);
+
         // 此 definition 与 math 冲突了
         this.definitionType = this.parser.typeTable.add("definition'");
         this.lemmaType = this.parser.typeTable.add("lemma");
@@ -115,74 +109,23 @@ export class Article extends Module {
     }
 
     init() {
-        
     }
+
+    // **************** Section ****************
 
     sectionBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("section", this.sectionType, args);
-
-        // let result = new Result<Node>(new Node(this.sectionType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("section-block-handler");
-        // for(let arg of args.children) {
-        //     if(arg.content === "unnumbered") {
-        //         result.content.content = "unnumbered";
-        //     }
-        // }
-        // this.parser.myTextLikeBlockHandler("section", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.sectionType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
     }
 
     subsectionBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("subsection", this.subsectionType, args);
-
-        // let result = new Result<Node>(new Node(this.subsectionType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("subsection-block-handler");
-        // for(let arg of args.children) {
-        //     if(arg.content === "unnumbered") {
-        //         result.content.content = "unnumbered";
-        //     }
-        // }
-        // this.parser.myTextLikeBlockHandler("subsection", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.subsectionType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
     }
 
     subsubsectionBlockHandler(args: Node): NodeResult {
         return this.parser.formatLikeBlockHandler("subsubsection", this.subsubsectionType, args);
-
-        // let result = new Result<Node>(new Node(this.subsubsectionType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("subsubsection-block-handler");
-        // for(let arg of args.children) {
-        //     if(arg.content === "unnumbered") {
-        //         result.content.content = "unnumbered";
-        //     }
-        // }
-        // this.parser.myTextLikeBlockHandler("subsubsection", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.subsubsectionType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
     }
+
+    // **************** Document ****************
 
     tableofcontentsBlockHandler(args: Node): NodeResult {
         let result = this.parser.formatLikeBlockHandler("tableofcontents", this.tableofcontentsType, args);
@@ -196,200 +139,77 @@ export class Article extends Module {
         return result;
     }
 
-    titleBlockHandler(args: Node = new Node(this.parser.argumentsType)): NodeResult {
-        return this.parser.formatLikeBlockHandler("title", this.titleType, args);
-
-        // let result = new Result<Node>(new Node(this.titleType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("title-block-handler");
-        // this.parser.myTextLikeBlockHandler("title", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.titleType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
-    }
-
-    authorBlockHandler(args: Node = new Node(this.parser.argumentsType)): NodeResult {
-        return this.parser.formatLikeBlockHandler("author", this.authorType, args);
-
-        // let result = new Result<Node>(new Node(this.authorType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("author-block-handler");
-        // this.parser.myTextLikeBlockHandler("author", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.authorType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
-    }
-
-    dateBlockHandler(args: Node = new Node(this.parser.argumentsType)): NodeResult {
-        return this.parser.formatLikeBlockHandler("date", this.dateType, args);
-
-        // let result = new Result<Node>(new Node(this.sectionType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("date-block-handler");
-        // this.parser.myTextLikeBlockHandler("date", result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // result.content.type = this.dateType;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
-    }
-
-
-    bibliographyBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("bibliography", this.bibliographyType, args);
-    }
-
-    bibItemBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("bib-item", this.bibItemType, args);
+    titleBlockHandler(args: Node): NodeResult {
+        let result = this.parser.formatLikeBlockHandler("title", this.titleType, args);
         result.discarded = false;
         return result;
     }
 
-    /*
-    private myTitleAuthorDateBlockHandler(result: Result<Node>, args: Node) {
-        let node = result.content;
-        let msg = result.messages;
+    authorBlockHandler(args: Node): NodeResult {
+        let result = this.parser.formatLikeBlockHandler("author", this.authorType, args);
+        result.discarded = false;
+        return result;
+    }
 
-        let text = "";
-        let symRes: Result<null>;
-        let blnRes: Result<number>;
-        let ndRes: Result<Node>;
+    dateBlockHandler(args: Node): NodeResult {
+        let result = this.parser.formatLikeBlockHandler("date", this.dateType, args);
+        result.discarded = false;
+        return result;
+    }
 
-        let preIndex = 0, curIndex;
+    // **************** Bibliography ****************
 
-        node.children.push(args);
+    bibliographyBlockHandler(args: Node): NodeResult {
+        return this.parser.prepareMatch(this.bibliographyType, "bibliography-block-handler", this.myBibliographyBlockHandler.bind(this, args), this);
+    }
+
+    private myBibliographyBlockHandler(args: Node, result: NodeResult) {
+        let nodeRes: NodeResult;
+        let blkRes: Result<number>;
+
+        result.mergeState(ResultState.successful);
 
         while (true) {
             if (this.parser.isEOF()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
-                }
-                result.addMessage("Format text ends abruptly.", MessageType.warning), MessageType.error, this.parser.index);
-                result.mergeState(ResultState.skippable);
-
-                break;
-            }
-
-            else if (this.parser.is("]")) {
-                if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
-                    text = "";
-                }
-                result.mergeState(ResultState.successful);
-                this.parser.move();
                 return;
             }
-
-            else if ((blnRes = this.parser.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
-                if(text === "") {
-                    preIndex = this.parser.index;
-                }
-                result.merge(blnRes);
-                text += " ";
-                if (blnRes.content > 1) {
-                    result.addMessage("Format text should not have multiline breaks."), MessageType.error, this.parser.index);
-                    result.mergeState(ResultState.skippable);
-                }
+            if (this.parser.isMultilineBlankGtOne()) {
+                return;
             }
-
-            else if ((curIndex = this.parser.index, symRes = this.parser.match("\\\\")).matched) {
-                if(text === "") {
-                    preIndex = curIndex;
-                }
-                result.addMessage("Format text should not have \\\\."), MessageType.error, this.parser.index);
-                text += "\\\\";
-                result.mergeState(ResultState.skippable);
+            else if (this.parser.is("]")) {
+                break;
             }
-
-            else if ((curIndex = this.parser.index, symRes = this.parser.match("\\")).matched) {
-                if(text === "") {
-                    preIndex = curIndex;
-                }
-                result.merge(symRes);
-                if (this.parser.notEnd()) {
-                    switch (this.parser.curChar()) {
-                        case "(": case ")":
-                        case "[": case "]": case "/": case "#": case "@":
-                            text += this.parser.curChar();
-                            break;
-                        // 这里不需要判断 \\ 因为结束条件判断过
-                        default:
-                            text += "\\";
-                            text += this.parser.curChar();
-                            result.addMessage(`\\${this.parser.curChar()} do not represent any char.`, MessageType.warning), MessageType.error, this.parser.index);
-                    }
-                    this.parser.move();
-                }
-                else {
-                    text += "\\";
-                    result.addMessage("Format text ends abruptly.", MessageType.warning), MessageType.error, this.parser.index);
-                    result.mergeState(ResultState.skippable);
-                }
-            }
-
-            else if ((curIndex = this.parser.index, ndRes = this.parser.matchReference()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
-
-                if (result.shouldTerminate) {
-                    //result.addMessage("Match reference failed."), MessageType.error, this.parser.index);
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-            else if ((curIndex = this.parser.index, ndRes = this.parser.mathModule.formulaInsertionHandler()).matched) {
-                if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-                    text = "";
-                }
-                result.merge(ndRes);
-                this.parser.move();
-
-                if (result.shouldTerminate) {
-                    //result.addMessage("Match embeded formula failed."), MessageType.error, this.parser.index);
-                    return;
-                }
-                node.children.push(ndRes.content);
-            }
-
-            else if (this.parser.isBlock()) {
-                if (text !== "") {
-                    node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
-                    text = "";
-                }
-                result.addMessage("Format text should not have block."), MessageType.error, this.parser.index);
+            else if (this.parser.isNonSomeBlock("bib-item")) {
+                result.addMessage("Bibliography block should not have other block.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
                 this.parser.skipByBrackets();
             }
 
+            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
+                result.merge(blkRes);
+            }
+
+            else if ((nodeRes = this.parser.matchBlock()).matched) {
+                // 只能是 bib-item
+                result.merge(nodeRes);
+                // 不会失败
+                result.addNodeToChildren(nodeRes);
+            }
+
             else {
-                if(text === "") {
-                    preIndex = this.parser.index;
-                }
-                result.mergeState(ResultState.successful);
-                text += this.parser.curChar();
+                result.addMessage("Bibliography block should not have non block contents.", MessageType.error, this.parser.index);
+                result.mergeState(ResultState.skippable);
                 this.parser.move();
             }
         }
     }
-     */
+
+    bibItemBlockHandler(args: Node): NodeResult {
+        let result = this.parser.formatLikeBlockHandler("bib-item", this.bibItemType, args);
+        return result;
+    }
+
+    // **************** Math Envirionment ****************
 
     definitionBlockHandler(args: Node): NodeResult {
         return this.parser.paragraphLikeBlockHandler("definition", this.definitionType, args);

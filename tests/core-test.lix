@@ -3,7 +3,7 @@
 [date 2024.11.4]
 
 本文是核心模块的测试文档, 同时也是一份教学手册. 本文档展示了图片、代码、列表、表格等块的用法.
-
+[bold abc[paragraph ] [text ] [emph ] [title ]]
 [section 图片]
 
 图片使用 `[figure ...]` 插入, 例如
@@ -13,8 +13,12 @@
 [figure [单张图片] `./fig3.jpg` [这个标题会被忽略]]
 ``]
 
-[figure(size:100%) [多张图片] `./fig1.jpg` [这是第一张图] `./fig2.jpg` [这是第二张图]]
-[figure [单张图片] `./fig3.jpg` [这个标题会被忽略]]
+[figure [image(path: `./fig1.jpg`) 这是第一张图]
+[image(path: `./fig2.jpg`) 这是第二张图]
+[caption 多张图片]
+]
+[figure [image(path: `./fig3.jpg`) 这个标题会被忽略]
+[caption 单张图片]]
 
 图片可以被引用, 添加 `@ref-name` 参数即可, 例如
 
@@ -22,7 +26,7 @@
 [figure(@fig-1) [引用图片] `./fig3.jpg`]
 ``]
 
-[figure(@fig-1) [引用图片] `./fig3.jpg`]
+[figure(@fig-1) [caption 引用图片] [image (path: `./fig3.jpg`)]]
 
 可以使用 `@fig-1` 来引用, 如 图片 @fig-1.
 
@@ -49,7 +53,7 @@ Lix Code.
 [code ``
 some codes here.
 ``]
-
+ 
 [code `
 Latex Code.
 \begin{document}
@@ -82,11 +86,20 @@ Lix Code.
 [item(second)] 第二小项
 ]
 
+[list
+* 1st\** [bold 1st*] [formula a+b=c] 1st\\ [emph d]
+* 2nd**3rd
+[item 4th]
+5th
+*6th
+[item(second) 7th] [item]]
+
 [section 表格]
 
 表格使用 `[table ...]` 插入, 例如
 
 [table 
 a /a^b_c/ & b [bold Bold] & c `code`;
-d & e & f
+d [list *1*2] & e [formula a+b=c] & f;
+[cell [formula a]+b] [cell] a
 ]

@@ -7,9 +7,9 @@ export type InsertionHandler = () => NodeResult;
 
 export class InsertionTable {
 
-    constructor(
-        public insertionHandlers: Map<string, InsertionHandler> = new Map()
-    ) {
+    public insertionHandlers: Map<string, InsertionHandler> = new Map();
+
+    constructor() {
     }
 
     has(name: string): boolean {

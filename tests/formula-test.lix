@@ -1,6 +1,6 @@
 [title Formula Test]
 [author Lix]
-
+ 
 本部分是数学公式的测试文档, 同时也是一份教学手册. 本文档展示了大部分数学公式的用法.
 
 [section 引入]
@@ -55,13 +55,13 @@ Lix 中的上下标记号与 LaTeX 一致, 使用 `^`, `_` 来分别表示上标
 [formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]``]
 效果是
 [formula: ((a+b)+c), (@lim), (lim i=1→n: a_n), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
-此处有几点需要注意, 由于巨算符的特性, 如果在括号内使用巨算符, 需要将其用方括号包起来, 否则右半个括号也会作为巨算符的一部分; 最后一个尖括号使用 `langle, rangle`.
+最后一个尖括号使用 `langle, rangle`.
 
 单边的括号使用 
 [code ``
 lwangle, rwangle
 ``],
-效果如下
+此外, 不同的左右括号也可以自动匹配, 如区间 /(1,2]/, 效果如下
 [code ``
 [formula {@∑⦊,  ([a ⁄ b]⦊,⦉mat a; b⟩,(mat a; b⟩, (lim x→∞: f(x)\]]
 ``]
@@ -76,14 +76,14 @@ lwangle, rwangle
 
 要输入根号使用 `sqrt`, 按 Tab 键后会变成一个根号, 后面跟一个符号, 如 `√a` 效果是 /√a/. 如果要加多个符号, 用括号括起来: 
 [code ``
-[formula: √[2 a],√[a^3], √ lim k→∞: @∑ f(k).]``]
+[formula: √[2 a],√[a^3],√a^b, √ lim k→∞: @∑ f(k).]``]
 效果是
-[formula: √[2 a],√[a^3], √ lim k→∞: @∑ f(k).]
+[formula: √[2 a],√[a^3],√a^b, √ lim k→∞: @∑ f(k).]
 
 [subsection 巨算符]
 巨算符的使用如下:
 [code ``
-[formula sum i=1 to infty: a_n = lim i=1: A_n = A_*]``]
+[formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]``]
 得到
 [formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]
 
@@ -114,12 +114,20 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 
 条件表达式使用 `cases`, 后边和矩阵相同, 效果等同于 `lwcurly mat`:
 [code ``
-[formula: [cases a ; b],⦃ mat a; b; c]``]
+[formula: [cases a ; b], {mat a; b; c⦊]``]
 效果是
-[formula: [cases a ; b],⦃ mat a; b; c]
+[formula: [cases a ; b], {mat a; b; c⦊]
 
 [subsection 多行公式]
-输入多行公式使用 `[formula(multi) ...]`, 如下
+输入多行公式使用 `[formula(multi) ...]`, `&` 分隔一行中的元素, `;` 分隔不同的行, 与矩阵相同, 如下
+
+[code``
+[formula(multi)
+"d"x_1⁄"d"t & =x_1 R(r_1 - a_1 x_1 - b_[1] x_2 - c_1 x_3);
+"d"x_2⁄"d"t & =x_2 R(r_2 - a_2 x_1 - b_[2] x_2 - c_2 x_3);
+"d"x_3⁄"d"t & =x_3 R(r_3 - a_3 x_1 - b_[2] x_2 - c_3 x_3)
+]
+``]
 
 [formula(multi)
 "d"x_1⁄"d"t & =x_1 R(r_1 - a_1 x_1 - b_[1] x_2 - c_1 x_3);
@@ -142,7 +150,11 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 ]
 [formula f(y) ⩾ f(x) +⟨x,y-x⟩ ]
 [formula ∑ i=1 to N: i × i]
-[formula ["d" x_1⁄"d" t]=x_1 R (r_1 - a_1 x_1 - r_[1 2] x_2)]
+[formula(multi)
+"d"x_1⁄"d"t & =x_1 R(r_1 - a_1 x_1 - b_[1] x_2 - c_1 x_3);
+"d"x_2⁄"d"t & =x_2 R(r_2 - a_2 x_1 - b_[2] x_2 - c_2 x_3);
+"d"x_3⁄"d"t & =x_3 R(r_3 - a_3 x_1 - b_[2] x_2 - c_3 x_3)
+]
 [formula lim i,j→∞ : ( ∑ i=1 to n : f(i) ) ( ∑ j=1 to n: g(j) )
 = lim i,j→∞ : ∑ i=1 to n : ∑ j=1 to n : f(i)g(j)]
 [formula [1 ⁄ "d"t] (mat a & b & c;d & e & f;g & h & i) = (mat x₁ & x₂ & x₃)×(mat y₁;y₂;y₃)]
@@ -151,6 +163,6 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 ["d"x₂⁄"d"t] = A(𝐱)
 ]
 
-然后是行内公式的例子: /𝜌(x,y) = ‖x-y‖/, /𝜌(x,M) = ‖x-z‖/, /f(x)=[x⁄1+x]/, /lim x→∞: sin x⁄x/, /f(x)⁄g(x)/
+然后是行内公式的例子: /𝜌(x,y) = ‖x-y‖/, /𝜌(x,M) = ‖x-z‖/, /f(x)=[x⁄1+x]/, /lim x→∞: sin x⁄x/, /f(x)⁄g(x)/.
 
 

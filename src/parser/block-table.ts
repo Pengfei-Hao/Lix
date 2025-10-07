@@ -20,8 +20,6 @@ export enum ArgumentType {
 export class BlockOption {
     constructor(
         public type: BlockType = BlockType.structural,
-        public subblockType: BlockType = BlockType.subblock,
-        public subblocks: string[] = [],
         public argumentOptions: Map<string, { type: ArgumentType, options: string[], default: string }> = new Map(),
         public allowReference: boolean = false
     ) {
@@ -30,15 +28,10 @@ export class BlockOption {
 
 export class BlockTable {
 
-    constructor(
-        public handlers: Map<string, BlockHandler> = new Map(),
-        public blockOptions: Map<string, BlockOption> = new Map(),
+    public handlers: Map<string, BlockHandler> = new Map();
+    public blockOptions: Map<string, BlockOption> = new Map();
 
-        public basicBlocks: Set<string> = new Set(),
-        public formatBlocks: Set<string> = new Set(),
-        public structuralBlocks: Set<string> = new Set(),
-        public subBlocks: Set<string> = new Set()
-    ) {
+    constructor() {
     }
 
     has(name: string): boolean {
@@ -52,20 +45,6 @@ export class BlockTable {
         this.handlers.set(name, handler.bind(thisArg));
         let options = blockOption ?? new BlockOption();
         this.blockOptions.set(name, options);
-        switch(options.type) {
-            case BlockType.basic:
-                this.basicBlocks.add(name);
-                break;
-            case BlockType.format:
-                this.formatBlocks.add(name);
-                break;
-            case BlockType.structural:
-                this.structuralBlocks.add(name);
-                break;
-            case BlockType.subblock:
-                this.subBlocks.add(name);
-                break;
-        }
     }
 
     getHandler(name: string): BlockHandler | undefined {

@@ -3,12 +3,10 @@ import { LixError } from "../foundation/error";
 
 export class TypeTable {
 
-    private names: Map<string, Type>;
-    private count: number;
-
+    private names: Map<string, Type> = new Map();
+    private count: number = 0;
+    
     constructor() {
-        this.names = new Map();
-        this.count = 0;
     }
 
     has(name: string): boolean {
@@ -17,7 +15,7 @@ export class TypeTable {
 
     get(name: string): Type {
         let type = this.names.get(name);
-        if(type === undefined) {
+        if (type === undefined) {
             return this.names.get("name")!;
             throw new LixError(`Type '${name}' do not exist.`);
         }
@@ -25,7 +23,7 @@ export class TypeTable {
     }
 
     add(name: string): Type {
-        if(this.has(name)) {
+        if (this.has(name)) {
             throw new LixError(`Type '${name}' repeated.`);
         }
 

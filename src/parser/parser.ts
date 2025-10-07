@@ -113,8 +113,6 @@ export class Parser {
         // blocks
         this.blockTable.add("paragraph", this.paragraphBlockHandler, this, {
             type: BlockType.structural,
-            subblockType: BlockType.basic,
-            subblocks: [],
             argumentOptions: new Map([
                 ["start", { type: ArgumentType.enumeration, options: ["titled", "default"], default: "default" }]
             ]),
@@ -124,8 +122,6 @@ export class Parser {
         // basic blocks (formula is added in math module)
         this.blockTable.add("text", this.textBlockHandler, this, {
             type: BlockType.basic,
-            subblockType: BlockType.format,
-            subblocks: [],
             argumentOptions: new Map([
                 ["start", { type: ArgumentType.enumeration, options: ["indent", "noindent", "auto"], default: "auto" }]
             ]),
@@ -143,9 +139,8 @@ export class Parser {
         // **************** Modules ****************
 
         this.mathModule = new Math(this);
-        // this.coreModule = new Core(this);
-        // this.modules = [this.mathModule, this.coreModule, new Article(this)];
-        this.modules = [this.mathModule];
+        this.coreModule = new Core(this);
+        this.modules = [this.mathModule, this.coreModule, new Article(this)];
 
         // **************** Init ****************
 
@@ -308,6 +303,12 @@ export class Parser {
                 break;
             }
 
+            else if (this.isNonSomeBlock(BlockType.structural, BlockType.basic, BlockType.format)) {
+                result.addMessage("Document should only have structural blocks.", MessageType.error, this.index);
+                result.mergeState(ResultState.skippable);
+                this.skipByBrackets();
+            }
+
             else if ((nodeRes = this.matchSetting()).matched) {
                 result.merge(nodeRes);
                 if (result.shouldTerminate) {
@@ -433,7 +434,7 @@ export class Parser {
                 result.GuaranteeMatched();
                 break;
             }
-            else if (this.isNonBasicFormatBlock()) {
+            else if (this.isNonSomeBlock(BlockType.basic, BlockType.format)) {
                 break;
             }
             else if (this.isSetting()) {
@@ -569,7 +570,7 @@ export class Parser {
                 result.addHighlight(HighlightType.operator, this.index, -2, 0);
                 break;
             }
-            else if (this.isNonFormatBlock()) {
+            else if (this.isNonSomeBlock(BlockType.format)) {
                 mergeWordsNode();
                 break;
             }
@@ -579,7 +580,7 @@ export class Parser {
             }
 
 
-            else if ((res = this.matchMultilineBlankLeqOne()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+            else if ((res = this.matchMultilineBlankLeqOne()).matched) {
                 resetIndex();
                 result.merge(res);
                 result.GuaranteeMatched();
@@ -602,7 +603,7 @@ export class Parser {
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
-                // 只能是 format block 前边判断过
+                // 只能是 format block
                 mergeWordsNode();
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
@@ -640,23 +641,17 @@ export class Parser {
 
         result.mergeState(ResultState.successful);
 
-        // for (let arg of args.children) {
-        //     if (arg.content === "titled") {
-        //         node.content = "titled";
-        //     }
-        // }
-
         while (true) {
             if (this.isEOF()) {
-                return;
+                break;
             }
             if (this.isMultilineBlankGtOne()) {
-                return;
+                break;
             }
             else if (this.is("]")) {
                 break;
             }
-            else if (this.isNonBasicFormatBlock()) {
+            else if (this.isNonSomeBlock(BlockType.basic, BlockType.format)) {
                 result.addMessage("Paragraph block should not have other block.", MessageType.error, this.index);
                 result.mergeState(ResultState.skippable);
                 this.skipByBrackets();
@@ -665,7 +660,7 @@ export class Parser {
 
             else if ((nodeRes = this.matchParFreeText()).matched) {
                 result.merge(nodeRes);
-                // match par free text 不会失败
+                // 不会失败
                 result.addNodeToChildren(nodeRes);
             }
 
@@ -738,7 +733,7 @@ export class Parser {
                 result.addHighlight(HighlightType.operator, this.index, -2, 0);
                 break;
             }
-            else if (this.isNonFormatBlock()) {
+            else if (this.isNonSomeBlock(BlockType.format)) {
                 mergeWordsNode();
                 break;
             }
@@ -766,7 +761,7 @@ export class Parser {
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
-                // 只能是 format block 前边判断过
+                // 只能是 format block
                 mergeWordsNode();
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
@@ -826,15 +821,6 @@ export class Parser {
 
         result.mergeState(ResultState.successful);
 
-        // for (let arg of args.children) {
-        //     if (arg.content === "noindent") {
-        //         node.content = "noindent";
-        //     }
-        //     if (arg.content === "indent") {
-        //         node.content = "indent";
-        //     }
-        // }
-
         while (true) {
             curIndex = this.index;
 
@@ -850,12 +836,17 @@ export class Parser {
                 mergeWordsNode();
                 break;
             }
-
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
                 result.addMessage("Text block should not have \\\\.", MessageType.warning, this.index);
                 text += "\\\\";
-                //result.mergeState(ResultState.skippable);
+                // result.mergeState(ResultState.skippable);
+            }
+            else if (this.isNonSomeBlock(BlockType.format)) {
+                mergeWordsNode();
+                result.addMessage("Text block should not have non format block", MessageType.error, this.index);
+                result.mergeState(ResultState.skippable);
+                this.skipByBrackets();
             }
 
             else if ((blkRes = this.matchMultilineBlank()).matched) {
@@ -875,13 +866,6 @@ export class Parser {
                 result.merge(nodeRes);
                 // 不会失败
                 result.addNodeToChildren(nodeRes);
-            }
-
-            else if (this.isNonFormatBlock()) {
-                mergeWordsNode();
-                result.addMessage("Text block should not have non format block", MessageType.error, this.index);
-                result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -924,8 +908,6 @@ export class Parser {
 
         let preIndex = 0, curIndex: number;
 
-        // node.children.push(args);
-
         const mergeWordsNode = () => {
             if (text !== "") {
                 node.children.push(new Node(this.wordsType, text, [], preIndex, curIndex));
@@ -949,25 +931,29 @@ export class Parser {
                 mergeWordsNode();
                 break;
             }
-
             else if (this.isMultilineBlankGtOne()) {
                 mergeWordsNode();
-                return;
+                break;
             }
 
             else if (this.is("]")) {
                 mergeWordsNode();
-                return;
+                break;
             }
-
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
                 result.addMessage("Format block should not have \\\\.", MessageType.warning, this.index);
                 text += "\\\\";
-                //result.mergeState(ResultState.skippable);
+                // result.mergeState(ResultState.skippable);
+            }
+            else if (this.isNonSomeBlock()) {
+                mergeWordsNode();
+                result.addMessage("Format block should not have block.", MessageType.error, this.index);
+                result.mergeState(ResultState.skippable);
+                this.skipByBrackets();
             }
 
-            else if ((blkRes = this.matchMultilineBlank()).matched) { // 结束条件判断过大于一行的空行, 这里只能是一行以内的
+            else if ((blkRes = this.matchMultilineBlank()).matched) {
                 resetIndex();
                 result.merge(blkRes);
                 text += " ";
@@ -984,13 +970,6 @@ export class Parser {
                 result.merge(nodeRes);
                 // 不会失败
                 result.addNodeToChildren(nodeRes);
-            }
-
-            else if (this.isBlock()) {
-                mergeWordsNode();
-                result.addMessage("Format block should not have block.", MessageType.error, this.index);
-                result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
             }
 
             else {
@@ -1491,68 +1470,58 @@ export class Parser {
         return result;
     }
 
-    isBlock(): boolean {
+    isSomeBlock(...filters : (string | BlockType)[]): boolean {
         let preIndex = this.index;
         let blcRes = this.getBlockName();
         this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.basicBlocks.has(blcRes.value) ||
-            this.blockTable.formatBlocks.has(blcRes.value) ||
-            this.blockTable.structuralBlocks.has(blcRes.value) ||
-            this.blockTable.subBlocks.has(blcRes.value))
+        if(blcRes.matched) {
+            let type = this.blockTable.getType(blcRes.value);
+            if(type === undefined) {
+                return false;
+            }
+
+            for(let filter of filters) {
+                if(typeof(filter) === "string") {
+                    if(filter === blcRes.value) {
+                        return true;
+                    }
+                }
+                else {
+                    if(type === filter) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
-    isBasicBlock(): boolean {
+    isNonSomeBlock(...filters : (string | BlockType)[]): boolean {
         let preIndex = this.index;
         let blcRes = this.getBlockName();
         this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.basicBlocks.has(blcRes.value))
-    }
+        if(blcRes.matched) {
+            let type = this.blockTable.getType(blcRes.value);
+            if(type === undefined) {
+                return false;
+            }
 
-    isFormatBlock(): boolean {
-        let preIndex = this.index;
-        let blcRes = this.getBlockName();
-        this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.formatBlocks.has(blcRes.value))
+            for(let filter of filters) {
+                if(typeof(filter) === "string") {
+                    if(filter === blcRes.value) {
+                        return false;
+                    }
+                }
+                else {
+                    if(type === filter) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
     }
-
-    isNonFormatBlock(): boolean {
-        let preIndex = this.index;
-        let blcRes = this.getBlockName();
-        this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.basicBlocks.has(blcRes.value) ||
-            this.blockTable.structuralBlocks.has(blcRes.value) ||
-            this.blockTable.subBlocks.has(blcRes.value))
-    }
-
-    isNonBasicFormatBlock(): boolean {
-        let preIndex = this.index;
-        let blcRes = this.getBlockName();
-        this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.structuralBlocks.has(blcRes.value) ||
-            this.blockTable.subBlocks.has(blcRes.value))
-    }
-
-    isStructuralBlock(): boolean {
-        let preIndex = this.index;
-        let blcRes = this.getBlockName();
-        this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.structuralBlocks.has(blcRes.value))
-    }
-
-    isSubBlock(): boolean {
-        let preIndex = this.index;
-        let blcRes = this.getBlockName();
-        this.index = preIndex;
-        return blcRes.matched && (
-            this.blockTable.subBlocks.has(blcRes.value))
-    }
-
     // matchBasicBlock(): NodeResult {
     //     return this.prepareMatch(this.blockType, "basic-block", result => {
     //         if (this.isBasicBlock()) {

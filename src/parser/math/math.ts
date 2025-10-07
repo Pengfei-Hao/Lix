@@ -53,8 +53,6 @@ export class Math extends Module {
         // Init block handler
         this.parser.blockTable.add("formula", this.formulaBlockHandler, this, {
             type: BlockType.basic,
-            subblockType: BlockType.subblock,
-            subblocks: [],
             argumentOptions: new Map([
                 ["style", { type: ArgumentType.enumeration, options: ["numbered", "unnumbered"], default: "unnumbered" }],
                 ["line", { type: ArgumentType.enumeration, options: ["single", "multi"], default: "single" }],
