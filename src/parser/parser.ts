@@ -226,10 +226,11 @@ export class Parser {
         result.discarded = false;
     }
 
-    skipByBrackets(bracketsCount: number = 0, multiline: boolean = false) {
-       while (true) {
+    skipByBrackets(bracketsCount: number = 0, multiline: boolean = false): number {
+        let preIndex = this.index;
+        while (true) {
             if (this.isEOF()) {
-                return;
+                return this.index - preIndex;
             }
             else if (this.is("[")) {
                 bracketsCount++;
@@ -239,11 +240,11 @@ export class Parser {
                 bracketsCount--;
                 this.move();
                 if (bracketsCount <= 0) {
-                    return;
+                    return this.index - preIndex;
                 }
             }
             else if(!multiline && this.isMultilineBlankGtOne()) {
-                return;
+                return this.index - preIndex;
             }
             else {
                 this.move();
@@ -304,9 +305,9 @@ export class Parser {
             }
 
             else if (this.isNonSomeBlock(BlockType.structural, BlockType.basic, BlockType.format)) {
-                result.addMessage("Document should only have structural blocks.", MessageType.error, this.index);
                 result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
+                let length = this.skipByBrackets();
+                result.addMessage("Document should only have structural blocks.", MessageType.error, this.index, -length, 0);
             }
 
             else if ((nodeRes = this.matchSetting()).matched) {
@@ -314,7 +315,7 @@ export class Parser {
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchFreeParagraph()).matched) {
@@ -322,7 +323,7 @@ export class Parser {
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -330,7 +331,7 @@ export class Parser {
                 if (result.shouldTerminate) {
                     return;
                 }
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -347,50 +348,52 @@ export class Parser {
     }
 
     // MatchSetting: failing | skippable | successful
+    // 必须或运算中用
 
     matchSetting(): NodeResult {
         return this.prepareMatch(this.settingType, "setting", this.myMatchSetting, this, this.defaultAnalysis);
     }
 
     private myMatchSetting(result: NodeResult) {
-        let node = result.node;
-        let paramNode = new Node(this.settingParameterType, "");
-        node.children.push(paramNode);
-
+        let hashIndex = this.index;
         result.merge(this.match("#"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing '#'.", MessageType.error, this.index);
             return;
         }
         result.GuaranteeMatched();
-        result.addHighlight(HighlightType.operator, this.index, -1, 0);
+        result.addHighlight(HighlightType.operator, hashIndex, 0, 1);
 
         result.merge(this.skipBlank());
 
+        let nameIndex = this.index;
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            result.addMessage("Missing name.", MessageType.error, this.index);
+            result.addMessage("Missing name.", MessageType.error, hashIndex, 0, 1);
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
+            result.addNode(this.settingParameterType, "", [], nameIndex, 0, 0);
             return;
         }
-        result.addHighlight(HighlightType.keyword, this.index, -nameRes.value.length, 0);
-        node.content = nameRes.value;
+        result.addHighlight(HighlightType.keyword, nameIndex, 0, nameRes.value.length);
+        result.node.content = nameRes.value;
 
         result.merge(this.skipBlank());
 
+        let colonIndex = this.index;
         result.merge(this.match(":"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing ':'.", MessageType.error, this.index);
+            result.addMessage("Missing ':'.", MessageType.error, nameIndex, 0, nameRes.value.length);
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
+            result.addNode(this.settingParameterType, "", [], colonIndex, 0, 0);
             return;
         }
-        result.addHighlight(HighlightType.operator, this.index);
+        result.addHighlight(HighlightType.operator, colonIndex, 0, 1);
 
+        let commandIndex = this.index;
         let command = "";
         while (true) {
             if (this.isEOF()) {
@@ -407,7 +410,7 @@ export class Parser {
             }
 
         }
-        paramNode.content = command;
+        result.addNode(this.settingParameterType, command, [], commandIndex, 0, command.length);
     }
 
     // **************** Text & Paragraph ****************
@@ -445,7 +448,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -453,7 +456,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
             else {
                 throw new LixError("[[Logical Error]]Unintended 'else'. Free paragraph match failed.");
@@ -599,7 +602,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -608,7 +611,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -638,10 +641,13 @@ export class Parser {
     private myParagraphBlockHandler(args: Node, blockName: string, result: NodeResult) {
 
         let nodeRes: NodeResult;
+        let preIndex: number;
 
         result.mergeState(ResultState.successful);
 
         while (true) {
+            preIndex = this.index;
+
             if (this.isEOF()) {
                 break;
             }
@@ -651,24 +657,24 @@ export class Parser {
             else if (this.is("]")) {
                 break;
             }
-            else if (this.isNonSomeBlock(BlockType.basic, BlockType.format)) {
-                result.addMessage("Paragraph block should not have other block.", MessageType.error, this.index);
+            else if (this.isNonSomeBlock(BlockType.basic, BlockType.format)) {   
                 result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
+                let length = this.skipByBrackets();
+                result.addMessage("Paragraph block should not have other block.", MessageType.error, preIndex, 0, length);
                 continue;
             }
 
             else if ((nodeRes = this.matchParFreeText()).matched) {
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
                 // 只能是 basic block, format block 在 par free text 中处理了
                 result.merge(nodeRes);
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
             else {
                 throw new LixError("[[Logical Error]]Unintended 'else'. Matching paragraph block failed.");
@@ -757,7 +763,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -766,7 +772,7 @@ export class Parser {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -838,15 +844,15 @@ export class Parser {
             }
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
-                result.addMessage("Text block should not have \\\\.", MessageType.warning, this.index);
+                result.addMessage("Text block should not have \\\\.", MessageType.warning, curIndex, 0, 2);
                 text += "\\\\";
                 // result.mergeState(ResultState.skippable);
             }
             else if (this.isNonSomeBlock(BlockType.format)) {
                 mergeWordsNode();
-                result.addMessage("Text block should not have non format block", MessageType.error, this.index);
                 result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
+                let length = this.skipByBrackets();
+                result.addMessage("Text block should not have non format block", MessageType.error, curIndex, 0, length);
             }
 
             else if ((blkRes = this.matchMultilineBlank()).matched) {
@@ -865,7 +871,7 @@ export class Parser {
                 mergeWordsNode();
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.matchBlock()).matched) {
@@ -873,7 +879,7 @@ export class Parser {
                 mergeWordsNode();
                 result.merge(nodeRes);
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -942,15 +948,15 @@ export class Parser {
             }
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
-                result.addMessage("Format block should not have \\\\.", MessageType.warning, this.index);
+                result.addMessage("Format block should not have \\\\.", MessageType.warning, curIndex, 0, 2);
                 text += "\\\\";
                 // result.mergeState(ResultState.skippable);
             }
             else if (this.isNonSomeBlock()) {
                 mergeWordsNode();
-                result.addMessage("Format block should not have block.", MessageType.error, this.index);
                 result.mergeState(ResultState.skippable);
-                this.skipByBrackets();
+                let length = this.skipByBrackets();
+                result.addMessage("Format block should not have block.", MessageType.error, curIndex, 0, length);
             }
 
             else if ((blkRes = this.matchMultilineBlank()).matched) {
@@ -969,7 +975,7 @@ export class Parser {
                 mergeWordsNode();
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -991,31 +997,31 @@ export class Parser {
     private myMatchEscapeChar(result: NodeResult) {
         let node = result.node;
 
+        let beginIndex = this.index;
         result.merge(this.match("\\"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing '\\'.", MessageType.error, this.index);
             return;
         }
         result.GuaranteeMatched();
 
         let valRes = this.matchChar();
         result.merge(valRes);
-        if(result.shouldTerminate) {
+        if(result.shouldTerminate) { // EOF
             node.content = "\\";
             result.promoteToSkippable();
-            result.addMessage(`Escape char ended abruptly.`, MessageType.warning, this.index);
+            result.addMessage(`Escape char ended abruptly.`, MessageType.warning, beginIndex, 0, 1);
             return;
         }
         switch (valRes.value) {
             case "(": case ")":
             case "[": case "]": case "/": case "#": case "@":
                 node.content += valRes.value;
-                result.addHighlight(HighlightType.operator, this.index, -2, 0);
+                result.addHighlight(HighlightType.operator, beginIndex, 0, 2);
                 break;
             default:
                 node.content += "\\";
                 node.content += valRes.value;
-                result.addMessage(`\\${valRes.value} is not an escape char.`, MessageType.warning, this.index);
+                result.addMessage(`\\${valRes.value} is not an escape char.`, MessageType.warning, beginIndex, 0, 2);
                 break;
         }
 
@@ -1030,29 +1036,31 @@ export class Parser {
     private myMatchReference(result: NodeResult) {
         let node = result.node;
 
+        let beginIndex = this.index;
         result.merge(this.match("@"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing '@'.", MessageType.error, this.index);
             return;
         }
-        result.addHighlight(HighlightType.operator, this.index, -1, 0);
         result.GuaranteeMatched();
+        result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
 
         result.merge(this.skipBlank());
 
+        let nameIndex = this.index;
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            result.addMessage("Missing reference name.", MessageType.error, this.index);
+            result.addMessage("Missing reference name.", MessageType.error, beginIndex, 0, 1);
             result.promoteToSkippable();
             return;
         }
         node.content = nameRes.value;
-        result.addHighlight(HighlightType.keyword, this.index, -nameRes.value.length, 0);
+        result.addHighlight(HighlightType.keyword, nameIndex, 0, nameRes.value.length);
 
         if(this.is(";")) {
+            let endIndex = this.index;
             result.merge(this.match(";"));
-            result.addHighlight(HighlightType.operator, this.index, -1, 0);
+            result.addHighlight(HighlightType.operator, endIndex, 0, 1);
         }
         else {
             result.merge(this.skipBlank());
@@ -1110,6 +1118,7 @@ export class Parser {
     // **************** Block ****************
 
     // MatchBlock: failing | skippable | successful
+    // 必须或运算中用
 
     matchBlock(): NodeResult {
         // analyse 在 parse 中一起处理了
@@ -1120,20 +1129,18 @@ export class Parser {
         let node = result.node;
         let analysedNode = result.analysedNode;
 
+        let beginIndex = this.index;
         result.merge(this.match("["));
         if (result.shouldTerminate) {
-            result.addMessage("Missing '['.", MessageType.error, this.index);
             return;
         }
-        result.addHighlight(HighlightType.operator, this.index, -1, 0);
 
         result.merge(this.skipBlank());
 
+        let nameIndex = this.index;
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            result.addMessage("Missing name.", MessageType.error, this.index);
-            // Do not skip because it may not be a block.
             return;
         }
         node.content = nameRes.value;
@@ -1141,17 +1148,17 @@ export class Parser {
         let handler: BlockHandler | undefined;
         handler = this.blockTable.getHandler(nameRes.value);
         if (handler === undefined) {
-            result.addMessage(`Block name '${nameRes.value}' not found.`, MessageType.error, this.index);
             result.mergeState(ResultState.failing);
             return;
         }
         result.GuaranteeMatched();
-        result.addHighlight(HighlightType.keyword, this.index, -nameRes.value.length, 0);
+        result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
+        result.addHighlight(HighlightType.keyword, nameIndex, 0, nameRes.value.length);
 
         let argRes = this.matchArguments(nameRes.value);
         result.merge(argRes);
         // matchArguments will not be failing
-        result.addNodeToChildren(argRes);
+        result.mergeNodeToChildren(argRes);
         result.references.forEach(value => {
             value.node = result.analysedNode;
         });
@@ -1168,13 +1175,14 @@ export class Parser {
         hdlRes.analysedNode.moveTo(analysedNode);
         result.discarded = hdlRes.discarded;
 
+        let endIndex = this.index;
         result.merge(this.match("]"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing ']'.", MessageType.error, this.index);
+            result.addMessage("Missing ']'.", MessageType.error, beginIndex, 0, endIndex - beginIndex);
             result.promoteToSkippable();
             return;
         }
-        result.addHighlight(HighlightType.operator, this.index, -1, 0);
+        result.addHighlight(HighlightType.operator, endIndex, 0, 1);
     }
 
     // MatchArguments: skippable | successful
@@ -1199,21 +1207,19 @@ export class Parser {
             let name = argument.content;
             if (argument.children.length === 0) {
                 // 不可能的情况
-                result.addMessage(`Argument '${name}' has no value.`, MessageType.error, this.index);
-                result.mergeState(ResultState.skippable);
-                continue;
+                throw new LixError(`Argument '${name}' has no value.`);
             }
 
             let argumentValue = argument.children[0];
 
             if (argumentValue.type === this.referenceType) {
                 if(!argumentsSpec.allowReference) {
-                    result.addMessage(`References is not allowed in block '${blockName}'.`, MessageType.error, this.index);
+                    result.addMessage(`References is not allowed in block '${blockName}'.`, MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                     continue;
                 }
                 if (references.has(argumentValue.content)) {
-                    result.addMessage(`Reference '${argumentValue.content}' is repeated.`, MessageType.error, this.index);
+                    result.addMessage(`Reference '${argumentValue.content}' is repeated.`, MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                 }
                 references.add(argumentValue.content);
@@ -1232,11 +1238,11 @@ export class Parser {
                     }
                 })
                 if (notUnique) {
-                    result.addMessage(`Implicit argument '${argumentValue.content}' is not unique.`, MessageType.error, this.index);
+                    result.addMessage(`Implicit argument '${argumentValue.content}' is not unique.`, MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                 }
                 if (name === "") {
-                    result.addMessage(`Implicit argument '${argumentValue.content}' is not correct.`, MessageType.error, this.index);
+                    result.addMessage(`Implicit argument '${argumentValue.content}' is not correct.`, MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                     continue;
                 }
@@ -1244,19 +1250,19 @@ export class Parser {
 
             let spec = argumentsSpec.argumentOptions.get(name);
             if (!spec) {
-                result.addMessage(`Argument '${name}' not identified.`, MessageType.error, this.index);
+                result.addMessage(`Argument '${name}' not identified.`, MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
 
             if (argumentTypeToType.get(spec.type) !== argumentValue.type) {
-                result.addMessage(`Type of argument '${name}' is not correct.`, MessageType.error, this.index);
+                result.addMessage(`Type of argument '${name}' is not correct.`, MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
 
             if (spec.type === ArgumentType.enumeration && spec.options.indexOf(argumentValue.content) === -1) {
-                result.addMessage(`Value of enumeration argument '${name}' is not correct.`, MessageType.error, this.index);
+                result.addMessage(`Value of enumeration argument '${name}' is not correct.`, MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
@@ -1275,83 +1281,73 @@ export class Parser {
     }
 
     private myMatchArguments(result: NodeResult) {
-        let node = result.node;
 
         let res: BasicResult;
         let nodeRes: NodeResult;
 
-        // This is an 'is' function
-        let preIndex = this.index;
-        let skip = false;
-        this.skipBlank();
-        if (this.is("(") || this.is(":")) {
-            skip = true;
-        }
-        this.index = preIndex;
+        result.merge(this.skipBlank());
 
-        if (skip) {
-            result.merge(this.skipBlank());
-        }
-
+        let beginIndex = this.index;
         if ((res = this.match("(")).matched) {
             result.merge(res);
-            result.addHighlight(HighlightType.operator, this.index, -1, 0);
+            result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
 
             result.merge(this.skipBlank());
 
+            let preIndex = this.index;
             if (this.isEOF()) {
-                result.addMessage(`Argument ended abruptly.`, MessageType.error, this.index);
+                result.addMessage(`Argument ended abruptly.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 return;
             }
             else if ((res = this.match(")")).matched) {
                 result.merge(res);
-                result.addHighlight(HighlightType.operator, this.index, -1, 0);
+                result.addHighlight(HighlightType.operator, preIndex, 0, 1);
             }
             else if ((nodeRes = this.matchArgument()).matched) {
                 result.merge(nodeRes);
-                node.children.push(nodeRes.node);
+                result.node.children.push(nodeRes.node);
 
                 result.merge(this.skipBlank());
 
                 while (true) {
+                    preIndex = this.index;
                     if (this.isEOF()) {
-                        result.addMessage(`Argument ended abruptly.`, MessageType.error, this.index);
+                        result.addMessage(`Argument ended abruptly.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                         result.mergeState(ResultState.skippable);
                         break;
                     }
                     else if ((res = this.match(")")).matched) {
                         result.merge(res);
-                        result.addHighlight(HighlightType.operator, this.index, -1, 0);
+                        result.addHighlight(HighlightType.operator,preIndex, 0, 1);
                         break;
                     }
 
                     result.merge(this.match(","));
                     if (result.shouldTerminate) {
-                        result.addMessage(`Missing ','.`, MessageType.error, this.index);
+                        result.addMessage(`Missing ','.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                         result.promoteToSkippable();
                         this.skipToAfter(")");
                         return;
                     }
-                    result.addHighlight(HighlightType.operator, this.index, -1, 0);
+                    result.addHighlight(HighlightType.operator, preIndex, 0, 1);
 
                     result.merge(this.skipBlank());
 
                     nodeRes = this.matchArgument();
                     result.merge(nodeRes);
                     if (result.shouldTerminate) {
-                        result.addMessage(`Matching argument name failed.`, MessageType.error, this.index);
                         result.promoteToSkippable();
                         this.skipToAfter(")");
                         return;
                     }
-                    node.children.push(nodeRes.node);
+                    result.node.children.push(nodeRes.node);
 
                     result.merge(this.skipBlank());
                 }
             }
             else {
-                result.addMessage(`Unrecognized argument.`, MessageType.error, this.index);
+                result.addMessage(`Unrecognized argument.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 this.skipToAfter(")");
                 return;
@@ -1373,34 +1369,34 @@ export class Parser {
     }
 
     private myMatchArgument(result: NodeResult) {
-        let node = result.node;
 
         let res: BasicResult;
         let valRes: Result<string>;
         let nameRes: Result<string>;
 
+        let beginIndex = this.index;
         if ((res = this.match("@")).matched) {
             result.merge(res);
-            result.addHighlight(HighlightType.operator, this.index, -1, 0);
-            let refNode = new Node(this.referenceType, "");
-            node.children.push(refNode);
+            result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
 
             result.merge(this.skipBlank());
 
+            let nameIndex = this.index;
             let nameRes = this.matchName();
             result.merge(nameRes);
             if (result.shouldTerminate) {
-                result.addMessage("Missing reference name.", MessageType.error, this.index);
+                result.addMessage("Missing reference name.", MessageType.error, beginIndex, 0, 1);
                 result.promoteToSkippable();
+                result.addNode(this.referenceType, nameRes.value, [], beginIndex, 0, 1);
                 return;
             }
-            refNode.content = nameRes.value;
-            result.addHighlight(HighlightType.keyword, this.index, -nameRes.value.length, 0);
+            result.addNode(this.referenceType, nameRes.value, [], beginIndex, 0, this.index - beginIndex);
+            result.addHighlight(HighlightType.keyword, nameIndex, 0, nameRes.value.length);
         }
 
         else if ((nameRes = this.matchName()).matched) {
             result.merge(nameRes);
-            result.addHighlight(HighlightType.keyword, this.index, -nameRes.value.length, 0);
+            result.addHighlight(HighlightType.keyword, beginIndex, 0, nameRes.value.length);
 
             // This is an 'is' function
             let preIndex = this.index;
@@ -1409,42 +1405,41 @@ export class Parser {
             this.index = preIndex;
 
             if (hasValue) {
-                node.content = nameRes.value;
+                result.node.content = nameRes.value;
 
                 result.merge(this.skipBlank());
 
+                let colonIndex = this.index;
                 result.merge(this.match(":"));
-                result.addHighlight(HighlightType.operator, this.index, -1, 0);
+                result.addHighlight(HighlightType.operator, colonIndex, 0, 1);
 
                 result.merge(this.skipBlank());
 
-                let preIndex = this.index;
+                preIndex = this.index;
                 if ((valRes = this.matchNumber()).matched) {
                     result.merge(valRes);
                     result.addHighlight(HighlightType.number, preIndex, 0, this.index - preIndex);
-                    node.children.push(new Node(this.numberType, valRes.value, [], preIndex, this.index));
-
+                    result.addNode(this.numberType, valRes.value, [], preIndex, 0, this.index - preIndex);
                 }
                 else if ((valRes = this.matchString()).matched) {
                     result.merge(valRes);
                     result.addHighlight(HighlightType.string, preIndex, 0, this.index - preIndex);
-                    node.children.push(new Node(this.stringType, valRes.value, [], preIndex, this.index));
+                    result.addNode(this.stringType, valRes.value, [], preIndex, 0, this.index - preIndex);
                 }
                 else if ((valRes = this.matchName()).matched) {
                     result.merge(valRes);
                     result.addHighlight(HighlightType.keyword, preIndex, 0, this.index - preIndex);
-                    node.children.push(new Node(this.nameType, valRes.value, [], preIndex, this.index));
+                    result.addNode(this.nameType, valRes.value, [], preIndex, 0, this.index - preIndex);
                 }
                 else {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("Missing argument value.", MessageType.warning, this.index);
-                    node.children.push(new Node(this.nameType));
+                    result.addMessage("Missing argument value.", MessageType.error, colonIndex, 0, 1);
+                    result.addNode(this.nameType, "", [], preIndex, 0, 0);
                 }
 
             }
             else {
-                result.addHighlight(HighlightType.number, this.index, -nameRes.value.length, 0);
-                node.children.push(new Node(this.nameType, nameRes.value, [], this.index - nameRes.value.length, this.index));
+                result.addNode(this.nameType, nameRes.value, [], beginIndex, 0, nameRes.value.length);
             }
         }
 
@@ -1522,38 +1517,6 @@ export class Parser {
         }
         return false;
     }
-    // matchBasicBlock(): NodeResult {
-    //     return this.prepareMatch(this.blockType, "basic-block", result => {
-    //         if (this.isBasicBlock()) {
-    //             this.myMatchBlock(result);
-    //         }
-    //         else {
-    //             result.addMessage("Not basic block.", MessageType.error, this.index);
-    //         }
-    //     }, this);
-    // }
-
-    // matchFormatBlock(): NodeResult {
-    //     return this.prepareMatch(this.blockType, "format-block", result => {
-    //         if (this.isFormatBlock()) {
-    //             this.myMatchBlock(result);
-    //         }
-    //         else {
-    //             result.addMessage("Not format block.", MessageType.error, this.index);
-    //         }
-    //     }, this);
-    // }
-
-    // matchOtherBlock(): NodeResult {
-    //     return this.prepareMatch(this.blockType, "other-block", result => {
-    //         if (this.isStructuralBlock()) {
-    //             this.myMatchBlock(result);
-    //         }
-    //         else {
-    //             result.addMessage("Not other block.", MessageType.error, this.index);
-    //         }
-    //     }, this);
-    // }
 
     getArgument(args: Node, name: string): string {
         let found: string | undefined;
@@ -1621,6 +1584,7 @@ export class Parser {
     private myMatchString(result: Result<string>) {
         let res: BasicResult;
 
+        let beginIndex = this.index;
         if ((res = this.match('`')).matched) {
             result.merge(res);
             while (true) {
@@ -1630,7 +1594,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.error, this.index);
+                    result.addMessage("String should not have new line.", MessageType.error, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1638,7 +1602,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, this.index);
+                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1654,7 +1618,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.error, this.index);
+                    result.addMessage("String should not have new line.", MessageType.error, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1662,7 +1626,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, this.index);
+                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1678,7 +1642,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.warning, this.index);
+                    result.addMessage("String should not have new line.", MessageType.warning, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1686,7 +1650,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, this.index);
+                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1901,6 +1865,7 @@ export class Parser {
     }
 
     private myMatchMultilineComment(result: BasicResult) {
+        let beginIndex = this.index;
         result.merge(this.match("/*"));
         if (result.shouldTerminate) {
             return;
@@ -1920,7 +1885,7 @@ export class Parser {
                 if (result.shouldTerminate) {
                     // EOF
                     result.promoteToSkippable();
-                    result.addMessage("Multiline comment ended abruptly.", MessageType.warning, this.index);
+                    result.addMessage("Multiline comment ended abruptly.", MessageType.warning, beginIndex, 0, this.index - beginIndex);
                     return;
                 }
             }

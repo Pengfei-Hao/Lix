@@ -166,10 +166,13 @@ export class Article extends Module {
     private myBibliographyBlockHandler(args: Node, result: NodeResult) {
         let nodeRes: NodeResult;
         let blkRes: Result<number>;
+        let preIndex: number;
 
         result.mergeState(ResultState.successful);
 
         while (true) {
+            preIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 return;
             }
@@ -180,9 +183,9 @@ export class Article extends Module {
                 break;
             }
             else if (this.parser.isNonSomeBlock("bib-item")) {
-                result.addMessage("Bibliography block should not have other block.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
-                this.parser.skipByBrackets();
+                let length = this.parser.skipByBrackets();
+                result.addMessage("Bibliography block should not have other block.", MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -193,11 +196,11 @@ export class Article extends Module {
                 // 只能是 bib-item
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
-                result.addMessage("Bibliography block should not have non block contents.", MessageType.error, this.parser.index);
+                result.addMessage("Bibliography block should not have non block contents.", MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }
@@ -205,7 +208,7 @@ export class Article extends Module {
     }
 
     bibItemBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("bib-item", this.bibItemType, args);
+        let result = this.parser.textLikeBlockHandler("bib-item", this.bibItemType, args);
         return result;
     }
 

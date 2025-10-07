@@ -1,6 +1,7 @@
 import { Node } from "../sytnax-tree/node";
 import { LixError } from "../foundation/error";
 import { Message, MessageType } from "../foundation/message";
+import { Type } from "../sytnax-tree/type";
 
 export enum HighlightType {
     operator,
@@ -168,8 +169,8 @@ export class BasicResult {
 
     // message
     addMessage(message: string, type: MessageType, node: Node): void
-    addMessage(message: string, type: MessageType, index: number, relativeBegin?: number, relativeEnd?: number): void
-    addMessage(message: string, type: MessageType, indexOrNode: number | Node, relativeBegin: number = -1, relativeEnd: number = 0) {
+    addMessage(message: string, type: MessageType, index: number, relativeBegin: number, relativeEnd: number): void
+    addMessage(message: string, type: MessageType, indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1) {
         const code = 0;
         if (typeof (indexOrNode) === "number") {
             this.messages.push(new Message(message, type, code, indexOrNode + relativeBegin, indexOrNode + relativeEnd, []));
@@ -181,8 +182,8 @@ export class BasicResult {
 
     // highlight
     addHighlight(type: HighlightType, node: Node): void
-    addHighlight(type: HighlightType, index: number, relativeBegin?: number, relativeEnd?: number): void
-    addHighlight(type: HighlightType, indexOrNode: number | Node, relativeBegin: number = -1, relativeEnd: number = 0): void {
+    addHighlight(type: HighlightType, index: number, relativeBegin: number, relativeEnd: number): void
+    addHighlight(type: HighlightType, indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): void {
         if (typeof (indexOrNode) === "number") {
             this.highlights.push(new Highlight(indexOrNode + relativeBegin, indexOrNode + relativeEnd, type));
         }
@@ -223,10 +224,38 @@ export class NodeResult extends BasicResult {
         this.analysedNode = analysedNode;
     }
 
-    addNodeToChildren(result: NodeResult) {
+    mergeNodeToChildren(result: NodeResult) {
         this.node.children.push(result.node);
         if (!result.discarded) {
             this.analysedNode.children.push(result.analysedNode);
         }
+    }
+
+    addNode(type: Type, content: string, children: Node[], node: Node): Node
+    addNode(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
+    addNode(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
+        let nNode: Node;
+        if (typeof (indexOrNode) === "number") {
+            nNode = new Node(type, content, children, indexOrNode + relativeBegin, indexOrNode + relativeEnd);
+        }
+        else {
+            nNode = new Node(type, content, children, indexOrNode.begin, indexOrNode.end);
+        }
+        this.node.children.push(nNode);
+        return nNode;
+    }
+
+    addAnalysedNode(type: Type, content: string, children: Node[], node: Node): Node
+    addAnalysedNode(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
+    addAnalysedNode(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
+        let nNode: Node;
+        if (typeof (indexOrNode) === "number") {
+            nNode = new Node(type, content, children, indexOrNode + relativeBegin, indexOrNode + relativeEnd);
+        }
+        else {
+            nNode = new Node(type, content, children, indexOrNode.begin, indexOrNode.end);
+        }
+        this.analysedNode.children.push(nNode);
+        return nNode;
     }
 }

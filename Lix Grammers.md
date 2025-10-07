@@ -777,7 +777,7 @@ promote: m + sk = sk
 * highlights: [New]
 * content, analysedContent:
   setting: "[[name of setting]]"
-    settingParameter: "[[command]]"
+    settingParameter?: "[[command]]"
 
 // block
 
@@ -813,7 +813,7 @@ promote: m + sk = sk
 * highlights: [Inherited, New]
 * content:
   block: "[[name of block]]"
-    arguments:
+    arguments?:
     [[type of block, optional]]:
 * analysedContent:
   [[type of block, optional, default is block]]: [[added by handler, optional]]

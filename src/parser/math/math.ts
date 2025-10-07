@@ -164,11 +164,12 @@ export class Math extends Module {
     }
 
     private myFormulaInsertionHandler(result: NodeResult) {
+        let beginIndex = this.parser.index;
         result.merge(this.parser.match("/"));
         if (result.shouldTerminate) {
             return;
         }
-        result.addHighlight(HighlightType.operator, this.parser.index);
+        result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
         result.GuaranteeMatched();
 
         let nodeRes = this.matchElements("/", false);
@@ -176,13 +177,14 @@ export class Math extends Module {
         // 不会失败
         nodeRes.node.moveTo(result.node);
 
+        let endIndex = this.parser.index;
         result.merge(this.parser.match("/"));
         if (result.shouldTerminate) {
-            result.addMessage(`Missing '/' in inline formula.`, MessageType.error, this.parser.index);
+            result.addMessage(`Missing '/' in inline formula.`, MessageType.error, beginIndex, 0, endIndex - beginIndex);
             result.promoteToSkippable();
             return;
         }
-        result.addHighlight(HighlightType.operator, this.parser.index);
+        result.addHighlight(HighlightType.operator, endIndex, 0, 1);
     }
 
     // **************** Skipping ****************
@@ -226,6 +228,7 @@ export class Math extends Module {
 
     private myMatchElements(endWith: string, hasDefinition: boolean, result: NodeResult) {
         let node = result.node;
+        let preIndex: number;
 
         let blkRes: Result<number>;
         let valRes: Result<string>;
@@ -235,6 +238,8 @@ export class Math extends Module {
         result.mergeState(ResultState.successful);
 
         while (true) {
+            preIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 break;
             }
@@ -259,6 +264,7 @@ export class Math extends Module {
 
             else if ((symRes = this.parser.match("[")).matched) {
                 result.merge(symRes);
+                result.addHighlight(HighlightType.operator, preIndex, 0, 1);
 
                 nodeRes = this.matchElements("]", false);
                 result.merge(nodeRes);
@@ -268,17 +274,19 @@ export class Math extends Module {
                 // }
                 node.children.push(nodeRes.node);
 
+                let endIndex = this.parser.index;
                 result.merge(this.parser.match("]"));
                 if (result.shouldTerminate) {
-                    result.addMessage(`Missing ']' in formula.`, MessageType.error, this.parser.index);
+                    result.addMessage(`Missing ']' in formula.`, MessageType.error, preIndex, 0, endIndex - preIndex);
                     result.promoteToSkippable();
                     return;
                 }
+                result.addHighlight(HighlightType.operator, endIndex, 0, 1);
             }
 
             else if (hasDefinition && (symRes = this.parser.match("`")).matched) {
                 result.merge(symRes);
-                result.addHighlight(HighlightType.operator, this.parser.index);
+                result.addHighlight(HighlightType.operator, preIndex, 0, 1);
 
                 nodeRes = this.matchElements("`", false);
                 result.merge(nodeRes);
@@ -286,13 +294,14 @@ export class Math extends Module {
                 //nodeRes.node.type = this.definitionType;
                 node.children.push(nodeRes.node);
 
+                let endIndex = this.parser.index;
                 result.merge(this.parser.match("`"));
                 if (result.shouldTerminate) {
-                    result.addMessage(`Missing '\`' in formula.`, MessageType.error, this.parser.index);
+                    result.addMessage(`Missing '\`' in formula.`, MessageType.error, preIndex, 0, endIndex - preIndex);
                     result.promoteToSkippable();
                     return;
                 }
-                result.addHighlight(HighlightType.operator, this.parser.index);
+                result.addHighlight(HighlightType.operator, endIndex, 0, 1);
             }
 
             else if ((nodeRes = this.matchInlineText()).matched) {
@@ -309,11 +318,12 @@ export class Math extends Module {
 
             else if (this.parser.is(Math.nameChar)) { // 如果 notation 不存在就当作单字读入
                 while (true) {
+                    preIndex = this.parser.index;
                     if (this.parser.is(Math.nameChar)) {
                         valRes = this.parser.matchChar();
                         result.merge(valRes);
                         // 不会失败
-                        node.children.push(new Node(this.elementType, valRes.value, [], this.parser.index - 1, this.parser.index));
+                        result.addNode(this.elementType, valRes.value, [], preIndex, 0, 1);
                     }
                     else {
                         break;
@@ -323,7 +333,7 @@ export class Math extends Module {
 
             else {
                 result.mergeState(ResultState.skippable);
-                result.addMessage(`Unrecognizable character '${this.parser.curUnicodeChar()}' in formula.`, MessageType.error, this.parser.index);
+                result.addMessage(`Unrecognizable character '${this.parser.curUnicodeChar()}' in formula.`, MessageType.error, preIndex, 0, this.parser.curIsUnicode() ? 2 : 1);
                 this.parser.moveUnicode();
             }
         }
@@ -382,6 +392,7 @@ export class Math extends Module {
         let nodeRes: NodeResult;
         let res: BasicResult;
 
+        let beginIndex = this.parser.index;
         if((res = this.parser.match("@")).matched) {
             result.merge(res);
             result.GuaranteeMatched();
@@ -393,7 +404,7 @@ export class Math extends Module {
     
                 result.node.type = this.elementType;
                 result.node.content = "@";
-                result.addMessage("'@' must be followed by an element.", MessageType.error, this.parser.index);
+                result.addMessage("'@' must be followed by an element.", MessageType.error, beginIndex, 0, 1);
                 return;
             }
             result.node.content = nodeRes.node.content;
@@ -409,13 +420,10 @@ export class Math extends Module {
                 result.promoteToSkippable();
     
                 result.node.content = "\\";
-                result.addMessage("'\\' must be followed by an element.", MessageType.error, this.parser.index);
+                result.addMessage("'\\' must be followed by an element.", MessageType.error, beginIndex, 0, 1);
                 return;
             }
             result.node.content = nodeRes.node.content;
-        }
-        else {
-            result.addMessage("Missing '@' or '\\' in formula.", MessageType.error, this.parser.index);
         }
     }
 
@@ -429,9 +437,9 @@ export class Math extends Module {
 
         let node = result.node;
 
+        let beginIndex = this.parser.index;
         result.merge(this.parser.match("\""));
         if (result.shouldTerminate) {
-            result.addMessage("Missing '\"' in formula.", MessageType.error, this.parser.index);
             return;
         }
         result.GuaranteeMatched();
@@ -439,13 +447,16 @@ export class Math extends Module {
         let res: BasicResult;
         let valRes: Result<string>;
 
+        let preIndex: number;
         while (true) {
+            preIndex = this.parser.index;
+
             if ((res = this.parser.match("\"")).matched) {
                 result.merge(res);
                 break;
             }
             else if(this.parser.isMultilineBlankGtOne()) {
-                result.addMessage("Formula inline text ended abruptly.", MessageType.error, this.parser.index);
+                result.addMessage("Formula inline text ended abruptly.", MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -454,7 +465,7 @@ export class Math extends Module {
                 result.merge(valRes);
                 if (result.shouldTerminate) {
                     result.promoteToSkippable();
-                    result.addMessage("Formula inline text ended abruptly.", MessageType.error, this.parser.index);
+                    result.addMessage("Formula inline text ended abruptly.", MessageType.error, beginIndex, 0, preIndex - beginIndex);
                     return;
                 }
                 node.content += valRes.value;
@@ -608,10 +619,10 @@ export class Math extends Module {
     myAnalyseSubFormula(parnode: Node, index: Ref<number>, endTerm: Set<string>, result: Result<Node>) {
 
         let termHeap = new Heap<Node>();
-        let operatorHeap = new Heap<string>();
+        let operatorHeap = new Heap<Node>();
 
         let res: Result<Node>;
-        let curOp: string;
+        let curOp: Node;
 
         let hasInfixOperator = true;
         let constructingBlankOp = false;
@@ -622,17 +633,14 @@ export class Math extends Module {
                 // cur operator = Blank operator
                 let lastOp = operatorHeap.top();
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp === undefined || this.operatorTable.leq(lastOp, "")) {
-                    operatorHeap.push("");
+                if (lastOp === undefined || this.operatorTable.leq(lastOp.content, "")) {
+                    operatorHeap.push(new Node(this.elementType, ""));
                     termHeap.push(res!.value);
                     hasInfixOperator = false;
                     constructingBlankOp = false;
                 }
                 else {
-                    if (!this.construct(termHeap, operatorHeap)) {
-                        result.addMessage("Infix operator pattern failed.", MessageType.error, this.parser.index);
-                        result.mergeState(ResultState.skippable);
-                    }
+                    this.construct(termHeap, operatorHeap, result);
                 }
                 continue;
             }
@@ -640,16 +648,13 @@ export class Math extends Module {
             if (constructing) {
                 let lastOp = operatorHeap.top();
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp === undefined || this.operatorTable.leq(lastOp, curOp!)) {
+                if (lastOp === undefined || this.operatorTable.leq(lastOp.content, curOp!.content)) {
                     operatorHeap.push(curOp!);
                     hasInfixOperator = true;
                     constructing = false;
                 }
                 else {
-                    if (!this.construct(termHeap, operatorHeap)) {
-                        result.addMessage("Infix operator pattern failed.", MessageType.error, this.parser.index);
-                        result.mergeState(ResultState.skippable);
-                    }
+                    this.construct(termHeap, operatorHeap, result);
                 }
 
                 continue;
@@ -661,18 +666,15 @@ export class Math extends Module {
                         result.mergeState(ResultState.successful);
                         return;
                     }
-                    result.addMessage("Missing last term of expression.", MessageType.error, this.parser.index);
                     result.mergeState(ResultState.skippable);
                     // 直接扔掉多余的 infix operator
-                    operatorHeap.pop();
+                    let trashOp = operatorHeap.pop()!;
+                    result.addMessage("Missing last term of expression.", MessageType.error, trashOp);
                     hasInfixOperator = false;
                 }
                 // same as above
                 if (operatorHeap.length !== 0) {
-                    if (!this.construct(termHeap, operatorHeap)) {
-                        result.addMessage("Infix operator pattern failed.", MessageType.error, this.parser.index);
-                        result.mergeState(ResultState.skippable);
-                    }
+                    this.construct(termHeap, operatorHeap, result);
                     continue;
                 }
 
@@ -693,8 +695,8 @@ export class Math extends Module {
                     let lastOp = operatorHeap.top();
                     //  == undefined 必须用, 空串会被判为false
                     // same as below
-                    if (lastOp === undefined || this.operatorTable.leq(lastOp, "")) {
-                        operatorHeap.push("");
+                    if (lastOp === undefined || this.operatorTable.leq(lastOp.content, "")) {
+                        operatorHeap.push(new Node(this.elementType, ""));
                         termHeap.push(res.value);
                         hasInfixOperator = false;
                     }
@@ -720,9 +722,9 @@ export class Math extends Module {
                 }
 
                 let lastOp = operatorHeap.top();
-                curOp = res.value.content;
+                curOp = res.value;
                 //  == undefined 必须用, 空串会被判为false
-                if (lastOp === undefined || this.operatorTable.leq(lastOp, curOp)) {
+                if (lastOp === undefined || this.operatorTable.leq(lastOp.content, curOp.content)) {
                     operatorHeap.push(curOp);
                     hasInfixOperator = true;
                 }
@@ -737,27 +739,28 @@ export class Math extends Module {
         }
     }
 
-    construct(termHeap: Heap<Node>, operatorHeap: Heap<string>): boolean {
+    construct(termHeap: Heap<Node>, operatorHeap: Heap<Node>, result: Result<Node>) {
 
         let lastOp = operatorHeap.top()!;
 
         let nNode = new Node(this.infixType);
         nNode.children.push(termHeap.pop()!);
 
-        let topOp: string | undefined;
+        let trashOp: Node[] = []; // 只能用 begin 和 end 字段, 并且当 Op 为 blank 时不能使用
+
+        let topOp: Node | undefined;
         // 必须要用 != undefined, 空字符串会被判定为 false
-        while ((topOp = operatorHeap.top()) !== undefined && this.operatorTable.eq(topOp, lastOp)) {
-            nNode.content = topOp.concat(nNode.content);
-            operatorHeap.pop();
+        while ((topOp = operatorHeap.top()) !== undefined && this.operatorTable.eq(topOp.content, lastOp.content)) {
+            nNode.content = topOp.content.concat(nNode.content);
+            trashOp.push(operatorHeap.pop()!);
             nNode.children.push(termHeap.pop()!);
         }
-
         nNode.children.reverse();
         nNode.begin = nNode.children.at(0)!.begin;
         nNode.end = nNode.children.at(-1)!.end;
         termHeap.push(nNode);
 
-        let pat = this.operatorTable.getInfixOperator(lastOp)!.patterns;
+        let pat = this.operatorTable.getInfixOperator(lastOp.content)!.patterns;
         if (pat.size !== 0 && !pat.has(nNode.content)) {
             // 如果不符合 pattern 就从后往前依次删除元素, 直到符合 pattern 或成为 blank operator.
             while (nNode.content.length > 0) {
@@ -767,9 +770,12 @@ export class Math extends Module {
                     break;
                 }
             }
-            return false;
+            for(let n of trashOp) {
+                result.addMessage("Infix operator pattern failed.", MessageType.error, n);
+            }
+            result.mergeState(ResultState.skippable);
+            return;
         }
-        return true;
     }
 
     // **************** Analysing Term & Operator ****************
@@ -814,7 +820,6 @@ export class Math extends Module {
             let infixOp = this.operatorTable.getInfixOperator(node.content);
             let prefixOp = this.operatorTable.getPrefixOperator(node.content);
             if (infixOp !== undefined) {
-                result.addMessage("Term should not be empty.", MessageType.error, node);
                 return;
             }
             else if (prefixOp !== undefined) {
@@ -849,6 +854,8 @@ export class Math extends Module {
 
         nNode.begin = node.begin;
 
+        let beginTerm = node; // prefix 的第一个 term 一定能匹配, 报错报这里
+
         for (let i = 0; i < patterns.length; i++) {
             let res: Result<Node>;
             switch (patterns[i].type) {
@@ -869,7 +876,7 @@ export class Math extends Module {
 
                     result.merge(res);
                     if (result.shouldTerminate) { // 只能是遇到了 infix operator 或 EOF
-                        result.addMessage("Prefix match [term] failed.", MessageType.error, this.parser.index);
+                        result.addMessage("Prefix match [term] failed.", MessageType.error, beginTerm);
                         result.promoteToSkippable();
 
                         nNode.children.push(new Node(this.prefixType, ""));
@@ -894,7 +901,7 @@ export class Math extends Module {
                     // 此处 endTerm 必须设为 [], 就近匹配, 例如 (()) 第一个右括号要跟第二个左括号结合
                     if (this.isEOF(parnode, index, new Set())) {
                         result.mergeState(ResultState.skippable);
-                        result.addMessage("Prefix match element ended abruptly.", MessageType.error, this.parser.index);
+                        result.addMessage("Prefix match element ended abruptly.", MessageType.error, beginTerm);
                         break;
                     }
                     node = parnode.children[index.value];
@@ -907,7 +914,7 @@ export class Math extends Module {
                     }
                     else {
                         result.mergeState(ResultState.skippable);
-                        result.addMessage("Prefix match element failed.", MessageType.error, this.parser.index);
+                        result.addMessage(`Prefix match element failed.`, MessageType.error, beginTerm);
                     }
                     break;
             }

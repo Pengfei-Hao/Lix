@@ -169,44 +169,34 @@ export class Core extends Module {
 
     codeInsertionHandler(): NodeResult {
         return this.parser.prepareMatch(this.codeType, "inline-code-handler", this.myCodeInsertionHandler, this, this.parser.defaultAnalysis);
-
-        // let result = new Result<Node>(new Node(this.codeType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("inline-code-handler");
-        // this.myInlineCodeHandler(result);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
     }
 
     private myCodeInsertionHandler(result: NodeResult) {
         let node = result.node;
 
         let symRes: BasicResult;
+
+        let beginIndex = this.parser.index;
         let count = 0;
         while ((symRes = this.parser.match("`")).matched) {
             result.merge(symRes);
             count++;
         }
         if (count !== 0) {
-            result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
+            result.addHighlight(HighlightType.operator, beginIndex, 0, count);
         }
 
         let occur = 0;
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Inline code ended abruptly.", MessageType.error, this.parser.index);
+                result.addMessage("Inline code ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
             else if (this.parser.isMultilineBlankGtOne()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Inline code ended abruptly.", MessageType.error, this.parser.index);
+                result.addMessage("Inline code ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
@@ -395,10 +385,13 @@ export class Core extends Module {
     private myFigureBlockHandler(args: Node, result: NodeResult) {
         let nodeRes: NodeResult;
         let blkRes: Result<number>;
+        let preIndex: number;
 
         result.mergeState(ResultState.successful);
 
         while (true) {
+            preIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 return;
             }
@@ -409,9 +402,9 @@ export class Core extends Module {
                 break;
             }
             else if (this.parser.isNonSomeBlock("image", "caption")) {
-                result.addMessage("Figure block should not have other block.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
-                this.parser.skipByBrackets();
+                let length = this.parser.skipByBrackets();
+                result.addMessage("Figure block should not have other block.", MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -422,11 +415,11 @@ export class Core extends Module {
                 // 只能是 image 或 caption
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
-                result.addMessage("Figure block should not have non block contents.", MessageType.error, this.parser.index);
+                result.addMessage("Figure block should not have non block contents.", MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }
@@ -451,18 +444,6 @@ export class Core extends Module {
 
     codeBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.codeType, "code-block-handler", this.myCodeBlockHandler, this, this.parser.defaultAnalysis);
-
-        // let result = new Result<Node>(new Node(this.codeType));
-        // let preIndex = this.parser.index;
-        // this.parser.begin("code-block-handler");
-        // this.myCodeBlockHandler(result, args);
-        // this.parser.end();
-        // result.content.begin = preIndex;
-        // result.content.end = this.parser.index;
-        // if (result.failed) {
-        //     this.parser.index = preIndex;
-        // }
-        // return result;
     }
 
     private myCodeBlockHandler(result: NodeResult, args: Node = new Node(this.parser.argumentsType)) {
@@ -471,20 +452,22 @@ export class Core extends Module {
         result.merge(this.parser.skipBlank());
 
         let symRes: BasicResult;
+
+        let beginIndex = this.parser.index;
         let count = 0;
         while ((symRes = this.parser.match("`")).matched) {
             result.merge(symRes);
             count++;
         }
         if (count !== 0) {
-            result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
+            result.addHighlight(HighlightType.operator, beginIndex, 0, count);
         }
 
         result.merge(this.parser.skipBlank());
 
         result.merge(this.parser.match("\n"));
         if (result.shouldTerminate) {
-            result.addMessage("First line should not have codes.", MessageType.error, this.parser.index);
+            result.addMessage("First line should not have codes.", MessageType.error, this.parser.index, 0, 1);
             return;
         }
 
@@ -492,7 +475,7 @@ export class Core extends Module {
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Code block ended abruptly.", MessageType.error, this.parser.index);
+                result.addMessage("Code block ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
             else if (this.parser.is("]")) {
@@ -532,10 +515,13 @@ export class Core extends Module {
 
     private myListBlockHandler(args: Node, result: NodeResult) {
         let nodeRes: NodeResult;
+        let preIndex: number;
 
         result.mergeState(ResultState.successful);
 
         while (true) {
+            preIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 return;
             }
@@ -546,22 +532,22 @@ export class Core extends Module {
                 break;
             }
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "item")) {
-                result.addMessage("List block should not have other block.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
-                this.parser.skipByBrackets();
+                let length = this.parser.skipByBrackets();
+                result.addMessage("List block should not have other block.", MessageType.error, preIndex, 0, length);
             }
 
             else if ((nodeRes = this.matchFreeItem()).matched) {
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.parser.matchBlock()).matched) {
                 // 只能是 item block, format 和 basic 前面处理了
                 result.merge(nodeRes);
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -598,7 +584,7 @@ export class Core extends Module {
             count++;
         }
         if (count > 0) {
-            result.addHighlight(HighlightType.operator, this.parser.index, -count);
+            result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
         }
 
         while (true) {
@@ -622,7 +608,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.parser.matchBlock()).matched) {
@@ -630,7 +616,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
             else {
                 throw new LixError("[[Logical Error]]Unintended 'else'. Free list match failed.");
@@ -696,7 +682,7 @@ export class Core extends Module {
                 mergeWordsNode();
                 result.merge(symRes);
                 result.GuaranteeMatched();
-                result.addHighlight(HighlightType.operator, this.parser.index, -2, 0);
+                result.addHighlight(HighlightType.operator, curIndex, 0, 2);
                 break;
             }
             else if (this.parser.isNonSomeBlock(BlockType.format)) {
@@ -723,7 +709,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.parser.matchBlock()).matched) {
@@ -732,7 +718,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {
@@ -765,15 +751,16 @@ export class Core extends Module {
     private myTableBlockHandler(args: Node, result: NodeResult) {
         let nodeRes: NodeResult;
         let res: BasicResult;
+        let preIndex: number;
 
         result.mergeState(ResultState.successful);
 
-        let row = new Node(this.cellType);
-        result.node.children.push(row);
-        let analysedRow = new Node(this.cellType);
-        result.analysedNode.children.push(analysedRow);
+        let row = result.addNode(this.cellType, "", [], this.parser.index, 0, 0);
+        let analysedRow = result.addAnalysedNode(this.cellType, "", [], this.parser.index, 0, 0);
 
         while (true) {
+            preIndex = this.parser.index;
+
             if (this.parser.isEOF()) {
                 return;
             }
@@ -784,22 +771,25 @@ export class Core extends Module {
                 break;
             }
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "cell")) {
-                result.addMessage("Table block should not have other block.", MessageType.error, this.parser.index);
                 result.mergeState(ResultState.skippable);
-                this.parser.skipByBrackets();
+                let length = this.parser.skipByBrackets();
+                result.addMessage("Table block should not have other block.", MessageType.error, preIndex, 0, length);
             }
 
             else if ((res = this.parser.match("&")).matched) {
                 result.merge(res);
-                result.addHighlight(HighlightType.operator, this.parser.index);
+                result.addHighlight(HighlightType.operator, preIndex, 0, 1);
             }
             else if ((res = this.parser.match(";")).matched) {
                 result.merge(res);
-                result.addHighlight(HighlightType.operator, this.parser.index);
-                row = new Node(this.cellType);
-                result.node.children.push(row);
-                analysedRow = new Node(this.cellType);
-                result.analysedNode.children.push(analysedRow);
+                result.addHighlight(HighlightType.operator, preIndex, 0, 1);
+                row.begin = (row.children.at(0)?.begin) ?? row.begin;
+                row.end = (row.children.at(-1)?.end) ?? row.end;
+                analysedRow.begin = (analysedRow.children.at(0)?.begin) ?? analysedRow.begin;
+                analysedRow.end = (analysedRow.children.at(-1)?.end) ?? analysedRow.end;
+                
+                row = result.addNode(this.cellType, "", [], this.parser.index, 0, 0);
+                analysedRow = result.addAnalysedNode(this.cellType, "", [], this.parser.index, 0, 0);
             }
 
             else if ((nodeRes = this.matchFreeCell()).matched) {
@@ -870,7 +860,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.parser.matchBlock()).matched) {
@@ -878,7 +868,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
             else {
                 throw new LixError("[[Logical Error]]Unintended 'else'. Free cell match failed.");
@@ -948,7 +938,7 @@ export class Core extends Module {
                 mergeWordsNode();
                 result.merge(symRes);
                 result.GuaranteeMatched();
-                result.addHighlight(HighlightType.operator, this.parser.index, -2, 0);
+                result.addHighlight(HighlightType.operator, curIndex, 0, 2);
                 break;
             }
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format)) {
@@ -975,7 +965,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else if ((nodeRes = this.parser.matchBlock()).matched) {
@@ -984,7 +974,7 @@ export class Core extends Module {
                 result.merge(nodeRes);
                 result.GuaranteeMatched();
                 // match block 不会失败
-                result.addNodeToChildren(nodeRes);
+                result.mergeNodeToChildren(nodeRes);
             }
 
             else {

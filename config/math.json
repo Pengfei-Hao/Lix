@@ -155,9 +155,19 @@
 		{ "type": "expression", "options" : [] }
 	],
 	[
-		{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "|", "‖", "⦉"] },
+		{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "⦉"] },
 		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "|", "‖", "⦊"] }
+		{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "⦊"] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["|"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : ["|"] }
+	],
+	[
+		{ "type": "enumeration", "options" : ["‖"] },
+		{ "type": "expression", "options" : [] },
+		{ "type": "enumeration", "options" : ["‖"] }
 	],
 	[
 		{ "type": "enumeration", "options" : ["cases", "mat"] },
