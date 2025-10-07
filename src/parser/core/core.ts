@@ -62,7 +62,7 @@ export class Core extends Module {
             type: BlockType.subblock,
             argumentOptions: new Map([
                 ["path", { type: ArgumentType.string, options: [], default: "" }],
-                ["size", { type: ArgumentType.number, options: [], default: "100%" }],
+                ["size", { type: ArgumentType.number, options: [], default: "" }],
             ]),
             allowReference: false
         });

@@ -39,16 +39,17 @@ export class LatexGenerator extends Generator {
     infixType: Type;
     prefixType: Type;
     matrixType: Type;
-    
+
     // Core Types
 
     figureType: Type;
-    figureItemType: Type;
-    figureCaptionType: Type;
+    imageType: Type;
+    codeType: Type;
     listType: Type;
     itemType: Type;
     tableType: Type;
-    codeType: Type;
+    cellType: Type;
+    captionType: Type;
 
     emphType: Type;
     boldType: Type;
@@ -128,11 +129,12 @@ export class LatexGenerator extends Generator {
         this.matrixType = this.typeTable.get("matrix");
 
         this.figureType = this.typeTable.get("figure");
-        this.figureItemType = this.typeTable.get("figure-item");
-        this.figureCaptionType = this.typeTable.get("figure-caption");
+        this.imageType = this.typeTable.get("image");
+        this.captionType = this.typeTable.get("caption");
         this.listType = this.typeTable.get("list");
         this.itemType = this.typeTable.get("item");
         this.tableType = this.typeTable.get("table");
+        this.cellType = this.typeTable.get("cell");
         this.codeType = this.typeTable.get("code");
         this.emphType = this.typeTable.get("emph");
         this.boldType = this.typeTable.get("bold");
@@ -156,14 +158,6 @@ export class LatexGenerator extends Generator {
         this.theoremType = this.typeTable.get("theorem");
         this.corollaryType = this.typeTable.get("corollary");
         this.proofType = this.typeTable.get("proof");
-        // this.fractionType = this.typeTable.get("fraction");
-        // this.sqrtType = this.typeTable.get("sqrt");
-        // this.sumType = this.typeTable.get("sum");
-        // this.limitType = this.typeTable.get("limit");
-        // this.integralType = this.typeTable.get("integral");
-        // this.scriptType = this.typeTable.get("script");
-        // this.bracketsType = this.typeTable.get("brackets");
-        // this.matrixType = this.typeTable.get("matrix");
 
         // Init node generator table
         // this.nodeGeneratorTable = new Map([
@@ -229,9 +223,9 @@ export class LatexGenerator extends Generator {
     breaklines          =   true,
 }\n`);
         this.addIntrodunction(`\\newtheorem{theorem}{Theorem}[section]\n\\newtheorem{definition}[theorem]{Definition}\n\\newtheorem{lemma}[theorem]{Lemma}\n\\newtheorem{corollary}[theorem]{Corollary}\n\\newtheorem{proposition}[theorem]{Proposition}\n`);
-        
+
         this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
-        
+
         this.addContent(await this.generateDocument(this.syntaxTree));
 
         this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
@@ -265,7 +259,7 @@ export class LatexGenerator extends Generator {
             [this.propositionType, this.generateProposition],
             [this.proofType, this.generateProof],
         ]);
-        
+
         for (let n of node.children) {
             if (n.type === this.settingType) {
                 res += this.generateSetting(n);
@@ -281,12 +275,12 @@ export class LatexGenerator extends Generator {
                 }
                 res += await this.generateParagraph(n);
             }
-            else if(blockGenerator.get(n.type) !== undefined) {
+            else if (blockGenerator.get(n.type) !== undefined) {
                 let gen = blockGenerator.get(n.type)!;
                 res += gen.bind(this)(n);
                 flag = false;
             }
-            else if(blockGeneratorAsync.get(n.type) !== undefined) {
+            else if (blockGeneratorAsync.get(n.type) !== undefined) {
                 let gen = blockGeneratorAsync.get(n.type)!;
                 res += await gen.bind(this)(n);
                 flag = false;
@@ -336,7 +330,7 @@ export class LatexGenerator extends Generator {
         let hasArg = false;
         let titled = false;
 
-        if(node.children.at(0)?.type === this.argumentsType) {
+        if (node.children.at(0)?.type === this.argumentsType) {
             hasArg = true;
             if (this.getArgument(node, "start") === "titled") {
                 titled = true;
@@ -346,8 +340,8 @@ export class LatexGenerator extends Generator {
         let res = "";
         let start = 0;
 
-        if(hasArg) {
-            if(titled) {
+        if (hasArg) {
+            if (titled) {
                 res += `\\paragraph{${this.generateText(node.children[1]).slice(0, -1)}}\n`;
                 start = 2;
             }
@@ -405,7 +399,7 @@ export class LatexGenerator extends Generator {
     // (format blocks, insertion)
     generateText(node: Node, format = false): string {
         let start = 0;
-        if(node.children.at(0)?.type === this.argumentsType) {
+        if (node.children.at(0)?.type === this.argumentsType) {
             start = 1;
         }
 
@@ -427,10 +421,10 @@ export class LatexGenerator extends Generator {
                     break;
                 case this.referenceType:
                     let refnode = this.references.find(value => value.name === n.content)?.node;
-                    if(refnode?.type === this.formulaType) {
+                    if (refnode?.type === this.formulaType) {
                         res += `\\eqref{${n.content}}`;
                     }
-                    else if(refnode?.type === this.bibItemType) {
+                    else if (refnode?.type === this.bibItemType) {
                         res += `\\cite{${n.content}}`;
                     }
                     else {
@@ -498,33 +492,27 @@ export class LatexGenerator extends Generator {
                 break;
         }
 
-        if (node.children.length == 1) {
+        let caption: Node | undefined = undefined;
+        for (let n of node.children) {
+            switch (n.type) {
+                case this.captionType:
+                    caption = n;
+                    break;
+                case this.imageType:
+                    let path = this.getArgument(n, "path");
+                    let size = this.getArgument(n, "size");
+                    // if (this.fileOperation.getFileExtension(path) === "tikz") {
+                    //     await this.fileOperation.copyFile(path, "./.lix/");
+                    //     let file = await this.fileOperation.readFile(path);
+                    //     text += file ?? "";
+                    //     text += "\n";
+                    // }
+                    text += `\\subcaptionbox{${this.generateText(n, true)}}{\n\\includegraphics[width = ${size}\\linewidth]{${path}}}\n`;
+                    await this.fileOperation.copyFile(n.content, "./.lix/");
+                    break;
+            }
+        }
 
-        }
-        else if (node.children.length == 2) {
-            let path = node.children[1].content;
-            //if(path.split(".").at(-1) === "tikz") {
-            if (this.fileOperation.getFileExtension(path) === "tikz") {
-                await this.fileOperation.copyFile(path, "./.lix/");
-                let file = await this.fileOperation.readFile(path);
-                text += file ?? "";
-                text += "\n";
-            }
-            else {
-                text += `\\includegraphics[width = ${size}\\linewidth]{${path}}\n`;
-                await this.fileOperation.copyFile(path, "./.lix/");
-            }
-        }
-        else {
-            for (let n of node.children) {
-                if (n.type === this.figureCaptionType) {
-                    continue;
-                }
-                text += `\\subcaptionbox{${n.children.length > 0 ? this.generateText(n.children[0], true) : ""}}{\n\\includegraphics[width = ${size}\\linewidth]{${n.content}}}\n`;
-                await this.fileOperation.copyFile(n.content, "./.lix/");
-            }
-        }
-        let caption = node.children[0];
         text += `\\vspace{-0.3em}\n\\caption{${caption ? this.generateText(caption) : "[[nocaption]]"}}${refLatex}\\vspace{-0.7em}\n\\end{figure}\n`;
 
         return text;
@@ -548,46 +536,15 @@ export class LatexGenerator extends Generator {
         let res = "";
 
         let numbered = false;
-        if(this.getArgument(node, "style") === "numbered") {
+        if (this.getArgument(node, "style") === "numbered") {
             numbered = true;
         }
 
         res += numbered ? "\\begin{enumerate}\n" : "\\begin{itemize}\n";
         for (let n of node.children) {
-            switch (n.type) {
-                case this.itemType:
-                    res += this.generateItem(n);
-                    break;
-                case this.textType:
-                    switch (this.getArgument(n, "start")) {
-                        case "indent":
-                            res += `\\par `;
-                            break;
-                        case "noindent":
-                        case "auto":
-                        default:
-                            res += `\\par\\noindent `;
-                            break;
-                    }
-                    res += this.generateText(n);
-                    break;
-
-                case this.formulaType:
-                    res += this.generateFormula(n);
-                    break;
-                case this.figureType:
-                    res += await this.generateFigure(n);
-                    break;
-                case this.codeType:
-                    res += this.generateCode(n);
-                    break;
-                case this.listType:
-                    res += await this.generateList(n);
-                    break;
-                case this.tableType:
-                    res += "[[Basic Block]]\n";
-                    console.log("Unsupported basic block in list.");
-                    break;
+            if (n.type === this.itemType) {
+                res += this.generateItem(n);
+                res += await this.generateParagraph(n);
             }
         }
         res += numbered ? "\\end{enumerate}\n" : "\\end{itemize}\n";
@@ -598,10 +555,7 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: item
     generateItem(node: Node): string {
         let refLatex = this.generateReferences(node);
-        if(node.children.length === 1) {
-            return `\\item${refLatex} `;
-        }
-        return `\\item[${this.generateText(node)}]${refLatex} `;
+        return `\\item${refLatex} `;
     }
 
     // **************** Math Module ****************
@@ -612,10 +566,10 @@ export class LatexGenerator extends Generator {
         let refLatex = this.generateReferences(node);
         let numbered = "*";
         let multiline = false;
-        if(this.getArgument(node, "style") === "numbered") {
+        if (this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
-        if(this.getArgument(node, "line") === "multi") {
+        if (this.getArgument(node, "line") === "multi") {
             multiline = true;
         }
 
@@ -623,7 +577,7 @@ export class LatexGenerator extends Generator {
         res += multiline ? `\\begin{aligned}\n` : ``;
 
         res += this.generateTermOrOperator(node.children.at(-1)!);
-        
+
         res += multiline ? `\n\\end{aligned}` : ``;
         res += inline ? "$" : `\n\\end{equation${numbered}}%\n`;
 
@@ -651,24 +605,24 @@ export class LatexGenerator extends Generator {
                 res += sym ?? `\\text{[[${node.content}]]}`;
                 break;
             case this.matrixType:
-                    let brow = false;
-                    for (let row of node.children) {
-                        if (brow) {
-                            res += `\\\\`;
-                        }
-                        brow = true;
-
-                        let bcol = false;
-                        for (let col of row.children) {
-                            let ncode = this.generateTermOrOperator(col);
-                            if (bcol) {
-                                res += `&`;
-                            }
-                            bcol = true;
-                            res += ncode;
-                        }
+                let brow = false;
+                for (let row of node.children) {
+                    if (brow) {
+                        res += `\\\\`;
                     }
-                    break;
+                    brow = true;
+
+                    let bcol = false;
+                    for (let col of row.children) {
+                        let ncode = this.generateTermOrOperator(col);
+                        if (bcol) {
+                            res += `&`;
+                        }
+                        bcol = true;
+                        res += ncode;
+                    }
+                }
+                break;
 
             // Terms, 生成的 Latex 保证为 Latex 中的一项或多项
             case this.prefixType:
@@ -812,7 +766,7 @@ export class LatexGenerator extends Generator {
     generateSection(node: Node): string {
         let refLatex = this.generateReferences(node);
         let numbered = "*";
-        if(this.getArgument(node, "style") === "numbered") {
+        if (this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
         return `\\section${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
@@ -823,7 +777,7 @@ export class LatexGenerator extends Generator {
     generateSubsection(node: Node): string {
         let refLatex = this.generateReferences(node);
         let numbered = "*";
-        if(this.getArgument(node, "style") === "numbered") {
+        if (this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
         return `\\subsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
@@ -834,7 +788,7 @@ export class LatexGenerator extends Generator {
     generateSubsubsection(node: Node): string {
         let refLatex = this.generateReferences(node);
         let numbered = "*";
-        if(this.getArgument(node, "style") === "numbered") {
+        if (this.getArgument(node, "style") === "numbered") {
             numbered = "";
         }
         return `\\subsubsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
@@ -863,18 +817,6 @@ export class LatexGenerator extends Generator {
             switch (n.type) {
                 case this.bibItemType:
                     res += this.generateBibItem(n);
-                    break;
-                case this.textType:
-                    switch (this.getArgument(n, "start")) {
-                        case "indent":
-                            res += `\\par `;
-                            break;
-                        case "noindent":
-                        case "auto":
-                        default:
-                            res += `\\par\\noindent `;
-                            break;
-                    }
                     res += this.generateText(n);
                     break;
                 default:
@@ -945,14 +887,14 @@ export class LatexGenerator extends Generator {
     // **************** Assistant Function ****************
 
     getArgument(node: Node, name: string): string {
-        if(node.children.length === 0) {
+        if (node.children.length === 0) {
             return "";
         }
         let args = node.children[0];
 
         let found: string | undefined;
         args.children.forEach(argNode => {
-            if(argNode.type === this.argumentType && argNode.content === name) {
+            if (argNode.type === this.argumentType && argNode.content === name) {
                 found = argNode.children[0].content;
             }
         });
@@ -961,14 +903,14 @@ export class LatexGenerator extends Generator {
     }
 
     getReferences(node: Node): string[] {
-        if(node.children.length === 0) {
+        if (node.children.length === 0) {
             return [];
         }
         let args = node.children[0];
 
         let refs: string[] = [];
         args.children.forEach(argNode => {
-            if(argNode.type === this.referenceType) {
+            if (argNode.type === this.referenceType) {
                 refs.push(argNode.content);
             }
         });

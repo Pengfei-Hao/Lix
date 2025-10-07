@@ -16,7 +16,6 @@ export class TypeTable {
     get(name: string): Type {
         let type = this.names.get(name);
         if (type === undefined) {
-            return this.names.get("name")!;
             throw new LixError(`Type '${name}' do not exist.`);
         }
         return type;

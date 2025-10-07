@@ -22,7 +22,7 @@ export class Compiler {
         this.curGenerator = new LatexGenerator(this.parser.typeTable, this);
         this.generator = new Map();
         this.generator.set("latex", this.curGenerator);
-        this.generator.set("markdown", new MarkdownGenerator(this.parser.typeTable, this));
+        //this.generator.set("markdown", new MarkdownGenerator(this.parser.typeTable, this));
     }
 
     async parse() {
