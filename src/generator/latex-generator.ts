@@ -10,37 +10,23 @@ import { Compiler } from "../compiler/compiler";
 import { FileOperation } from "../compiler/file-operation";
 import { Config } from "../compiler/config";
 import { Reference } from "../parser/result";
-import { isatty } from "tty";
 
 // latex generate
 
 export class LatexGenerator extends Generator {
 
-    // Basic Types
+    references: Reference[];
 
-    documentType: Type;;
-    paragraphType: Type;;
-    textType: Type;;
-    wordsType: Type;;
-    nameType: Type;
-    referenceType: Type;;
-    settingType: Type;;
-    settingParameterType: Type;;
-    blockType: Type;
-    errorType: Type;
-    argumentsType: Type;
-    argumentType: Type;
+    // **************** Types ****************
 
-    // Math Types
+    // Math Module
+
+    mathGenerator: Generator;
     formulaType: Type;
-    //definitionType: Type;
-    elementType: Type;
-    inlineTextType: Type;
-    infixType: Type;
-    prefixType: Type;
-    matrixType: Type;
 
-    // Core Types
+    // Core Module
+
+    coreModule: boolean;
 
     figureType: Type;
     imageType: Type;
@@ -55,7 +41,9 @@ export class LatexGenerator extends Generator {
     boldType: Type;
     italicType: Type;
 
-    // Article Types
+    // Article Module
+
+    articleModule: boolean;
 
     titleType: Type;
     authorType: Type;
@@ -65,6 +53,7 @@ export class LatexGenerator extends Generator {
     subsubsectionType: Type;
     tableofcontentsType: Type;
     newpageType: Type;
+
     bibliographyType: Type;
     bibItemType: Type;
 
@@ -75,71 +64,121 @@ export class LatexGenerator extends Generator {
     proofType: Type;
     corollaryType: Type;
 
+    // **************** Latex ****************
+
     // Introduction & Document
     introduction: string;
     document: string;
 
     hasMakedTitle: boolean;
 
-    // Generator of specific type of node
-    //nodeGeneratorTable: Map<string, (node: Node) => string>;
-
-    // generator of specific math node
-    latexFormula: Map<string, string>;
-    latexOperator: Map<string, string>;
-
-    // generator of specific setting node
+    // generator of settings
     settingGeneratorTable: Map<string, (parameter: string) => string>;
 
-    //unicodeSymbolsToNotations: Map<string, string>;
+    // generator of blocks and insertions
+    structuralBlockGeneratorTable: Map<Type, (node: Node) => string | Promise<string>>;
+    basicBlockGeneratorTable: Map<Type, (node: Node) => string | Promise<string>>;
+    formatBlockGeneratorTable: Map<Type, (node: Node) => string | Promise<string>>;
+    subBlockGeneratorTable: Map<Type, (node: Node) => string | Promise<string>>;
+    InsertionGeneratorTable: Map<Type, (node: Node) => string | Promise<string>>;
 
-    config: Config;
-    fileOperation: FileOperation;
+    // latex template
+    json: {
+        ParagraphTitled: string,
+        BetweenParagraphs: string,
+        BetweenStructuralBlocks: string,
 
+        TextIndent: string,
+        TextNoindent: string,
+        BetweenTexts: string,
+        BetweenBasicBlocks: string,
 
-    constructor(typeTable: TypeTable, compiler: Compiler) {
-        super(typeTable, compiler);
-        this.config = compiler.config;
-        this.fileOperation = compiler.fileOperation;
+        EquationReference: string,
+        BibliographyReference: string,
+        DefaultReference: string,
+
+        InlineFormula: string,
+        NumberedFormula: string,
+        UnnumberedFormula: string,
+        MultilineFormula: string,
+
+        Figure: string,
+        DefaultImage: string,
+        SingleImage: string,
+        Caption: string,
+        BetweenImagesAndCaption: string,
+
+        InlineCode: string,
+        DefaultCode: string,
+        NumberedList: string,
+        UnnumberedList: string,
+        Item: string,
+        BetweenItems: string,
+        Table: string,
+        TableRowSeparator: string,
+        TableColumnSeparator: string,
+        Cell: string,
+        Emph: string,
+        Bold: string,
+        Italic: string,
+
+        Title: string,
+        Author: string,
+        Date: string,
+        MakeTitleAuthorDate: string,
+        Section: string,
+        Subsection: string,
+        Subsubsection: string,
+        UnnumberedSection: string,
+        UnnumberedSubsection: string,
+        UnnumberedSubsubsection: string,
+        Tableofcontents: string,
+        Newpage: string,
+
+        Bibliography: string,
+        BibItem: string,
+        BetweenBibItems: string,
+
+        Theorem: string,
+        Definition: string,
+        Lemma: string,
+        Corollary: string,
+        Proposition: string,
+        Proof: string,
+    }
+
+    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation, mathGenerator: Generator) {
+        super(typeTable, config, fileOperation);
+        this.mathGenerator = mathGenerator;
 
         this.introduction = "";
         this.document = "";
-
         this.hasMakedTitle = false;
+        this.references = [];
+        this.json = JSON.parse(this.config.get("latex"));
 
-        this.documentType = this.typeTable.get("document");
-        this.paragraphType = this.typeTable.get("paragraph");
-        this.textType = this.typeTable.get("text");
-        this.wordsType = this.typeTable.get("words");
-        this.nameType = this.typeTable.get("name");
-        this.referenceType = this.typeTable.get("reference");
-        this.settingType = this.typeTable.get("setting");
-        this.settingParameterType = this.typeTable.get("setting-parameter");
-        this.blockType = this.typeTable.get("block");
-        this.errorType = this.typeTable.get("error");
-        this.argumentsType = this.typeTable.get("arguments");
-        this.argumentType = this.typeTable.get("argument");
+        // **************** Types ****************
 
+        this.coreModule = true;
+        this.articleModule = true;
+
+        // math
         this.formulaType = this.typeTable.get("formula");
-        //this.definitionType = this.typeTable.get("definition");
-        this.elementType = this.typeTable.get("element");
-        this.inlineTextType = this.typeTable.get("inline-text");
-        this.infixType = this.typeTable.get("infix");
-        this.prefixType = this.typeTable.get("prefix");
-        this.matrixType = this.typeTable.get("matrix");
 
+        // core
         this.figureType = this.typeTable.get("figure");
         this.imageType = this.typeTable.get("image");
-        this.captionType = this.typeTable.get("caption");
+        this.codeType = this.typeTable.get("code");
         this.listType = this.typeTable.get("list");
         this.itemType = this.typeTable.get("item");
         this.tableType = this.typeTable.get("table");
         this.cellType = this.typeTable.get("cell");
-        this.codeType = this.typeTable.get("code");
+        this.captionType = this.typeTable.get("caption");
         this.emphType = this.typeTable.get("emph");
         this.boldType = this.typeTable.get("bold");
         this.italicType = this.typeTable.get("italic");
 
+        // article
         this.titleType = this.typeTable.get("title");
         this.authorType = this.typeTable.get("author");
         this.dateType = this.typeTable.get("date");
@@ -148,10 +187,8 @@ export class LatexGenerator extends Generator {
         this.subsubsectionType = this.typeTable.get("subsubsection");
         this.tableofcontentsType = this.typeTable.get("tableofcontents");
         this.newpageType = this.typeTable.get("newpage");
-
         this.bibliographyType = this.typeTable.get("bibliography");
         this.bibItemType = this.typeTable.get("bib-item");
-
         this.definitionType = this.typeTable.get("definition'");
         this.lemmaType = this.typeTable.get("lemma");
         this.propositionType = this.typeTable.get("proposition");
@@ -159,45 +196,86 @@ export class LatexGenerator extends Generator {
         this.corollaryType = this.typeTable.get("corollary");
         this.proofType = this.typeTable.get("proof");
 
-        // Init node generator table
-        // this.nodeGeneratorTable = new Map([
-        //     ["title", this.generateTitleAuthorDate],
-        //     ["author", this.generateTitleAuthorDate],
-        //     ["date", this.generateTitleAuthorDate],
-        //     ["section", this.generateSectionSubsection],
-        //     ["subsection", this.generateSectionSubsection],
-        // ]);
-
-        // Init setting generator table
         this.settingGeneratorTable = new Map([
             ["paper", this.generatePaperSetting]
         ]);
 
-        // Init math symbols
-        this.latexFormula = new Map();
-        this.latexOperator = new Map();
-        let json: { map: [string, string], operator: [string, string] } = JSON.parse(this.config.get("latex"));
-        for (let [key, value] of json.map) {
-            this.latexFormula.set(key, value);
-        }
-        for (let [key, value] of json.operator) {
-            this.latexOperator.set(key, value);
-        }
+        this.structuralBlockGeneratorTable = new Map([
+            // article
+            [this.titleType, this.generateTitle],
+            [this.authorType, this.generateAuthor],
+            [this.dateType, this.generateDate],
+            [this.sectionType, this.generateSection],
+            [this.subsectionType, this.generateSubsection],
+            [this.subsubsectionType, this.generateSubsubsection],
+            [this.tableofcontentsType, this.generateTableofcontents],
+            [this.newpageType, this.generateNewpage],
+            [this.bibliographyType, this.generateBibliography],
+            [this.theoremType, this.generateTheorem],
+            [this.definitionType, this.generateDefinition],
+            [this.lemmaType, this.generateLemma],
+            [this.corollaryType, this.generateCorollary],
+            [this.propositionType, this.generateProposition],
+            [this.proofType, this.generateProof],
+        ]);
+
+        this.basicBlockGeneratorTable = new Map([
+            // math
+            [this.formulaType, this.generateFormula.bind(this, false)],
+            // core
+            [this.figureType, this.generateFigure],
+            [this.codeType, this.generateCode.bind(this, false)],
+            [this.listType, this.generateList],
+            [this.tableType, this.generateTable],
+        ]);
+
+        this.formatBlockGeneratorTable = new Map([
+            // core
+            [this.emphType, this.generateEmph],
+            [this.boldType, this.generateBold],
+            [this.italicType, this.generateItalic]
+        ]);
+
+        this.subBlockGeneratorTable = new Map([
+            // core
+            [this.imageType, this.generateImage.bind(this, false)],
+            [this.itemType, this.generateItem],
+            [this.cellType, this.generateCell],
+            [this.captionType, this.generateCaption],
+            // article
+            [this.bibItemType, this.generateBibItem]
+        ]);
+
+        this.InsertionGeneratorTable = new Map([
+            [this.referenceType, this.generateReference],
+            // math
+            [this.formulaType, this.generateFormula.bind(this, true)],
+            // core
+            [this.codeType, this.generateCode.bind(this, true)],
+        ]);
+
+
+
+
     }
 
-    // **************** Generate ****************
-
-    // generate
-
-    async generate(syntaxTree: Node, references: Reference[]) {
-        this.syntaxTree = syntaxTree;
-        this.references = references;
-
+    init(): void {
+        this.output = "";
         this.introduction = "";
         this.document = "";
         this.hasMakedTitle = false;
+        this.references = [];
+    }
 
-        this.output = "";
+    // **************** Generate ****************
+    // 下面的 generate 类函数行尾没有换行
+
+    // Generate
+    async generate(syntaxTree: Node, references: Reference[]) {
+
+        this.init();
+
+        this.references = references;
 
         this.addIntrodunction(this.line(this.command("usepackage", "xeCJK")));
         this.addIntrodunction(this.line(this.command("usepackage", "geometry")));
@@ -226,7 +304,7 @@ export class LatexGenerator extends Generator {
 
         this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
 
-        this.addContent(await this.generateDocument(this.syntaxTree));
+        this.addContent(await this.generateDocument(syntaxTree));
 
         this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
 
@@ -234,62 +312,39 @@ export class LatexGenerator extends Generator {
 
     // GenerateDocument
     // Syntax Tree type: document
-    // (other blocks)
-    async generateDocument(node: Node): Promise<string> {
+    // (structural blocks)
+    generateDocument(node: Node): string {
         let res = "";
-        let flag = false;
 
-        const blockGenerator: Map<Type, (n: Node) => string> = new Map([
-            [this.titleType, this.generateTitle],
-            [this.authorType, this.generateAuthor],
-            [this.dateType, this.generateDate],
-            [this.sectionType, this.generateSection],
-            [this.subsectionType, this.generateSubsection],
-            [this.subsubsectionType, this.generateSubsubsection],
-            [this.tableofcontentsType, this.generateTableofcontents],
-            [this.newpageType, this.generateNewpage]
-        ]);
-
-        const blockGeneratorAsync: Map<Type, (n: Node) => Promise<string>> = new Map([
-            [this.bibliographyType, this.generateBibliography],
-            [this.theoremType, this.generateTheorem],
-            [this.definitionType, this.generateDefinition],
-            [this.lemmaType, this.generateLemma],
-            [this.corollaryType, this.generateCorollary],
-            [this.propositionType, this.generateProposition],
-            [this.proofType, this.generateProof],
-        ]);
-
+        let count = 0;
+        let preIsPar = false;
         for (let n of node.children) {
+            count++;
             if (n.type === this.settingType) {
+                if (count > 1) {
+                    res += this.json.BetweenStructuralBlocks;
+                }
                 res += this.generateSetting(n);
-                flag = false;
+                preIsPar = false;
             }
             else if (n.type === this.paragraphType) {
-                if (!flag) {
-                    flag = true;
+                if (count > 1) {
+                    res += preIsPar ? this.json.BetweenParagraphs : this.json.BetweenStructuralBlocks;
                 }
-                else {
-                    //res += "\n\\hspace*{\\fill}\n\n";
-                    res += "\\vspace{10pt}\n";
+                preIsPar = true;
+                res += this.generateParagraph(n);
+            }
+            else if (this.structuralBlockGeneratorTable.has(n.type)) {
+                if (count > 1) {
+                    res += this.json.BetweenStructuralBlocks;
                 }
-                res += await this.generateParagraph(n);
-            }
-            else if (blockGenerator.get(n.type) !== undefined) {
-                let gen = blockGenerator.get(n.type)!;
-                res += gen.bind(this)(n);
-                flag = false;
-            }
-            else if (blockGeneratorAsync.get(n.type) !== undefined) {
-                let gen = blockGeneratorAsync.get(n.type)!;
-                res += await gen.bind(this)(n);
-                flag = false;
+                res += this.structuralBlockGeneratorTable.get(n.type)!.bind(this)(n);
+                preIsPar = false;
             }
             else {
-                console.log("Generate other block error.");
-                flag = false;
+                console.log("Generate document error.");
+                preIsPar = false;
             }
-
         }
         return res;
     }
@@ -304,7 +359,7 @@ export class LatexGenerator extends Generator {
             func.bind(this)(node.children[0].content);
         }
         else {
-            console.log("geSetting error.");
+            console.log("Generate setting error.");
         }
         return "";
     }
@@ -326,415 +381,371 @@ export class LatexGenerator extends Generator {
     // GenerateParagraph
     // Syntax Tree type: paragraph
     // (basic blocks)
-    async generateParagraph(node: Node): Promise<string> {
-        let hasArg = false;
-        let titled = false;
-
-        if (node.children.at(0)?.type === this.argumentsType) {
-            hasArg = true;
-            if (this.getArgument(node, "start") === "titled") {
-                titled = true;
-            }
-        }
-
+    generateParagraph(node: Node): string {
         let res = "";
-        let start = 0;
 
-        if (hasArg) {
-            if (titled) {
-                res += `\\paragraph{${this.generateText(node.children[1]).slice(0, -1)}}\n`;
-                start = 2;
+        let count = 0;
+        let preIsText = false;
+        for (let n of this.removeArguments(node)) {
+            count++;
+            if (n.type === this.textType) {
+                if (count > 1) {
+                    res += preIsText ? this.json.BetweenTexts : this.json.BetweenBasicBlocks;
+                }
+                preIsText = true;
+
+                if (this.getArgument(node, "start") === "titled" && count === 1) {
+                    res += this.json.ParagraphTitled.format(this.generateTextLike(n));
+                }
+                else {
+                    res += this.generateText(n, count);
+                }
+            }
+            else if (this.basicBlockGeneratorTable.has(n.type)) {
+                if (count > 1) {
+                    res += this.json.BetweenBasicBlocks;
+                }
+                res += this.basicBlockGeneratorTable.get(n.type)!.bind(this)(n);
+                preIsText = false;
             }
             else {
-                start = 1;
+                console.log("Generate paragraph error.");
+                preIsText = false;
             }
         }
+        return res;
+    }
 
-        let flag = false;
-        for (let n of node.children.slice(start)) {
-            switch (n.type) {
-                case this.textType:
-                    switch (this.getArgument(n, "start")) {
-                        case "indent":
-                            res += `\\par `;
-                            break;
-                        case "noindent":
-                            res += `\\par\\noindent `;
-                            break;
-                        case "auto":
-                        default:
-                            res += flag ? `\\par\\noindent ` : `\\par `;
-                            flag = true;
-                            break;
-                    }
-                    res += this.generateText(n);
-                    break;
+    // GenerateParagraphLike
+    // Syntax Tree type: paragraph-like
+    generateParagraphLike(node: Node): string {
+        let res = "";
 
-                case this.formulaType:
-                    res += this.generateFormula(n);
-                    break;
-                case this.figureType:
-                    res += await this.generateFigure(n);
-                    break;
-                case this.codeType:
-                    res += this.generateCode(n);
-                    break;
-                case this.listType:
-                    res += await this.generateList(n);
-                    break;
-                case this.tableType:
-                    res += "[[Basic Block]]\n";
-                    console.log("Unsupported basic block.");
-                    break;
-                default:
-                    console.log("Generate basic block error.");
-                    break;
+        let count = 0;
+        let preIsText = false;
+        for (let n of this.removeArguments(node)) {
+            count++;
+            if (n.type === this.textType) {
+                if (count > 1) {
+                    res += preIsText ? this.json.BetweenTexts : this.json.BetweenBasicBlocks;
+                }
+                preIsText = true;
+                res += this.generateText(n, count);
+            }
+            else if (this.basicBlockGeneratorTable.has(n.type)) {
+                if (count > 1) {
+                    res += this.json.BetweenBasicBlocks;
+                }
+                res += this.basicBlockGeneratorTable.get(n.type)!.bind(this)(n);
+                preIsText = false;
+            }
+            else {
+                console.log("Generate paragraph like error.");
+                preIsText = false;
             }
         }
         return res;
     }
 
     // GenerateText
-    // Syntax Tree type: text | emph | bold | italic
-    // (format blocks, insertion)
-    generateText(node: Node, format = false): string {
-        let start = 0;
-        if (node.children.at(0)?.type === this.argumentsType) {
-            start = 1;
-        }
-
+    // Syntax Tree type: text
+    // (format blocks, insertions)
+    generateText(node: Node, count: number): string {
         let res = "";
 
-        for (let n of node.children.slice(start)) {
-            switch (n.type) {
-                case this.wordsType:
-                    for (let ch of n.content) {
-                        switch (ch) {
-                            case "#": case "%": case "{": case "}": case "&": case "_": case "~":
-                                res += "\\";
-                                res += ch;
-                                break;
-                            default:
-                                res += ch;
-                        }
+        for (let n of this.removeArguments(node)) {
+            if (n.type === this.wordsType) {
+                for (let ch of n.content) {
+                    switch (ch) {
+                        case "#": case "%": case "{": case "}": case "&": case "_": case "~":
+                            res += "\\";
+                            res += ch;
+                            break;
+                        default:
+                            res += ch;
                     }
-                    break;
-                case this.referenceType:
-                    let refnode = this.references.find(value => value.name === n.content)?.node;
-                    if (refnode?.type === this.formulaType) {
-                        res += `\\eqref{${n.content}}`;
-                    }
-                    else if (refnode?.type === this.bibItemType) {
-                        res += `\\cite{${n.content}}`;
-                    }
-                    else {
-                        res += `\\ref{${n.content}}`;
-                    }
-                    break;
-                case this.formulaType:
-                    res += this.generateFormula(n, true);
-                    break;
-                case this.codeType:
-                    res += this.generateCode(n, true);
-                    break;
-                case this.emphType:
-                    res += `\\emph{${this.generateText(n, true)}}`;
-                    break;
-                case this.boldType:
-                    res += `\\textbf{${this.generateText(n, true)}}`;
-                    break;
-                case this.italicType:
-                    res += `\\textit{${this.generateText(n, true)}}`;
-                    break;
-                default:
-                    console.log("Generate format block or insertion error.");
-                    break;
+                }
+            }
+            else if (this.formatBlockGeneratorTable.has(n.type)) {
+                res += this.formatBlockGeneratorTable.get(n.type)!.bind(this)(n);
+            }
+            else if (this.InsertionGeneratorTable.has(n.type)) {
+                res += this.InsertionGeneratorTable.get(n.type)!.bind(this)(n);
+            }
+            else {
+                console.log("Generate text error.");
             }
         }
-        if (!format) {
-            res += "\n";
+        switch (this.getArgument(node, "start")) {
+            case "indent":
+                return this.json.TextIndent.formatWithAutoBlank(res);
+            case "noindent":
+                return this.json.TextNoindent.formatWithAutoBlank(res);
+            case "auto":
+            default:
+                return (count <= 1) ? this.json.TextIndent.formatWithAutoBlank(res) : this.json.TextNoindent.formatWithAutoBlank(res);
         }
         return res;
+    }
+
+    // GenerateTextLike
+    // Syntax Tree type: text-like
+    generateTextLike(node: Node): string {
+        let res = "";
+
+        for (let n of this.removeArguments(node)) {
+            if (n.type === this.wordsType) {
+                for (let ch of n.content) {
+                    switch (ch) {
+                        case "#": case "%": case "{": case "}": case "&": case "_": case "~":
+                            res += "\\";
+                            res += ch;
+                            break;
+                        default:
+                            res += ch;
+                    }
+                }
+            }
+            else if (this.formatBlockGeneratorTable.has(n.type)) {
+                res += this.formatBlockGeneratorTable.get(n.type)!.bind(this)(n);
+            }
+            else if (this.InsertionGeneratorTable.has(n.type)) {
+                res += this.InsertionGeneratorTable.get(n.type)!.bind(this)(n);
+            }
+            else {
+                console.log("Generate text like error.");
+            }
+        }
+        return res;
+    }
+
+    // GenerateFormatLike
+    // Syntax Tree type: format-like
+    generateFormatLike(node: Node): string {
+        let res = "";
+
+        for (let n of this.removeArguments(node)) {
+            if (n.type === this.wordsType) {
+                for (let ch of n.content) {
+                    switch (ch) {
+                        case "#": case "%": case "{": case "}": case "&": case "_": case "~":
+                            res += "\\";
+                            res += ch;
+                            break;
+                        default:
+                            res += ch;
+                    }
+                }
+            }
+            else if (this.InsertionGeneratorTable.has(n.type)) {
+                res += this.InsertionGeneratorTable.get(n.type)!.bind(this)(n);
+            }
+            else {
+                console.log("Generate format like block error.");
+            }
+        }
+        return res;
+    }
+
+    // GenerateReference
+    // Syntax Tree type: reference
+    generateReference(node: Node): string {
+        let refnode = this.references.find(value => value.name === node.content)?.node;
+        if (refnode?.type === this.formulaType) {
+            return this.json.EquationReference.format(node.content);
+        }
+        else if (refnode?.type === this.bibItemType) {
+            return this.json.BibliographyReference.format(node.content);
+        }
+        else {
+            return this.json.DefaultReference.format(node.content);
+        }
     }
 
     // **************** Core Module ****************
 
     // GenerateFigure
     // Syntax Tree type: figure
-    async generateFigure(tnode: Node): Promise<string> {
-        let refLatex = this.generateReferences(tnode);
+    generateFigure(node: Node): string {
+        let refLatex = this.generateLatexReferences(node);
 
-        let node = tnode.clone();
-        node.children = node.children.slice(1);
-        // \begin{figure}[!htbp]
-        // \centering
-        // \subcaptionbox{矩形区域}{
-        // \includegraphics[width = 0.4\linewidth]{squ_dom.eps}
-        // }
-        // \subcaptionbox{网格划分}{
-        // \includegraphics[width = 0.4\linewidth]{squ_mesh.eps}
-        // }
-        // \caption{区域和网格选取}\label{fig:squ_dom}
-        // \end{figure}
-        let text = `\\begin{figure}[!htbp]\n\\centering\n\\vspace{-0.3em}\n`;
-        //let caption: Node | undefined = undefined;
-
-        let size = "0.4";
-        switch (node.content) {
-            case "small":
-                size = "0.2";
-                break;
-            case "medium":
-                size = "0.4";
-                break;
-            case "large":
-                size = "0.8";
-                break;
-        }
-
-        let caption: Node | undefined = undefined;
+        let imageCount = 0;
+        let caption: Node | undefined;
         for (let n of node.children) {
-            switch (n.type) {
-                case this.captionType:
-                    caption = n;
-                    break;
-                case this.imageType:
-                    let path = this.getArgument(n, "path");
-                    let size = this.getArgument(n, "size");
-                    // if (this.fileOperation.getFileExtension(path) === "tikz") {
-                    //     await this.fileOperation.copyFile(path, "./.lix/");
-                    //     let file = await this.fileOperation.readFile(path);
-                    //     text += file ?? "";
-                    //     text += "\n";
-                    // }
-                    text += `\\subcaptionbox{${this.generateText(n, true)}}{\n\\includegraphics[width = ${size}\\linewidth]{${path}}}\n`;
-                    await this.fileOperation.copyFile(n.content, "./.lix/");
-                    break;
+            if (n.type === this.imageType) {
+                imageCount++;
+            }
+            else if (n.type === this.captionType) {
+                caption = n;
             }
         }
 
-        text += `\\vspace{-0.3em}\n\\caption{${caption ? this.generateText(caption) : "[[nocaption]]"}}${refLatex}\\vspace{-0.7em}\n\\end{figure}\n`;
+        let res = "";
+        if (imageCount === 1) {
+            for (let n of node.children) {
+                if (n.type === this.imageType) {
+                    res += this.generateImage(true, n);
+                    break;
+                }
+            }
+        }
+        else if (imageCount > 1) {
+            for (let n of node.children) {
+                if (n.type === this.imageType) {
+                    res += this.generateImage(false, n);
+                }
+            }
+        }
 
-        return text;
+        return this.json.Figure.format({ content: res, caption: caption === undefined ? "" : this.generateCaption(caption), reference: refLatex });
+    }
+
+    // GenerateImage
+    // Syntax Tree type: image
+    generateImage(single: boolean, node: Node): string {
+        let path = this.getArgument(node, "path")!;
+        let content = path;
+        if(this.fileOperation.getFileExtension(path) === "tikz") {
+            content = this.fileOperation.readFileByRecord(path);
+        }
+        else {
+            this.fileOperation.copyFile(path, this.fileOperation.cacheDirectory);
+        }
+
+        if (single) {
+            return this.json.SingleImage.format({ size: this.getArgument(node, "size")!, path: content });
+        }
+        return this.json.DefaultImage.format({ caption: this.generateFormatLike(node), size: this.getArgument(node, "size")!, path: content });
     }
 
     // GenerateCode
     // Syntax Tree type: code
-    generateCode(node: Node, inline = false): string {
+    generateCode(inline: boolean, node: Node): string {
         if (inline) {
-            return `\\verb|${node.content}|`;
+            return this.json.InlineCode.format(node.content);
         }
         else {
-            return `\\begin{lstlisting}\n${node.content}\n\\end{lstlisting}\n`
+            return this.json.DefaultCode.format(node.content);
         }
-
     }
 
     // GenerateList
     // Syntax Tree type: list
-    async generateList(node: Node): Promise<string> {
+    generateList(node: Node): string {
         let res = "";
 
-        let numbered = false;
-        if (this.getArgument(node, "style") === "numbered") {
-            numbered = true;
+        let count = 0;
+        for (let n of this.removeArguments(node)) {
+            count++;
+            if (count > 1) {
+                res += this.json.BetweenItems;
+            }
+            res += this.generateItem(n);
         }
 
-        res += numbered ? "\\begin{enumerate}\n" : "\\begin{itemize}\n";
-        for (let n of node.children) {
-            if (n.type === this.itemType) {
-                res += this.generateItem(n);
-                res += await this.generateParagraph(n);
-            }
+        if (this.getArgument(node, "style") === "numbered") {
+            return this.json.NumberedList.format(res);
         }
-        res += numbered ? "\\end{enumerate}\n" : "\\end{itemize}\n";
-        return res;
+        return this.json.UnnumberedList.format(res);
     }
 
     // GenerateItem
     // Syntax Tree type: item
     generateItem(node: Node): string {
-        let refLatex = this.generateReferences(node);
-        return `\\item${refLatex} `;
+        return this.json.Item.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) });
+    }
+
+    // GenerateTable
+    // Syntax Tree type: table
+    generateTable(node: Node): string {
+        let res = "";
+
+        let rowCount = 0;
+        let columnCount = 0;
+        for (let rowNode of this.removeArguments(node)) {
+            rowCount++;
+            if (rowCount > 1) {
+                res += this.json.TableRowSeparator;
+            }
+
+            columnCount = 0;
+            for (let columnNode of rowNode.children) {
+                columnCount++;
+                if (columnCount > 1) {
+                    res += this.json.TableColumnSeparator;
+                }
+                res += this.generateCell(columnNode);
+            }
+
+        }
+        
+        return this.json.Table.format({ args: "c".repeat(columnCount), content: res, caption: "", reference: "" });
+    }
+
+    // GenerateCell
+    // Syntax Tree type: cell
+    generateCell(node: Node): string {
+        return this.json.Cell.format(this.generateParagraphLike(node));
+    }
+
+    // GenerateCaption
+    // Syntax Tree type: caption
+    generateCaption(node: Node): string {
+        return this.json.Caption.format(this.generateFormatLike(node));
+    }
+
+    // GenerateEmph
+    // Syntax Tree type: emph
+    generateEmph(node: Node): string {
+        return this.json.Emph.format(this.generateFormatLike(node));
+    }
+
+    // GenerateBold
+    // Syntax Tree type: bold
+    generateBold(node: Node): string {
+        return this.json.Bold.format(this.generateFormatLike(node));
+    }
+
+    // GenerateItalic
+    // Syntax Tree type: italic
+    generateItalic(node: Node): string {
+        return this.json.Italic.format(this.generateFormatLike(node));
     }
 
     // **************** Math Module ****************
 
     // GenerateFormula
     // Syntax Tree type: formula
-    generateFormula(node: Node, inline: boolean = false): string {
-        let refLatex = this.generateReferences(node);
-        let numbered = "*";
-        let multiline = false;
-        if (this.getArgument(node, "style") === "numbered") {
-            numbered = "";
+    generateFormula(inline: boolean, node: Node): string {
+        let refLatex = this.generateLatexReferences(node);
+        this.mathGenerator.generate(node, this.references);
+        let formula = this.mathGenerator.output;
+
+        if (inline) {
+            return this.json.InlineFormula.format(formula);
         }
+
         if (this.getArgument(node, "line") === "multi") {
-            multiline = true;
+            formula = this.json.MultilineFormula.format({ content: formula });
+        }
+        if (this.getArgument(node, "style") === "numbered") {
+            return this.json.NumberedFormula.format({ reference: refLatex, content: formula })
+        }
+        else {
+            return this.json.UnnumberedFormula.format({ reference: refLatex, content: formula })
         }
 
-        let res = inline ? "$" : `\\begin{equation${numbered}}\n${refLatex}\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n`;
-        res += multiline ? `\\begin{aligned}\n` : ``;
-
-        res += this.generateTermOrOperator(node.children.at(-1)!);
-
-        res += multiline ? `\n\\end{aligned}` : ``;
-        res += inline ? "$" : `\n\\end{equation${numbered}}%\n`;
-
-        return res;
     }
 
-
-    // 生成的 Latex 保证为 Latex 中的一项或多项
-    generateTermOrOperator(node: Node): string {
-        let res = "";
-        let code: string | undefined;
-        let isAlphabet = (char: string) => {
-            const reg = /[a-zA-Z]/;
-            return reg.exec(char) != null;
-        }
-
-        switch (node.type) {
-            // Terms, 生成的 Latex 保证为 Latex 中的一项
-            case this.inlineTextType:
-                res += `\\text{${node.content}}`;
-                break;
-
-            case this.elementType:
-                let sym = this.latexFormula.get(node.content);
-                res += sym ?? `\\text{[[${node.content}]]}`;
-                break;
-            case this.matrixType:
-                let brow = false;
-                for (let row of node.children) {
-                    if (brow) {
-                        res += `\\\\`;
-                    }
-                    brow = true;
-
-                    let bcol = false;
-                    for (let col of row.children) {
-                        let ncode = this.generateTermOrOperator(col);
-                        if (bcol) {
-                            res += `&`;
-                        }
-                        bcol = true;
-                        res += ncode;
-                    }
-                }
-                break;
-
-            // Terms, 生成的 Latex 保证为 Latex 中的一项或多项
-            case this.prefixType:
-                code = this.latexOperator.get(node.content);
-                if (code !== undefined) {
-                    for (let i = 0; i < node.children.length; i++) {
-                        let ncode = this.generateTermOrOperator(node.children[i]);
-                        let flag = `\${${i}}`;
-
-                        let pos = code.indexOf(flag);
-                        if (pos >= 1 && pos < code.length && isAlphabet(code.at(pos - 1)!) && ncode.length >= 1 && isAlphabet(ncode.at(0)!)) {
-                            ncode = " " + ncode;
-                        }
-                        if (pos >= 0 && pos + flag.length < code.length && isAlphabet(code.at(pos + flag.length)!) && ncode.length >= 1 && isAlphabet(ncode.at(-1)!)) {
-                            ncode = ncode + " ";
-                        }
-
-                        code = code.replace(flag, ncode);
-                    }
-                    res += code;
-                }
-                else {
-                    res += `\\text{[[Prefix Error]]}`;
-                }
-                break;
-
-            case this.infixType:
-                code = this.latexOperator.get(node.content);
-
-                if (code !== undefined) {
-                    if (code === "${default}") {
-                        let blank = false;
-                        if (node.content === "") {
-                            blank = true;
-                        }
-                        let lastIsAlphabet = false;
-
-                        let i = 0;
-                        //res += "{";
-                        for (let sub of node.children) {
-                            let ncode = this.generateTermOrOperator(sub);
-
-
-                            if (blank && lastIsAlphabet && ncode.length >= 1 && isAlphabet(ncode[0])) {
-                                res += " ";
-                            }
-                            if (blank && ncode.length >= 1 && isAlphabet(ncode.at(-1)!)) {
-                                lastIsAlphabet = true;
-                            }
-                            else {
-                                lastIsAlphabet = false;
-                            }
-
-                            res += `${ncode}`;
-                            res += (i < node.content.length) ? node.content[i] : "";
-                            i++;
-                        }
-                        //res += "}";
-                    }
-                    else {
-                        for (let i = 0; i < node.children.length; i++) {
-                            let ncode = this.generateTermOrOperator(node.children[i]);
-                            let flag = `\${${i}}`;
-
-                            let pos = code.indexOf(flag);
-                            if (pos >= 1 && pos < code.length && isAlphabet(code.at(pos - 1)!) && ncode.length >= 1 && isAlphabet(ncode.at(0)!)) {
-                                ncode = " " + ncode;
-                            }
-                            if (pos >= 0 && pos + flag.length < code.length && isAlphabet(code.at(pos + flag.length)!) && ncode.length >= 1 && isAlphabet(ncode.at(-1)!)) {
-                                ncode = ncode + " ";
-                            }
-
-                            code = code.replace(flag, ncode);
-                        }
-                        res += code;
-                    }
-                }
-                else {
-                    res += `\\text{[[Infix Error]]}`;
-                }
-                // switch (node.content) {
-                //     case "⁄":
-                //         res += `{\\frac${this.generateTermOrOperator(node.children[0])}${this.generateTermOrOperator(node.children[1])}}`;
-                //         break;
-                //     default:
-                //         let i = 0;
-                //         res += "{";
-                //         for (let sub of node.children) {
-                //             res += `${this.generateTermOrOperator(sub)}`;
-                //             res += (i < node.content.length) ? node.content[i] : "";
-                //             i++;
-                //         }
-                //         res += "}";
-                //         break;
-
-                // }
-                break;
-
-        }
-
-        return res;
-    }
-
-    // **************** Article Moudle ****************
+    // **************** Article Module ****************
 
     // GenerateTitle
     // Syntax Tree type: title
     generateTitle(node: Node): string {
-        this.addIntrodunction(this.line(`\\title{${this.generateText(node, true)}}`));
+        this.addIntrodunction(this.line(this.json.Title.format(this.generateFormatLike(node))));
         if (!this.hasMakedTitle) {
             this.hasMakedTitle = true;
-            return "\\maketitle\n";
+            return this.json.MakeTitleAuthorDate;
         }
         return "";
     }
@@ -742,10 +753,10 @@ export class LatexGenerator extends Generator {
     // GenerateAuthor
     // Syntax Tree type: author
     generateAuthor(node: Node): string {
-        this.addIntrodunction(this.line(`\\author{${this.generateText(node, true)}}`));
+        this.addIntrodunction(this.line(this.json.Author.format(this.generateFormatLike(node))));
         if (!this.hasMakedTitle) {
             this.hasMakedTitle = true;
-            return "\\maketitle\n";
+            return this.json.MakeTitleAuthorDate;
         }
         return "";
     }
@@ -753,10 +764,10 @@ export class LatexGenerator extends Generator {
     // GenerateDate
     // Syntax Tree type: date
     generateDate(node: Node): string {
-        this.addIntrodunction(this.line(`\\date{${this.generateText(node, true)}}`));
+        this.addIntrodunction(this.line(this.json.Date.format(this.generateFormatLike(node))));
         if (!this.hasMakedTitle) {
             this.hasMakedTitle = true;
-            return "\\maketitle\n";
+            return this.json.MakeTitleAuthorDate;
         }
         return "";
     }
@@ -764,161 +775,114 @@ export class LatexGenerator extends Generator {
     // GenerateSection
     // Syntax Tree type: section
     generateSection(node: Node): string {
-        let refLatex = this.generateReferences(node);
-        let numbered = "*";
+        let refLatex = this.generateLatexReferences(node);
         if (this.getArgument(node, "style") === "numbered") {
-            numbered = "";
+            return this.json.Section.format({ content: this.generateFormatLike(node), reference: refLatex });
         }
-        return `\\section${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        else {
+            return this.json.UnnumberedSection.format({ content: this.generateFormatLike(node), reference: refLatex });
+        }
     }
 
     // GenerateSubsection
     // Syntax Tree type: subsection
     generateSubsection(node: Node): string {
-        let refLatex = this.generateReferences(node);
-        let numbered = "*";
+        let refLatex = this.generateLatexReferences(node);
         if (this.getArgument(node, "style") === "numbered") {
-            numbered = "";
+            return this.json.Subsection.format({ content: this.generateFormatLike(node), reference: refLatex });
         }
-        return `\\subsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        else {
+            return this.json.UnnumberedSubsection.format({ content: this.generateFormatLike(node), reference: refLatex });
+        }
     }
 
     // GenerateSubsubection
     // Syntax Tree type: subsubsection
     generateSubsubsection(node: Node): string {
-        let refLatex = this.generateReferences(node);
-        let numbered = "*";
+        let refLatex = this.generateLatexReferences(node);
         if (this.getArgument(node, "style") === "numbered") {
-            numbered = "";
+            return this.json.Subsubsection.format({ content: this.generateFormatLike(node), reference: refLatex });
         }
-        return `\\subsubsection${numbered}{${this.generateText(node, true)}}${refLatex}\n`;
+        else {
+            return this.json.UnnumberedSubsubsection.format({ content: this.generateFormatLike(node), reference: refLatex });
+        }
     }
 
     // GenerateTableofcontents
     // Syntax Tree type: tableofcontents
     generateTableofcontents(node: Node): string {
-        return `\\tableofcontents\n`;
+        return this.json.Tableofcontents;
     }
 
     // GenerateNewpage
     // Syntax Tree type: newpage
     generateNewpage(node: Node): string {
-        return `\\newpage\n`;
+        return this.json.Newpage;
     }
 
 
     // GenerateBibliography
     // Syntax Tree type: bibliography
-    async generateBibliography(node: Node): Promise<string> {
+    generateBibliography(node: Node): string {
         let res = "";
 
-        res += `\\begin{thebibliography}{1}\n`;
-        for (let n of node.children) {
-            switch (n.type) {
-                case this.bibItemType:
-                    res += this.generateBibItem(n);
-                    res += this.generateText(n);
-                    break;
-                default:
-                    console.log("Unsupported basic block in bibliography.");
-                    break;
+        let count = 0;
+        for (let n of this.removeArguments(node)) {
+            count++;
+            if (count > 1) {
+                res += this.json.BetweenBibItems;
             }
+            res += this.generateBibItem(n);
         }
-        res += `\\end{thebibliography}`;
-        return res;
+        return this.json.Bibliography.format(res);
     }
 
     // GenerateBibItem
     // Syntax Tree type: bib-item
     generateBibItem(node: Node): string {
-        let refLatex = "";
-        refLatex += this.getReferences(node).at(0) ?? "";
-        return `\\bibitem{${refLatex}} `;
+        let refLatex = this.getReferences(node).at(0) ?? "";
+        return this.json.BibItem.format({ reference: refLatex, content: this.generateFormatLike(node) })
     }
 
     // GenerateTheorem
     // Syntax Tree type: theorem
-    async generateTheorem(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{theorem}${refLatex}${await this.generateParagraph(node)}\\end{theorem}\n`;
+    generateTheorem(node: Node): string {
+        return this.json.Theorem.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // GenerateDefinition
     // Syntax Tree type: definition
-    async generateDefinition(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{definition}${refLatex}${await this.generateParagraph(node)}\\end{definition}\n`;
+    generateDefinition(node: Node): string {
+        return this.json.Definition.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // GenerateLemma
     // Syntax Tree type: lemma
-    async generateLemma(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{lemma}${refLatex}${await this.generateParagraph(node)}\\end{lemma}\n`;
+    generateLemma(node: Node): string {
+        return this.json.Lemma.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // GenerateCorollary
     // Syntax Tree type: corollary
-    async generateCorollary(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{corollary}${refLatex}${await this.generateParagraph(node)}\\end{corollary}\n`;
+    generateCorollary(node: Node): string {
+        return this.json.Corollary.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // GenerateProposition
     // Syntax Tree type: proposition
-    async generateProposition(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{proposition}${refLatex}${await this.generateParagraph(node)}\\end{proposition}\n`;
+    generateProposition(node: Node): string {
+        return this.json.Proposition.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // GenerateProof
     // Syntax Tree type: proof
-    async generateProof(node: Node): Promise<string> {
-        let refLatex = this.generateReferences(node);
-
-        return `\\begin{proof}${refLatex}${await this.generateParagraph(node)}\\end{proof}\n`;
+    generateProof(node: Node): string {
+        return this.json.Proof.format({ reference: this.generateLatexReferences(node), content: this.generateParagraphLike(node) })
     }
 
     // **************** Assistant Function ****************
 
-    getArgument(node: Node, name: string): string {
-        if (node.children.length === 0) {
-            return "";
-        }
-        let args = node.children[0];
-
-        let found: string | undefined;
-        args.children.forEach(argNode => {
-            if (argNode.type === this.argumentType && argNode.content === name) {
-                found = argNode.children[0].content;
-            }
-        });
-
-        return found ?? "";
-    }
-
-    getReferences(node: Node): string[] {
-        if (node.children.length === 0) {
-            return [];
-        }
-        let args = node.children[0];
-
-        let refs: string[] = [];
-        args.children.forEach(argNode => {
-            if (argNode.type === this.referenceType) {
-                refs.push(argNode.content);
-            }
-        });
-
-        return refs;
-    }
-
-    generateReferences(node: Node): string {
+    generateLatexReferences(node: Node): string {
         let refLatex = "";
         this.getReferences(node).forEach(ref => {
             refLatex += `\\label{${ref}}`;

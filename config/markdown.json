@@ -1,0 +1,62 @@
+{
+    "ParagraphTitled": "${0}",
+    "BetweenParagraphs": "\n\n",
+    "BetweenStructuralBlocks": "\n\n",
+
+    "TextIndent": "${0}",
+    "TextNoindent": "${0}",
+    "BetweenTexts": "\n\n",
+    "BetweenBasicBlocks": "\n\n",
+
+    "EquationReference": "${0}",
+    "BibliographyReference": "${0}",
+    "DefaultReference": "${0}",
+
+    "InlineFormula": "$${0}$",
+    "NumberedFormula": "$$\n${content}\n$$",
+    "UnnumberedFormula": "$$\n${content}\n$$",
+    "MultilineFormula": "\\begin{aligned}\n${content}\n\\end{aligned}",
+
+    "Figure": "${content}",
+    "Image": "![${caption}](${path})",
+    "Caption": "${0}",
+    "BetweenImagesAndCaption": "\n",
+
+    "InlineCode": "`${0}`",
+    "DefaultCode": "```\n${0}\n```",
+    "NumberedList": "${0}",
+    "UnnumberedList": "${0}",
+    "Item": "* ${content}",
+    "BetweenItems": "\n",
+    "Table": "\\begin{table}[!htbp]\n\\centering\n\\begin{tabular}{${args}}\n${content}\n\\end{tabular}\n${caption}${reference}\n\\end{table}",
+    "TableRowSeparator": "\\\\",
+    "TableColumnSeparator": "&",
+    "Cell": "${0}",
+    "Emph": "***${0}***",
+    "Bold": "**${0}**",
+    "Italic": "*${0}*",
+
+    "Title": "# ${0}",
+    "Author": "Author: ${0}",
+    "Date": "Date: ${0}",
+    "Section": "## ${content}",
+    "Subsection": "### ${content}",
+    "Subsubsection": "#### ${content}",
+    "UnnumberedSection": "## ${content}",
+    "UnnumberedSubsection": "### ${content}",
+    "UnnumberedSubsubsection": "#### ${content}",
+    "Tableofcontents": "",
+    "Newpage": "",
+
+    "Bibliography": "## Bibliography\n${0}",
+    "BibItem": "* ${content}",
+    "BetweenBibItems": "\n",
+
+    "Theorem": "${content}",
+    "Definition": "${content}",
+    "Lemma": "${content}",
+    "Corollary": "${content}",
+    "Proposition": "${content}",
+    "Proof": "${content}"
+
+}

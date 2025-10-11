@@ -102,43 +102,6 @@
 
 "Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
 
-"PrefixOperatorO": [
-	["lim", "[expr]", ":", "[expr]"],
-	["∑", "[expr]", "to", "[expr]", ":", "[expr]"],
-	["∏", "[expr]", "to", "[expr]", ":", "[expr]"],
-	["⋃", "[expr]", "to", "[expr]", ":", "[expr]"],
-	["⋂", "[expr]", "to", "[expr]", ":", "[expr]"],
-	["√", "[term]"],
-	["cases", "[term]"],
-	["norm", "[term]"],
-	["mat", "[expr]"],
-	["(", "[expr]", ")"],
-	["[", "[expr]", "]"],
-	["{", "[expr]", "}"],
-	["⟨", "[expr]", "⟩"],
-	["|", "[expr]", "|"],
-	["‖", "[expr]", "‖"],
-	["⦃", "[term]"],
-	["⟦", "[term]"],
-	["⦇", "[term]"],
-	["⦉", "[term]"],
-	["⦄", "[term]"],
-	["⟧", "[term]"],
-	["⦈", "[term]"],
-	["⦊", "[term]"],
-	["dot", "[term]"],
-	["ddot", "[term]"],
-	["acute", "[term]"],
-	["grave", "[term]"],
-	["check", "[term]"],
-	["breve", "[term]"],
-	["tilde", "[term]"],
-	["bar", "[term]"],
-	["hat", "[term]"],
-	["widehat", "[term]"],
-	["vec", "[term]"]
-],
-
 "PrefixOperator": [
 	[
 		{ "type": "enumeration", "options" : ["lim"] },
@@ -177,12 +140,6 @@
 		{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec"] },
 		{ "type": "term", "options" : [] }
 	]
-],
-
-"InfixOperatorO": [
-	["^_", "^", "_", "^_", "_^"],
-	[""],
-	["⁄", "⁄"]
 ],
 
 "InfixOperator": [

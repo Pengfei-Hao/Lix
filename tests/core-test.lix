@@ -2,7 +2,7 @@
 [author Lix]
 [date 2024.11.4]
 
-本文是核心模块的测试文档, 同时也是一份教学手册. 本文档展示了图片、代码、列表、表格等块的用法.
+本文是核心模块的测试文档, 同时也是一份教学手册. 本文档展示了图片、代码、列表、表格等块的用法. 1111
 
 [section 图片]
 
@@ -102,8 +102,8 @@ Lix Code.
 
 表格使用 `[table ...]` 插入, 例如
 
-[table 
+[table
 a /a^b_c/ & b [bold Bold] & c `code`;
-d [list *1*2] & e [formula a+b=c] & f;
+d [list *1*2] & e [formula a+b=c@∑] & f;
 [cell [formula a]+b] [cell] a
 ]

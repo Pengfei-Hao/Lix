@@ -1,146 +1,64 @@
 {
-"map": [
-	["𝒜", "\\mathcal{A}"], ["sA", "\\mathcal{A}"], ["ℬ", "\\mathcal{B}"], ["sB", "\\mathcal{B}"], ["𝒞", "\\mathcal{C}"], ["sC", "\\mathcal{C}"], ["𝒟", "\\mathcal{D}"], ["sD", "\\mathcal{D}"], ["ℰ", "\\mathcal{E}"], ["sE", "\\mathcal{E}"], ["ℱ", "\\mathcal{F}"], ["sF", "\\mathcal{F}"], ["𝒢", "\\mathcal{G}"], ["sG", "\\mathcal{G}"], ["ℋ", "\\mathcal{H}"], ["sH", "\\mathcal{H}"], ["ℐ", "\\mathcal{I}"], ["sI", "\\mathcal{I}"], ["𝒥", "\\mathcal{J}"], ["sJ", "\\mathcal{J}"], ["𝒦", "\\mathcal{K}"], ["sK", "\\mathcal{K}"], ["ℒ", "\\mathcal{L}"], ["sL", "\\mathcal{L}"], ["ℳ", "\\mathcal{M}"], ["sM", "\\mathcal{M}"], ["𝒩", "\\mathcal{N}"], ["sN", "\\mathcal{N}"], ["𝒪", "\\mathcal{O}"], ["sO", "\\mathcal{O}"], ["𝒫", "\\mathcal{P}"], ["sP", "\\mathcal{P}"], ["𝒬", "\\mathcal{Q}"], ["sQ", "\\mathcal{Q}"], ["ℛ", "\\mathcal{R}"], ["sR", "\\mathcal{R}"], ["𝒮", "\\mathcal{S}"], ["sS", "\\mathcal{S}"], ["𝒯", "\\mathcal{T}"], ["sT", "\\mathcal{T}"], ["𝒰", "\\mathcal{U}"], ["sU", "\\mathcal{U}"], ["𝒱", "\\mathcal{V}"], ["sV", "\\mathcal{V}"], ["𝒲", "\\mathcal{W}"], ["sW", "\\mathcal{W}"], ["𝒳", "\\mathcal{X}"], ["sX", "\\mathcal{X}"], ["𝒴", "\\mathcal{Y}"], ["sY", "\\mathcal{Y}"], ["𝒵", "\\mathcal{Z}"], ["sZ", "\\mathcal{Z}"], 
+    "ParagraphTitled": "\\paragraph{${0}}",
+    "BetweenParagraphs": "\n\\vspace{10pt}\n",
+    "BetweenStructuralBlocks": "\n\n",
 
-	["𝒶", "\\mathcal{a}"], ["sa", "\\mathcal{a}"], ["𝒷", "\\mathcal{b}"], ["sb", "\\mathcal{b}"], ["𝒸", "\\mathcal{c}"], ["sc", "\\mathcal{c}"], ["𝒹", "\\mathcal{d}"], ["sd", "\\mathcal{d}"], ["ℯ", "\\mathcal{e}"], ["se", "\\mathcal{e}"], ["𝒻", "\\mathcal{f}"], ["sf", "\\mathcal{f}"], ["ℊ", "\\mathcal{g}"], ["sg", "\\mathcal{g}"], ["𝒽", "\\mathcal{h}"], ["sh", "\\mathcal{h}"], ["𝒾", "\\mathcal{i}"], ["si", "\\mathcal{i}"], ["𝒿", "\\mathcal{j}"], ["sj", "\\mathcal{j}"], ["𝓀", "\\mathcal{k}"], ["sk", "\\mathcal{k}"], ["𝓁", "\\mathcal{l}"], ["sl", "\\mathcal{l}"], ["𝓂", "\\mathcal{m}"], ["sm", "\\mathcal{m}"], ["𝓃", "\\mathcal{n}"], ["sn", "\\mathcal{n}"], ["ℴ", "\\mathcal{o}"], ["so", "\\mathcal{o}"], ["𝓅", "\\mathcal{p}"], ["sp", "\\mathcal{p}"], ["𝓆", "\\mathcal{q}"], ["sq", "\\mathcal{q}"], ["𝓇", "\\mathcal{r}"], ["sr", "\\mathcal{r}"], ["𝓈", "\\mathcal{s}"], ["ss", "\\mathcal{s}"], ["𝓉", "\\mathcal{t}"], ["st", "\\mathcal{t}"], ["𝓊", "\\mathcal{u}"], ["su", "\\mathcal{u}"], ["𝓋", "\\mathcal{v}"], ["sv", "\\mathcal{v}"], ["𝓌", "\\mathcal{w}"], ["sw", "\\mathcal{w}"], ["𝓍", "\\mathcal{x}"], ["sx", "\\mathcal{x}"], ["𝓎", "\\mathcal{y}"], ["sy", "\\mathcal{y}"], ["𝓏", "\\mathcal{z}"], ["sz", "\\mathcal{z}"], 
+    "TextIndent": "\\par ${0}",
+    "TextNoindent": "\\par\\noindent ${0}",
+    "BetweenTexts": "\n",
+    "BetweenBasicBlocks": "\n",
 
-	["𝔄", "\\mathfrak{A}"], ["fA", "\\mathfrak{A}"], ["𝔅", "\\mathfrak{B}"], ["fB", "\\mathfrak{B}"], ["ℭ", "\\mathfrak{C}"], ["fC", "\\mathfrak{C}"], ["𝔇", "\\mathfrak{D}"], ["fD", "\\mathfrak{D}"], ["𝔈", "\\mathfrak{E}"], ["fE", "\\mathfrak{E}"], ["𝔉", "\\mathfrak{F}"], ["fF", "\\mathfrak{F}"], ["𝔊", "\\mathfrak{G}"], ["fG", "\\mathfrak{G}"], ["ℌ", "\\mathfrak{H}"], ["fH", "\\mathfrak{H}"], ["ℑ", "\\mathfrak{I}"], ["fI", "\\mathfrak{I}"], ["𝔍", "\\mathfrak{J}"], ["fJ", "\\mathfrak{J}"], ["𝔎", "\\mathfrak{K}"], ["fK", "\\mathfrak{K}"], ["𝔏", "\\mathfrak{L}"], ["fL", "\\mathfrak{L}"], ["𝔐", "\\mathfrak{M}"], ["fM", "\\mathfrak{M}"], ["𝔑", "\\mathfrak{N}"], ["fN", "\\mathfrak{N}"], ["𝔒", "\\mathfrak{O}"], ["fO", "\\mathfrak{O}"], ["𝔓", "\\mathfrak{P}"], ["fP", "\\mathfrak{P}"], ["𝔔", "\\mathfrak{Q}"], ["fQ", "\\mathfrak{Q}"], ["ℜ", "\\mathfrak{R}"], ["fR", "\\mathfrak{R}"], ["𝔖", "\\mathfrak{S}"], ["fS", "\\mathfrak{S}"], ["𝔗", "\\mathfrak{T}"], ["fT", "\\mathfrak{T}"], ["𝔘", "\\mathfrak{U}"], ["fU", "\\mathfrak{U}"], ["𝔙", "\\mathfrak{V}"], ["fV", "\\mathfrak{V}"], ["𝔚", "\\mathfrak{W}"], ["fW", "\\mathfrak{W}"], ["𝔛", "\\mathfrak{X}"], ["fX", "\\mathfrak{X}"], ["𝔜", "\\mathfrak{Y}"], ["fY", "\\mathfrak{Y}"], ["ℨ", "\\mathfrak{Z}"], ["fZ", "\\mathfrak{Z}"], 
+    "EquationReference": "\\eqref{${0}}",
+    "BibliographyReference": "\\cite{${0}}",
+    "DefaultReference": "\\ref{${0}}",
 
-	["𝔞", "\\mathfrak{a}"], ["fa", "\\mathfrak{a}"], ["𝔟", "\\mathfrak{b}"], ["fb", "\\mathfrak{b}"], ["𝔠", "\\mathfrak{c}"], ["fc", "\\mathfrak{c}"], ["𝔡", "\\mathfrak{d}"], ["fd", "\\mathfrak{d}"], ["𝔢", "\\mathfrak{e}"], ["fe", "\\mathfrak{e}"], ["𝔣", "\\mathfrak{f}"], ["ff", "\\mathfrak{f}"], ["𝔤", "\\mathfrak{g}"], ["fg", "\\mathfrak{g}"], ["𝔥", "\\mathfrak{h}"], ["fh", "\\mathfrak{h}"], ["𝔦", "\\mathfrak{i}"], ["fi", "\\mathfrak{i}"], ["𝔧", "\\mathfrak{j}"], ["fj", "\\mathfrak{j}"], ["𝔨", "\\mathfrak{k}"], ["fk", "\\mathfrak{k}"], ["𝔩", "\\mathfrak{l}"], ["fl", "\\mathfrak{l}"], ["𝔪", "\\mathfrak{m}"], ["fm", "\\mathfrak{m}"], ["𝔫", "\\mathfrak{n}"], ["fn", "\\mathfrak{n}"], ["𝔬", "\\mathfrak{o}"], ["fo", "\\mathfrak{o}"], ["𝔭", "\\mathfrak{p}"], ["fp", "\\mathfrak{p}"], ["𝔮", "\\mathfrak{q}"], ["fq", "\\mathfrak{q}"], ["𝔯", "\\mathfrak{r}"], ["fr", "\\mathfrak{r}"], ["𝔰", "\\mathfrak{s}"], ["fs", "\\mathfrak{s}"], ["𝔱", "\\mathfrak{t}"], ["ft", "\\mathfrak{t}"], ["𝔲", "\\mathfrak{u}"], ["fu", "\\mathfrak{u}"], ["𝔳", "\\mathfrak{v}"], ["fv", "\\mathfrak{v}"], ["𝔴", "\\mathfrak{w}"], ["fw", "\\mathfrak{w}"], ["𝔵", "\\mathfrak{x}"], ["fx", "\\mathfrak{x}"], ["𝔶", "\\mathfrak{y}"], ["fy", "\\mathfrak{y}"], ["𝔷", "\\mathfrak{z}"], ["fz", "\\mathfrak{z}"], 
+    "InlineFormula": "$${0}$",
+    "NumberedFormula": "\\begin{equation}${reference}\n\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n${content}\n\\end{equation}",
+    "UnnumberedFormula": "\\begin{equation*}${reference}\n\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n${content}\n\\end{equation}",
+    "MultilineFormula": "\\begin{aligned}\n${content}\n\\end{aligned}",
 
-	["𝔸", "\\mathbb{A}"], ["dA", "\\mathbb{A}"], ["𝔹", "\\mathbb{B}"], ["dB", "\\mathbb{B}"], ["ℂ", "\\mathbb{C}"], ["dC", "\\mathbb{C}"], ["𝔻", "\\mathbb{D}"], ["dD", "\\mathbb{D}"], ["𝔼", "\\mathbb{E}"], ["dE", "\\mathbb{E}"], ["𝔽", "\\mathbb{F}"], ["dF", "\\mathbb{F}"], ["𝔾", "\\mathbb{G}"], ["dG", "\\mathbb{G}"], ["ℍ", "\\mathbb{H}"], ["dH", "\\mathbb{H}"], ["𝕀", "\\mathbb{I}"], ["dI", "\\mathbb{I}"], ["𝕁", "\\mathbb{J}"], ["dJ", "\\mathbb{J}"], ["𝕂", "\\mathbb{K}"], ["dK", "\\mathbb{K}"], ["𝕃", "\\mathbb{L}"], ["dL", "\\mathbb{L}"], ["𝕄", "\\mathbb{M}"], ["dM", "\\mathbb{M}"], ["ℕ", "\\mathbb{N}"], ["dN", "\\mathbb{N}"], ["𝕆", "\\mathbb{O}"], ["dO", "\\mathbb{O}"], ["ℙ", "\\mathbb{P}"], ["dP", "\\mathbb{P}"], ["ℚ", "\\mathbb{Q}"], ["dQ", "\\mathbb{Q}"], ["ℝ", "\\mathbb{R}"], ["dR", "\\mathbb{R}"], ["𝕊", "\\mathbb{S}"], ["dS", "\\mathbb{S}"], ["𝕋", "\\mathbb{T}"], ["dT", "\\mathbb{T}"], ["𝕌", "\\mathbb{U}"], ["dU", "\\mathbb{U}"], ["𝕍", "\\mathbb{V}"], ["dV", "\\mathbb{V}"], ["𝕎", "\\mathbb{W}"], ["dW", "\\mathbb{W}"], ["𝕏", "\\mathbb{X}"], ["dX", "\\mathbb{X}"], ["𝕐", "\\mathbb{Y}"], ["dY", "\\mathbb{Y}"], ["ℤ", "\\mathbb{Z}"], ["dZ", "\\mathbb{Z}"], 
+    "Figure": "\\begin{figure}[!htbp]\n\\centering\n\\vspace{-0.3em}\n${content}\n\\vspace{-0.3em}\n${caption}${reference}\\vspace{-0.7em}\n\\end{figure}",
+    "DefaultImage": "\\subcaptionbox{${caption}}{\\includegraphics[width = ${size}\\linewidth]{${path}}}",
+    "SingleImage": "\\includegraphics[width = ${size}\\linewidth]{${path}}",
+    "Caption": "\\caption{${0}}",
+    "BetweenImagesAndCaption": "\n",
 
-	["𝕒", "\\mathbb{a}"], ["da", "\\mathbb{a}"], ["𝕓", "\\mathbb{b}"], ["db", "\\mathbb{b}"], ["𝕔", "\\mathbb{c}"], ["dc", "\\mathbb{c}"], ["𝕕", "\\mathbb{d}"], ["dd", "\\mathbb{d}"], ["𝕖", "\\mathbb{e}"], ["de", "\\mathbb{e}"], ["𝕗", "\\mathbb{f}"], ["df", "\\mathbb{f}"], ["𝕘", "\\mathbb{g}"], ["dg", "\\mathbb{g}"], ["𝕙", "\\mathbb{h}"], ["dh", "\\mathbb{h}"], ["𝕚", "\\mathbb{i}"], ["di", "\\mathbb{i}"], ["𝕛", "\\mathbb{j}"], ["dj", "\\mathbb{j}"], ["𝕜", "\\mathbb{k}"], ["dk", "\\mathbb{k}"], ["𝕝", "\\mathbb{l}"], ["dl", "\\mathbb{l}"], ["𝕞", "\\mathbb{m}"], ["dm", "\\mathbb{m}"], ["𝕟", "\\mathbb{n}"], ["dn", "\\mathbb{n}"], ["𝕠", "\\mathbb{o}"], ["do", "\\mathbb{o}"], ["𝕡", "\\mathbb{p}"], ["dp", "\\mathbb{p}"], ["𝕢", "\\mathbb{q}"], ["dq", "\\mathbb{q}"], ["𝕣", "\\mathbb{r}"], ["dr", "\\mathbb{r}"], ["𝕤", "\\mathbb{s}"], ["ds", "\\mathbb{s}"], ["𝕥", "\\mathbb{t}"], ["dt", "\\mathbb{t}"], ["𝕦", "\\mathbb{u}"], ["du", "\\mathbb{u}"], ["𝕧", "\\mathbb{v}"], ["dv", "\\mathbb{v}"], ["𝕨", "\\mathbb{w}"], ["dw", "\\mathbb{w}"], ["𝕩", "\\mathbb{x}"], ["dx", "\\mathbb{x}"], ["𝕪", "\\mathbb{y}"], ["dy", "\\mathbb{y}"], ["𝕫", "\\mathbb{z}"], ["dz", "\\mathbb{z}"], 
+    "InlineCode": "\\verb|${0}|",
+    "DefaultCode": "\\begin{lstlisting}\n${0}\n\\end{lstlisting}",
+    "NumberedList": "\\begin{enumerate}\n${0}\n\\end{enumerate}",
+    "UnnumberedList": "\\begin{itemize}\n${0}\n\\end{itemize}",
+    "Item": "\\item${reference} ${content}",
+    "BetweenItems": "\n",
+    "Table": "\\begin{table}[!htbp]\n\\centering\n\\begin{tabular}{${args}}\n${content}\n\\end{tabular}\n${caption}${reference}\n\\end{table}",
+    "TableRowSeparator": "\\\\",
+    "TableColumnSeparator": "&",
+    "Cell": "${0}",
+    "Emph": "\\emph{${0}}",
+    "Bold": "\\textbf{${0}}",
+    "Italic": "\\textit{${0}}",
 
-	["𝐀", "\\mathbf{A}"], ["bA", "\\mathbf{A}"], ["𝐁", "\\mathbf{B}"], ["bB", "\\mathbf{B}"], ["𝐂", "\\mathbf{C}"], ["bC", "\\mathbf{C}"], ["𝐃", "\\mathbf{D}"], ["bD", "\\mathbf{D}"], ["𝐄", "\\mathbf{E}"], ["bE", "\\mathbf{E}"], ["𝐅", "\\mathbf{F}"], ["bF", "\\mathbf{F}"], ["𝐆", "\\mathbf{G}"], ["bG", "\\mathbf{G}"], ["𝐇", "\\mathbf{H}"], ["bH", "\\mathbf{H}"], ["𝐈", "\\mathbf{I}"], ["bI", "\\mathbf{I}"], ["𝐉", "\\mathbf{J}"], ["bJ", "\\mathbf{J}"], ["𝐊", "\\mathbf{K}"], ["bK", "\\mathbf{K}"], ["𝐋", "\\mathbf{L}"], ["bL", "\\mathbf{L}"], ["𝐌", "\\mathbf{M}"], ["bM", "\\mathbf{M}"], ["𝐍", "\\mathbf{N}"], ["bN", "\\mathbf{N}"], ["𝐎", "\\mathbf{O}"], ["bO", "\\mathbf{O}"], ["𝐏", "\\mathbf{P}"], ["bP", "\\mathbf{P}"], ["𝐐", "\\mathbf{Q}"], ["bQ", "\\mathbf{Q}"], ["𝐑", "\\mathbf{R}"], ["bR", "\\mathbf{R}"], ["𝐒", "\\mathbf{S}"], ["bS", "\\mathbf{S}"], ["𝐓", "\\mathbf{T}"], ["bT", "\\mathbf{T}"], ["𝐔", "\\mathbf{U}"], ["bU", "\\mathbf{U}"], ["𝐕", "\\mathbf{V}"], ["bV", "\\mathbf{V}"], ["𝐖", "\\mathbf{W}"], ["bW", "\\mathbf{W}"], ["𝐗", "\\mathbf{X}"], ["bX", "\\mathbf{X}"], ["𝐘", "\\mathbf{Y}"], ["bY", "\\mathbf{Y}"], ["𝐙", "\\mathbf{Z}"], ["bZ", "\\mathbf{Z}"], 
+    "Title": "\\title{${0}}",
+    "Author": "\\author{${0}}",
+    "Date": "\\date{${0}}",
+    "MakeTitleAuthorDate": "\\maketitle",
+    "Section": "\\section{${content}}${reference}",
+    "Subsection": "\\subsection{${content}}${reference}",
+    "Subsubsection": "\\subsubsection{${content}}${reference}",
+    "UnnumberedSection": "\\section{${content}}${reference}",
+    "UnnumberedSubsection": "\\subsection{${content}}${reference}",
+    "UnnumberedSubsubsection": "\\subsubsection{${content}}${reference}",
+    "Tableofcontents": "\\tableofcontents",
+    "Newpage": "\\newpage",
 
-	["𝐚", "\\mathbf{a}"], ["ba", "\\mathbf{a}"], ["𝐛", "\\mathbf{b}"], ["bb", "\\mathbf{b}"], ["𝐜", "\\mathbf{c}"], ["bc", "\\mathbf{c}"], ["𝐝", "\\mathbf{d}"], ["bd", "\\mathbf{d}"], ["𝐞", "\\mathbf{e}"], ["be", "\\mathbf{e}"], ["𝐟", "\\mathbf{f}"], ["bf", "\\mathbf{f}"], ["𝐠", "\\mathbf{g}"], ["bg", "\\mathbf{g}"], ["𝐡", "\\mathbf{h}"], ["bh", "\\mathbf{h}"], ["𝐢", "\\mathbf{i}"], ["bi", "\\mathbf{i}"], ["𝐣", "\\mathbf{j}"], ["bj", "\\mathbf{j}"], ["𝐤", "\\mathbf{k}"], ["bk", "\\mathbf{k}"], ["𝐥", "\\mathbf{l}"], ["bl", "\\mathbf{l}"], ["𝐦", "\\mathbf{m}"], ["bm", "\\mathbf{m}"], ["𝐧", "\\mathbf{n}"], ["bn", "\\mathbf{n}"], ["𝐨", "\\mathbf{o}"], ["bo", "\\mathbf{o}"], ["𝐩", "\\mathbf{p}"], ["bp", "\\mathbf{p}"], ["𝐪", "\\mathbf{q}"], ["bq", "\\mathbf{q}"], ["𝐫", "\\mathbf{r}"], ["br", "\\mathbf{r}"], ["𝐬", "\\mathbf{s}"], ["bs", "\\mathbf{s}"], ["𝐭", "\\mathbf{t}"], ["bt", "\\mathbf{t}"], ["𝐮", "\\mathbf{u}"], ["bu", "\\mathbf{u}"], ["𝐯", "\\mathbf{v}"], ["bv", "\\mathbf{v}"], ["𝐰", "\\mathbf{w}"], ["bw", "\\mathbf{w}"], ["𝐱", "\\mathbf{x}"], ["bx", "\\mathbf{x}"], ["𝐲", "\\mathbf{y}"], ["by", "\\mathbf{y}"], ["𝐳", "\\mathbf{z}"], ["bz", "\\mathbf{z}"], 
+    "Bibliography": "\\begin{thebibliography}{1}\n${0}\n\\end{thebibliography}",
+    "BibItem": "\\bibitem{${reference}} ${content}",
+    "BetweenBibItems": "\n",
 
-	["𝟘", "\\mathbb{0}"], ["d0", "\\mathbb{0}"], ["𝟙", "\\mathbb{1}"], ["d1", "\\mathbb{1}"], ["𝟚", "\\mathbb{2}"], ["d2", "\\mathbb{2}"], ["𝟛", "\\mathbb{3}"], ["d3", "\\mathbb{3}"], ["𝟜", "\\mathbb{4}"], ["d4", "\\mathbb{4}"], ["𝟝", "\\mathbb{5}"], ["d5", "\\mathbb{5}"], ["𝟞", "\\mathbb{6}"], ["d6", "\\mathbb{6}"], ["𝟟", "\\mathbb{7}"], ["d7", "\\mathbb{7}"], ["𝟠", "\\mathbb{8}"], ["d8", "\\mathbb{8}"], ["𝟡", "\\mathbb{9}"], ["d9", "\\mathbb{9}"], 
-
-	["⁰", "^{0}"], ["sup0", "^{0}"], ["¹", "^{1}"], ["sup1", "^{1}"], ["²", "^{2}"], ["sup2", "^{2}"], ["³", "^{3}"], ["sup3", "^{3}"], ["⁴", "^{4}"], ["sup4", "^{4}"], ["⁵", "^{5}"], ["sup5", "^{5}"], ["⁶", "^{6}"], ["sup6", "^{6}"], ["⁷", "^{7}"], ["sup7", "^{7}"], ["⁸", "^{8}"], ["sup8", "^{8}"], ["⁹", "^{9}"], ["sup9", "^{9}"], 
-
-	["₀", "_{0}"], ["sub0", "_{0}"], ["₁", "_{1}"], ["sub1", "_{1}"], ["₂", "_{2}"], ["sub2", "_{2}"], ["₃", "_{3}"], ["sub3", "_{3}"], ["₄", "_{4}"], ["sub4", "_{4}"], ["₅", "_{5}"], ["sub5", "_{5}"], ["₆", "_{6}"], ["sub6", "_{6}"], ["₇", "_{7}"], ["sub7", "_{7}"], ["₈", "_{8}"], ["sub8", "_{8}"], ["₉", "_{9}"], ["sub9", "_{9}"], 
-
-	["→", "\\to"], ["to", "\\to"], ["→", "\\rightarrow"], ["rightarrow", "\\rightarrow"], ["⇒", "\\Rightarrow"], ["Rightarrow", "\\Rightarrow"], ["⟶", "\\longrightarrow"], ["longrightarrow", "\\longrightarrow"], ["⟹", "\\Longrightarrow"], ["Longrightarrow", "\\Longrightarrow"], ["↪", "\\︎hookrightarrow"], ["︎hookrightarrow", "\\︎hookrightarrow"], ["⇀", "\\rightharpoonup"], ["rightharpoonup", "\\rightharpoonup"], ["⇁", "\\rightharpoondown"], ["rightharpoondown", "\\rightharpoondown"], ["⇛", "\\Rrightarrow"], ["Rrightarrow", "\\Rrightarrow"], ["↬", "\\looparrowright"], ["looparrowright", "\\looparrowright"], ["⇝", "\\rightsquigarrow"], ["rightsquigarrow", "\\rightsquigarrow"], ["⤏", "\\dashrightarrow"], ["dashrightarrow", "\\dashrightarrow"], ["↣", "\\rightarrowtail"], ["rightarrowtail", "\\rightarrowtail"], ["↷", "\\curvearrowright"], ["curvearrowright", "\\curvearrowright"], ["⥁", "\\circlearrowright"], ["circlearrowright", "\\circlearrowright"], ["↠", "\\twoheadrightarrow"], ["twoheadrightarrow", "\\twoheadrightarrow"], ["↛", "\\nrightarrow"], ["nrightarrow", "\\nrightarrow"], ["⇏", "\\nRightarrow"], ["nRightarrow", "\\nRightarrow"], ["⇉", "\\rightrightarrows"], ["rightrightarrows", "\\rightrightarrows"], 
-
-	["↦", "\\mapsto"], ["mapsto", "\\mapsto"], ["⟼", "\\longmapsto"], ["longmapsto", "\\longmapsto"], ["⊸", "\\multimap"], ["multimap", "\\multimap"], ["⇝", "\\leadsto"], ["leadsto", "\\leadsto"], 
-
-	["←", "\\leftarrow"], ["leftarrow", "\\leftarrow"], ["⇐", "\\Leftarrow"], ["Leftarrow", "\\Leftarrow"], ["⟵", "\\longleftarrow"], ["longleftarrow", "\\longleftarrow"], ["⟸", "\\Longleftarrow"], ["Longleftarrow", "\\Longleftarrow"], ["↩", "\\︎hookleftarrow"], ["︎hookleftarrow", "\\︎hookleftarrow"], ["↼", "\\leftharpoonup"], ["leftharpoonup", "\\leftharpoonup"], ["↽", "\\leftharpoondown"], ["leftharpoondown", "\\leftharpoondown"], ["⇚", "\\Lleftarrow"], ["Lleftarrow", "\\Lleftarrow"], ["↫", "\\looparrowleft"], ["looparrowleft", "\\looparrowleft"], ["⇜", "\\leftsquigarrow"], ["leftsquigarrow", "\\leftsquigarrow"], ["⤎", "\\dashleftarrow"], ["dashleftarrow", "\\dashleftarrow"], ["↢", "\\leftarrowtail"], ["leftarrowtail", "\\leftarrowtail"], ["↶", "\\curvearrowleft"], ["curvearrowleft", "\\curvearrowleft"], ["⥀", "\\circlearrowleft"], ["circlearrowleft", "\\circlearrowleft"], ["↞", "\\twoheadleftarrow"], ["twoheadleftarrow", "\\twoheadleftarrow"], ["↚", "\\nleftarrow"], ["nleftarrow", "\\nleftarrow"], ["⇍", "\\nLeftarrow"], ["nLeftarrow", "\\nLeftarrow"], ["⇇", "\\leftleftarrows"], ["leftleftarrows", "\\leftleftarrows"], 
-
-	["↔", "\\︎leftrightarrow"], ["︎leftrightarrow", "\\︎leftrightarrow"], ["⇔", "\\Leftrightarrow"], ["Leftrightarrow", "\\Leftrightarrow"], ["⟷", "\\longleftrightarrow"], ["longleftrightarrow", "\\longleftrightarrow"], ["⟺", "\\Longleftrightarrow"], ["Longleftrightarrow", "\\Longleftrightarrow"], ["⇌", "\\rightleftharpoons"], ["rightleftharpoons", "\\rightleftharpoons"], ["⇋", "\\leftrightharpoons"], ["leftrightharpoons", "\\leftrightharpoons"], ["⇆", "\\leftrightarrows"], ["leftrightarrows", "\\leftrightarrows"], ["⇄", "\\rightleftarrows"], ["rightleftarrows", "\\rightleftarrows"], ["↭", "\\leftrightsquigarrow"], ["leftrightsquigarrow", "\\leftrightsquigarrow"], ["↮", "\\nleftrightarrow"], ["nleftrightarrow", "\\nleftrightarrow"], ["⇎", "\\nLeftrightarrow"], ["nLeftrightarrow", "\\nLeftrightarrow"], 
-
-	["↑", "\\uparrow"], ["uparrow", "\\uparrow"], ["⇑", "\\Uparrow"], ["Uparrow", "\\Uparrow"], ["↿", "\\upharpoonleft"], ["upharpoonleft", "\\upharpoonleft"], ["↾", "\\upharpoonright"], ["upharpoonright", "\\upharpoonright"], ["⇈", "\\upuparrows"], ["upuparrows", "\\upuparrows"], 
-
-	["↓", "\\downarrow"], ["downarrow", "\\downarrow"], ["⇓", "\\Downarrow"], ["Downarrow", "\\Downarrow"], ["⇂", "\\downharpoonright"], ["downharpoonright", "\\downharpoonright"], ["⇃", "\\downharpoonleft"], ["downharpoonleft", "\\downharpoonleft"], ["⇊", "\\downdownarrows"], ["downdownarrows", "\\downdownarrows"], 
-
-	["↕", "\\︎updownarrow"], ["︎updownarrow", "\\︎updownarrow"], ["⇕", "\\Updownarrow"], ["Updownarrow", "\\Updownarrow"], 
-
-	["↗", "\\︎nearrow"], ["︎nearrow", "\\︎nearrow"], ["↘", "\\︎searrow"], ["︎searrow", "\\︎searrow"], ["↙", "\\︎swarrow"], ["︎swarrow", "\\︎swarrow"], ["↖", "\\︎nwarrow"], ["︎nwarrow", "\\︎nwarrow"], ["↱", "\\Rsh"], ["Rsh", "\\Rsh"], ["↰", "\\Lsh"], ["Lsh", "\\Lsh"], 
-
-	["‖", "\\vert"], ["vert", "\\vert"], ["⟨", "\\langle"], ["langle", "\\langle"], ["⟩", "\\rangle"], ["rangle", "\\rangle"], ["⌊", "\\lfloor"], ["lfloor", "\\lfloor"], ["⌋", "\\rfloor"], ["rfloor", "\\rfloor"], ["⌈", "\\lceil"], ["lceil", "\\lceil"], ["⌉", "\\rceil"], ["rceil", "\\rceil"], ["⌜", "\\ulcorner"], ["ulcorner", "\\ulcorner"], ["⌝", "\\urcorner"], ["urcorner", "\\urcorner"], ["⌟", "\\lrcorner"], ["lrcorner", "\\lrcorner"], ["⌞", "\\llcorner"], ["llcorner", "\\llcorner"], 
-
-	["∑", "\\sum"], ["sum", "\\sum"], ["∏", "\\prod"], ["prod", "\\prod"], ["∐", "\\coprod"], ["coprod", "\\coprod"], ["∫", "\\int"], ["int", "\\int"], ["∬", "\\iint"], ["iint", "\\iint"], ["∭", "\\iiint"], ["iiint", "\\iiint"], ["⨛", "\\uint"], ["uint", "\\uint"], ["⨜", "\\lint"], ["lint", "\\lint"], ["∮", "\\oint"], ["oint", "\\oint"], ["∯", "\\oiint"], ["oiint", "\\oiint"], ["∰", "\\oiiint"], ["oiiint", "\\oiiint"], ["⨁", "\\bigoplus"], ["bigoplus", "\\bigoplus"], ["⨂", "\\bigotimes"], ["bigotimes", "\\bigotimes"], ["⨀", "\\bigodot"], ["bigodot", "\\bigodot"], ["⋃", "\\bigcup"], ["bigcup", "\\bigcup"], ["⋂", "\\bigcap"], ["bigcap", "\\bigcap"], 
-
-	["∗", "\\ast"], ["ast", "\\ast"], ["⋆", "\\star"], ["star", "\\star"], ["·", "\\cdot"], ["cdot", "\\cdot"], ["∘", "\\circ"], ["circ", "\\circ"], ["∙", "\\bullet"], ["bullet", "\\bullet"], ["◯", "\\bigcirc"], ["bigcirc", "\\bigcirc"], ["◇", "\\diamond"], ["diamond", "\\diamond"], ["×", "\\times"], ["times", "\\times"], ["÷", "\\div"], ["div", "\\div"], ["⊚", "\\circledcirc"], ["circledcirc", "\\circledcirc"], ["⊛", "\\circleast"], ["circleast", "\\circleast"], ["⊝", "\\circleddash"], ["circleddash", "\\circleddash"], 
-
-	["±", "\\pm"], ["pm", "\\pm"], ["∓", "\\mp"], ["mp", "\\mp"], ["⊙", "\\odot"], ["odot", "\\odot"], ["⊖", "\\ominus"], ["ominus", "\\ominus"], ["⊕", "\\oplus"], ["oplus", "\\oplus"], ["⊗", "\\otimes"], ["otimes", "\\otimes"], ["⊘", "\\oslash"], ["oslash", "\\oslash"], 
-
-	["∩", "\\cap"], ["cap", "\\cap"], ["∪", "\\cup"], ["cup", "\\cup"], ["⊌", "\\uplus"], ["uplus", "\\uplus"], ["⊓", "\\sqcap"], ["sqcap", "\\sqcap"], ["⊔", "\\sqcup"], ["sqcup", "\\sqcup"], ["⋀", "\\wedge"], ["wedge", "\\wedge"], ["⋁", "\\vee"], ["vee", "\\vee"], ["†", "\\dagger"], ["dagger", "\\dagger"], ["‡", "\\ddagger"], ["ddagger", "\\ddagger"], ["⊥", "\\bot"], ["bot", "\\bot"], 
-
-	["⊤", "\\top"], ["top", "\\top"], 
-
-	["≡", "\\equiv"], ["equiv", "\\equiv"], ["≌", "\\cong"], ["cong", "\\cong"], ["≠", "\\neq"], ["neq", "\\neq"], ["∼", "\\sim"], ["sim", "\\sim"], ["≃", "\\simeq"], ["simeq", "\\simeq"], ["≈", "\\approx"], ["approx", "\\approx"], ["≍", "\\asymp"], ["asymp", "\\asymp"], ["≐", "\\doteq"], ["doteq", "\\doteq"], ["∝", "\\propto"], ["propto", "\\propto"], ["⊨", "\\models"], ["models", "\\models"], 
-
-	["≤", "\\leq"], ["leq", "\\leq"], ["≺", "\\prec"], ["prec", "\\prec"], ["⪯", "\\preceq"], ["preceq", "\\preceq"], ["≪", "\\ll"], ["ll", "\\ll"], ["⊂", "\\subset"], ["subset", "\\subset"], ["⊆", "\\subseteq"], ["subseteq", "\\subseteq"], ["⊏", "\\sqsubset"], ["sqsubset", "\\sqsubset"], ["⊑", "\\sqsubseteq"], ["sqsubseteq", "\\sqsubseteq"], ["⊣", "\\dashv"], ["dashv", "\\dashv"], ["∊", "\\in"], ["in", "\\in"], 
-
-	["≥", "\\geq"], ["geq", "\\geq"], ["≻", "\\succ"], ["succ", "\\succ"], ["⪰", "\\succeq"], ["succeq", "\\succeq"], ["≫", "\\gg"], ["gg", "\\gg"], ["⊃", "\\supset"], ["supset", "\\supset"], ["⊇", "\\sqsupset"], ["sqsupset", "\\sqsupset"], ["⊐", "\\sqsupset"], ["sqsupset", "\\sqsupset"], ["⊒", "\\sqsupseteq"], ["sqsupseteq", "\\sqsupseteq"], ["⊢", "\\vdash"], ["vdash", "\\vdash"], ["∍", "\\ni"], ["ni", "\\ni"], 
-
-	["∉", "\\notin"], ["notin", "\\notin"], 
-
-	["≊", "\\approxeq"], ["approxeq", "\\approxeq"], ["∽", "\\backsim"], ["backsim", "\\backsim"], 
-
-	["≦", "\\leqq"], ["leqq", "\\leqq"], ["⩽", "\\leqslant"], ["leqslant", "\\leqslant"], ["⪅", "\\lessapprox"], ["lessapprox", "\\lessapprox"], ["⋘", "\\lll"], ["lll", "\\lll"], ["≲", "\\lesssim"], ["lesssim", "\\lesssim"], 
-
-	["≧", "\\geqq"], ["geqq", "\\geqq"], ["⩾", "\\geqslant"], ["geqslant", "\\geqslant"], ["⪆", "\\gtrapprox"], ["gtrapprox", "\\gtrapprox"], ["⋙", "\\ggg"], ["ggg", "\\ggg"], ["≳", "\\gtrsim"], ["gtrsim", "\\gtrsim"], 
-
-	["≆", "\\ncong"], ["ncong", "\\ncong"], ["∤", "\\nmid"], ["nmid", "\\nmid"], ["∦", "\\nparallel"], ["nparallel", "\\nparallel"], ["≁", "\\nsim"], ["nsim", "\\nsim"], ["≰", "\\nleq"], ["nleq", "\\nleq"], ["≱", "\\ngeq"], ["ngeq", "\\ngeq"], ["≮", "\\nless"], ["nless", "\\nless"], ["≯", "\\ngtr"], ["ngtr", "\\ngtr"], ["⪉", "\\lnapprox"], ["lnapprox", "\\lnapprox"], ["⪊", "\\gnapprox"], ["gnapprox", "\\gnapprox"], ["⪇", "\\lneq"], ["lneq", "\\lneq"], ["⪈", "\\gneq"], ["gneq", "\\gneq"], ["≨", "\\lneqq"], ["lneqq", "\\lneqq"], ["≩", "\\gneqq"], ["gneqq", "\\gneqq"], ["⊄", "\\nsubset"], ["nsubset", "\\nsubset"], ["⊅", "\\nsupset"], ["nsupset", "\\nsupset"], ["⊊", "\\subsetneq"], ["subsetneq", "\\subsetneq"], ["⊋", "\\supsetneq"], ["supsetneq", "\\supsetneq"], ["⫋", "\\subsetneqq"], ["subsetneqq", "\\subsetneqq"], ["⫌", "\\supsetneqq"], ["supsetneqq", "\\supsetneqq"], 
-
-	["∞", "\\infty"], ["infty", "\\infty"], ["ð", "\\eth"], ["eth", "\\eth"], ["⋯", "\\cdots"], ["cdots", "\\cdots"], ["⋰", "\\udots"], ["udots", "\\udots"], ["⋱", "\\ddots"], ["ddots", "\\ddots"], ["⋮", "\\vdots"], ["vdots", "\\vdots"], ["…", "\\dots"], ["dots", "\\dots"], 
-
-	["∀", "\\forall"], ["forall", "\\forall"], ["∃", "\\exists"], ["exists", "\\exists"], ["∄", "\\nexists"], ["nexists", "\\nexists"], ["∅", "\\varnothing"], ["varnothing", "\\varnothing"], 
-
-	["ℏ", "\\hslash"], ["hslash", "\\hslash"], ["□", "\\square"], ["square", "\\square"], ["∠", "\\angle"], ["angle", "\\angle"], ["∡", "\\measuredangle"], ["measuredangle", "\\measuredangle"], ["∢", "\\sphericalangle"], ["sphericalangle", "\\sphericalangle"], 
-
-	["√", ""], ["sqrt", ""], ["⁄", ""], ["frac", ""], 
-
-	["𝛼", "\\alpha"], ["alpha", "\\alpha"], ["𝛽", "\\beta"], ["beta", "\\beta"], ["𝛾", "\\gamma"], ["gamma", "\\gamma"], ["𝛿", "\\delta"], ["delta", "\\delta"], ["𝜀", "\\varepsilon"], ["varepsilon", "\\varepsilon"], ["𝜖", "\\epsilon"], ["epsilon", "\\epsilon"], ["𝜁", "\\zeta"], ["zeta", "\\zeta"], ["𝜂", "\\eta"], ["eta", "\\eta"], ["𝜃", "\\theta"], ["theta", "\\theta"], ["𝜗", "\\vartheta"], ["vartheta", "\\vartheta"], ["𝜄", "\\iota"], ["iota", "\\iota"], ["𝜅", "\\kappa"], ["kappa", "\\kappa"], ["𝜆", "\\lambda"], ["lambda", "\\lambda"], ["𝜇", "\\mu"], ["mu", "\\mu"], ["𝜈", "\\nu"], ["nu", "\\nu"], ["𝜉", "\\xi"], ["xi", "\\xi"], ["𝜊", "\\omicron"], ["omicron", "\\omicron"], ["𝜋", "\\pi"], ["pi", "\\pi"], ["𝜌", "\\rho"], ["rho", "\\rho"], ["𝜚", "\\varrho"], ["varrho", "\\varrho"], ["𝜎", "\\sigma"], ["sigma", "\\sigma"], ["𝜏", "\\tau"], ["tau", "\\tau"], ["𝜐", "\\upsilon"], ["upsilon", "\\upsilon"], ["𝜙", "\\phi"], ["phi", "\\phi"], ["𝜑", "\\varphi"], ["varphi", "\\varphi"], ["𝜒", "\\chi"], ["chi", "\\chi"], ["𝜓", "\\psi"], ["psi", "\\psi"], ["𝜔", "\\omega"], ["omega", "\\omega"], ["𝜕", "\\partial"], ["partial", "\\partial"], 
-
-	["𝛢", "A"], ["Alpha", "A"], ["𝛣", "B"], ["Beta", "B"], ["𝛤", "\\Gamma"], ["Gamma", "\\Gamma"], ["𝛥", "\\Delta"], ["Delta", "\\Delta"], ["𝛦", "E"], ["Epsilon", "E"], ["𝛧", "Z"], ["Zeta", "Z"], ["𝛨", "H"], ["Eta", "H"], ["𝛩", "\\Theta"], ["Theta", "\\Theta"], 
-
-	["𝛪", "I"], ["Iota", "I"], ["𝛫", "K"], ["Kappa", "K"], ["𝛬", "\\Lambda"], ["Lambda", "\\Lambda"], ["𝛭", "M"], ["Mu", "M"], ["𝛮", "N"], ["Nu", "N"], ["𝛯", "\\Xi"], ["Xi", "\\Xi"], ["𝛰", "O"], ["Omicron", "O"], ["𝛱", "\\Pi"], ["Pi", "\\Pi"], ["𝛲", "P"], ["Rho", "P"], ["𝛴", "\\Sigma"], ["Sigma", "\\Sigma"], ["𝛵", "T"], ["Tau", "T"], ["𝛶", "\\Upsilon"], ["Upsilon", "\\Upsilon"], ["𝛷", "\\Phi"], ["Phi", "\\Phi"], ["𝛸", "X"], ["Chi", "X"], ["𝛹", "\\Psi"], ["Psi", "\\Psi"], ["𝛺", "\\Omega"], ["Omega", "\\Omega"], ["𝛻", "\\nabla"], ["nabla", "\\nabla"], 
-
-	["⦃", "\\{"], ["lwcurly", "\\{"], ["⟦", "["], ["lwsquare", "["], ["⦇", "("], ["lwparenthesis", "("], ["⦉", "\\langle"], ["lwangle", "\\langle"], ["⦄", "\\}"], ["rwcurly", "\\}"], ["⟧", "]"], ["rwsquare", "]"], ["⦈", ")"], ["rwparenthesis", ")"], ["⦊", "\\rangle"], ["rwangle", "\\rangle"], 
-
-	["⎕", "\\quad"], ["quad", "\\quad"], ["⌷", "\\ "], ["blank", "\\ "], 
-
-	["exp", "\\exp"], ["ln", "\\ln"], ["lg", "\\lg"], ["log", "\\log"], 
-
-	["sin", "\\sin"], ["cos", "\\cos"], ["tan", "\\tan"], ["cot", "\\cot"], ["sec", "\\sec"], ["csc", "\\csc"], ["arcsin", "\\arcsin"], ["arccos", "\\arccos"], ["arctan", "\\arctan"], ["arccot", "\\arccot"], ["arcsec", "\\arcsec"], ["arccsc", "\\arccsc"], ["sinh", "\\sinh"], ["cosh", "\\cosh"], ["tanh", "\\tanh"], ["coth", "\\coth"], 
-
-	["min", "\\min"], ["max", "\\max"], ["inf", "\\inf"], ["sup", "\\sup"], ["lim", "\\lim"], ["liminf", "\\liminf"], ["limsup", "\\limsup"], ["dim", "\\dim"], ["deg", "\\deg"], ["det", "\\det"], ["ker", "\\ker"], ["Pr", "\\Pr"], ["hom", "\\hom"], ["arg", "\\arg"], ["gcd", "\\gcd"], ["Re", "\\Re"], ["Im", "\\Im"], 
-
-	["a", "a"], ["b", "b"], ["c", "c"], ["d", "d"], ["e", "e"], ["f", "f"], ["g", "g"], ["h", "h"], ["i", "i"], ["j", "j"], ["k", "k"], ["l", "l"], ["m", "m"], ["n", "n"], ["o", "o"], ["p", "p"], ["q", "q"], ["r", "r"], ["s", "s"], ["t", "t"], ["u", "u"], ["v", "v"], ["w", "w"], ["x", "x"], ["y", "y"], ["z", "z"], ["A", "A"], ["B", "B"], ["C", "C"], ["D", "D"], ["E", "E"], ["F", "F"], ["G", "G"], ["H", "H"], ["I", "I"], ["J", "J"], ["K", "K"], ["L", "L"], ["M", "M"], ["N", "N"], ["O", "O"], ["P", "P"], ["Q", "Q"], ["R", "R"], ["S", "S"], ["T", "T"], ["U", "U"], ["V", "V"], ["W", "W"], ["X", "X"], ["Y", "Y"], ["Z", "Z"], ["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"], ["6", "6"], ["7", "7"], ["8", "8"], ["9", "9"], 
-
-	["sgn", "\\operatorname{sgn}"], ["lcm", "\\operatorname{lcm}"], ["mod", "\\bmod"], ["sh", "\\operatorname{sh}"], ["ch", "\\operatorname{ch}"], ["th", "\\operatorname{th}"], ["argmin", "\\operatorname{argmin}"], ["argmax", "\\operatorname{argmax}"], 
-
-	["cases", ""], ["norm", ""], ["mat", ""], ["dot", ""], ["ddot", ""], ["acute", ""], ["grave", ""], ["check", ""], ["breve", ""], ["tilde", ""], ["bar", ""], ["hat", ""], ["widehat", ""], ["vec", ""], 
-
-	["~","~"],["`","`"],["!","!"],["@","@"],["#","#"],["$","\\$"],["%","\\%"],["^","\\^"],["&","\\&"],["*","*"],["(","("],[")",")"],["_","\\_"],["-","-"],["+","+"],["=","="],["{","\\{"],["}","\\}"],["[","["],["]","]"],["|","|"],["\\","\\backslash"],[":",":"],[";",";"],["'","'"],["\"","\""],["<","<"],[">",">"],[",",","],[".","."],["?","?"],["/","/"]
-],
-
-"operator": [
-	["lim:", "\\lim_{${0}}${1}"],
-	["∑to:", "\\sum_{${0}}^{${1}}${2}"],
-	["∏to:", "\\prod_{${0}}^{${1}}${2}"],
-	["⋃to:", "\\bigcup_{${0}}^{${1}}${2}"],
-	["⋂to:", "\\bigcap_{${0}}^{${1}}${2}"],
-	["()", "\\left(${0}\\right)"],
-	["[]", "\\left[${0}\\right]"],
-	["{}", "\\left\\{${0}\\right\\}"],
-	["⟨⟩", "\\left\\langle${0}\\right\\rangle"],
-	["||", "\\left|${0}\\right|"],
-	["‖‖", "\\left\\Vert${0}\\right\\Vert"],
-	["(⟩", "\\left(${0}\\right\\rangle"],
-	["(]", "\\left(${0}\\right]"],
-	["(⦊", "\\left(${0}\\right."],
-	["[⦊", "\\left[${0}\\right."],
-	["{⦊", "\\left\\{${0}\\right."],
-	["⟨⦊", "\\left\\langle${0}\\right."],
-	["⦉)", "\\left.${0}\\right)"],
-	["⦉]", "\\left.${0}\\right]"],
-	["⦉}", "\\left.${0}\\right\\}"],
-	["⦉⟩", "\\left.${0}\\right\\rangle"],
-	["cases", "\\left\\{\\begin{matrix}${0}\\end{matrix}\\right."],
-	["mat", "\\begin{matrix}${0}\\end{matrix}"],
-	["√", "\\sqrt{${0}}"],
-	["dot", "\\dot{${0}}"],
-	["ddot", "\\ddot{${0}}"],
-	["acute", "\\acute{${0}}"],
-	["grave", "\\grave{${0}}"],
-	["check", "\\check{${0}}"],
-	["breve", "\\breve{${0}}"],
-	["tilde", "\\widetilde{${0}}"],
-	["bar", "\\bar{${0}}"],
-	["hat", "\\hat{${0}}"],
-	["widehat", "\\widehat{${0}}"],
-	["vec", "\\vec{${0}}"],
-	["^", "{${0}}^{${1}}"],
-	["_", "{${0}}_{${1}}"],
-	["^_", "{${0}}^{${1}}_{${2}}"],
-	["_^", "{${0}}_{${1}}^{${2}}"],
-	["", "${default}"],
-	["⁄", "\\frac{${0}}{${1}}"]
-]
+    "Theorem": "\\begin{theorem}${reference}${content}\\end{theorem}",
+    "Definition": "\\begin{definition}${reference}${content}\\end{definition}",
+    "Lemma": "\\begin{lemma}${reference}${content}\\end{lemma}",
+    "Corollary": "\\begin{corollary}${reference}${content}\\end{corollary}",
+    "Proposition": "\\begin{proposition}${reference}${content}\\end{proposition}",
+    "Proof": "\\begin{proof}${reference}${content}\\end{proof}"
 
 }

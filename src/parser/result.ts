@@ -44,6 +44,24 @@ export enum ResultState {
     failing = 0
 }
 
+export enum FileOperationType {
+    readFile,
+    copyFile,
+    writeFile,
+    createDirectory,
+    getFilesInDirectory
+}
+
+export class FileRecord {
+    constructor(
+        public type: FileOperationType,
+        public from: string,
+        public to: string,
+        public result: undefined | string | string[]
+    ) {
+    }
+}
+
 // **************** Result ****************
 
 export class BasicResult {
@@ -51,19 +69,17 @@ export class BasicResult {
     // state
     public state: ResultState;
 
-    // environment
-    public messages: Message[];
-    public highlights: Highlight[];
-    public references: Reference[];
-
     // promote
     private promotedToMatched: boolean;
 
-    constructor(messages: Message[] = [], highlights: Highlight[] = [], references: Reference[] = []) {
+    constructor(
+        // environment
+        public messages: Message[] = [],
+        public highlights: Highlight[] = [],
+        public references: Reference[] = [],
+        public fileRecords: FileRecord[] = []
+    ) {
         this.state = ResultState.failing;
-        this.messages = messages;
-        this.highlights = highlights;
-        this.references = references;
         this.promotedToMatched = false;
     }
 
@@ -163,6 +179,9 @@ export class BasicResult {
         for (let ref of result.references) {
             this.references.push(ref);
         }
+        for (let file of result.fileRecords) {
+            this.fileRecords.push(file);
+        }
     }
 
     // environment
@@ -195,6 +214,11 @@ export class BasicResult {
     // reference
     addReference(name: string, node: Node) {
         this.references.push(new Reference(name, node));
+    }
+
+    // file operation
+    addFileRecord(type: FileOperationType, from: string, to: string) {
+        this.fileRecords.push(new FileRecord(type, from, to, undefined));
     }
 }
 

@@ -1,26 +1,98 @@
-import { Compiler } from "../compiler/compiler";
+import { Config } from "../compiler/config";
+import { FileOperation } from "../compiler/file-operation";
 import { Reference } from "../parser/result";
 import { Node } from "../sytnax-tree/node";
+import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
 
 export abstract class Generator {
-    syntaxTree: Node;
-    typeTable: TypeTable;
-    references: Reference[];
-    compiler: Compiler;
 
-    constructor(typeTable: TypeTable, compiler: Compiler) {
-        this.compiler = compiler;
-        this.typeTable = typeTable;
-        this.references = [];
+    // **************** Types ****************
+
+    documentType: Type;
+    settingType: Type;
+    settingParameterType: Type;
+    paragraphType: Type;
+    textType: Type;
+    wordsType: Type;
+    argumentsType: Type;
+    argumentType: Type;
+    nameType: Type;
+    stringType: Type;
+    numberType: Type;
+    referenceType: Type;
+
+    constructor(
+        public typeTable: TypeTable,
+
+        public config: Config,
+        public fileOperation: FileOperation
+    ) {
         this.output = "";
 
-        let doc = typeTable.get("document");
-        this.syntaxTree = new Node(doc);
+        // parser
+
+        this.documentType = this.typeTable.get("document");
+        this.settingType = this.typeTable.get("setting");
+        this.settingParameterType = this.typeTable.get("setting-parameter");
+        this.paragraphType = this.typeTable.get("paragraph");
+        this.textType = this.typeTable.get("text");
+        this.wordsType = this.typeTable.get("words");
+        this.argumentsType = this.typeTable.get("arguments");
+        this.argumentType = this.typeTable.get("argument");
+        this.nameType = this.typeTable.get("name");
+        this.stringType = this.typeTable.get("string");
+        this.numberType = this.typeTable.get("number");
+        this.referenceType = this.typeTable.get("reference");
     }
 
     output: string;
 
-    abstract generate(syntaxTree: Node, references: Reference[]): Promise<void>;
+    abstract init(): void;
+
+    abstract generate(syntaxTree: Node, references: Reference[]): void;
+
+    // **************** Assistant Function ****************
+
+    getArgument(node: Node, name: string): string | undefined {
+        if (node.children.length === 0) {
+            return undefined;
+        }
+        let args = node.children[0];
+        if(args.type !== this.argumentsType) {
+            return undefined;
+        }
+
+        let found: string | undefined;
+        args.children.forEach(argNode => {
+            if (argNode.type === this.argumentType && argNode.content === name) {
+                found = argNode.children[0].content;
+            }
+        });
+        return found;
+    }
+
+    removeArguments(node: Node): Node[] {
+        if (node.children.length === 0 || node.children[0].type !== this.argumentsType) {
+            return node.children;
+        }
+        return node.children.slice(1);
+    }
+
+    getReferences(node: Node): string[] {
+        if (node.children.length === 0) {
+            return [];
+        }
+        let args = node.children[0];
+
+        let refs: string[] = [];
+        args.children.forEach(argNode => {
+            if (argNode.type === this.referenceType) {
+                refs.push(argNode.content);
+            }
+        });
+        return refs;
+    }
+
 }
 

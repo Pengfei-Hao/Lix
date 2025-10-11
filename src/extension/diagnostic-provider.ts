@@ -8,7 +8,7 @@ import { diagnosticCollection } from '../extension';
 export function updateDiagnostic(document: vscode.TextDocument, context: LixContext) {
 
     let parser = context.getCompiler(document.uri).parser;
-    let messageList = parser.messageList;
+    let messageList = parser.messages;
 	let state = parser.state;
 
     let diags: vscode.Diagnostic[] = [];

@@ -167,7 +167,7 @@ export async function deactivate(): Promise<void> {
 
 // **************** events ****************
 
-let isDebugging = true;
+let isDebugging = false;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
 	if(!isDebugging) {
@@ -300,11 +300,6 @@ async function compile() {
 	documentProvider.updateContent(getUri(document.uri, "parse"), compiler.parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 	documentProvider.updateContent(getUri(document.uri, "generate"), compiler.curGenerator.output);
 
-
-	let generator = await generateLatexFromDocument(document);
-	let latex = generator.output;
-
-	//let uri = vscode.window.activeTextEditor?.document.uri!;
 	let uri = document.uri;
 	let fileName = compiler.fileOperation.fileName;
 
@@ -317,7 +312,6 @@ async function compile() {
 		compileTerminal = vscode.window.createTerminal({name: "Lix Compiler", hideFromUser : true});
 		//compileTerminal.hide();
 	}
-
 
 	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
 	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
@@ -348,7 +342,7 @@ async function parse() {
 		return;
 	}
 	parseFromDocument(document);
-	showFile(getUri(document.uri, "parse"));
+	// showFile(getUri(document.uri, "parse"));
 	showFile(getUri(document.uri, "analyse"));
 }
 
@@ -360,6 +354,18 @@ function bu(f : ()=>void, thisArg?: unknown) {
 	return f.bind(thisArg)
 }
 function helloWorld() {
+
+	console.log("${0}$${0}".formatWithAutoBlank("a${0}").formatWithAutoBlank("b"));
+// => "test abc, 123"
+
+console.log("a${0}1".formatWithAutoBlank("b"));
+// => "a b1"
+
+console.log("a${0}c".formatWithAutoBlank("b"));
+// => "a b c"
+
+console.log("a${0}1".formatWithAutoBlank("1b"));
+// => "a1b1"
 	//bu(test)();
 	// ✅ 数字占位符
 	console.log("${0}+${1}".format("${1} + 1", "2"));
@@ -413,10 +419,12 @@ async function debug() {
 
 // **************** assistance ****************
 
+let generatorName = "latex"; // "markdown", "latex"
+
 export async function generateLatexFromDocument(document: vscode.TextDocument): Promise<Generator> {
 	let compiler = lixContext.getCompiler(document.uri);
-	let generator = compiler.getGenerator("latex")!; // latex
-	await compiler.generateFromText(document.getText(), generator);
+	let generator = compiler.getGenerator(generatorName)!; // latex
+	await compiler.generateFromText(document.getText(), generatorName);
 
 	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);
 	return generator;
@@ -428,7 +436,6 @@ export function parseFromDocument(document: vscode.TextDocument, updateDocument 
 
 	let compiler = lixContext.getCompiler(document.uri);
 	compiler.parseFromText(document.getText());
-	//console.log(`Document '${document.fileName}' parsered.`);
 	let parser = compiler.parser;
 
 	updateDiagnostic(document, lixContext);

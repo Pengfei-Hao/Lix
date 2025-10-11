@@ -777,7 +777,7 @@ promote: m + sk = sk
 * highlights: [New]
 * content, analysedContent:
   setting: "[[name of setting]]"
-    settingParameter?: "[[command]]"
+    settingParameter: "[[command]]"
 
 // block
 

@@ -1,7 +1,9 @@
 import { Generator } from "../generator/generator";
 import { LatexGenerator } from "../generator/latex-generator";
 import { MarkdownGenerator } from "../generator/markdown-generator";
+import { MathLatexGenerator } from "../generator/math-latex-generator";
 import { Parser } from "../parser/parser";
+import { TypeTable } from "../sytnax-tree/type-table";
 import { Config } from "./config";
 import { FileOperation } from "./file-operation";
 
@@ -15,14 +17,18 @@ export class Compiler {
     fileOperation: FileOperation;
 
     constructor(config: Config, fileOperation: FileOperation) {
-        this.fileOperation = fileOperation;
         this.config = config;
+        this.fileOperation = fileOperation;
 
-        this.parser = new Parser(config);
-        this.curGenerator = new LatexGenerator(this.parser.typeTable, this);
-        this.generator = new Map();
-        this.generator.set("latex", this.curGenerator);
-        //this.generator.set("markdown", new MarkdownGenerator(this.parser.typeTable, this));
+        this.parser = new Parser(config, this.fileOperation);
+
+        let mathLatexGenerator = new MathLatexGenerator(this.parser.typeTable, config, fileOperation);
+        this.curGenerator = new LatexGenerator(this.parser.typeTable, config, fileOperation, mathLatexGenerator);
+        this.generator = new Map([
+            ["math-latex", mathLatexGenerator],
+            ["latex", this.curGenerator],
+            ["markdown", new MarkdownGenerator(this.parser.typeTable, config, fileOperation, mathLatexGenerator)]
+        ]);
     }
 
     async parse() {
@@ -31,7 +37,7 @@ export class Compiler {
             return;
         }
 
-        this.parser.parse(text);
+        this.parseFromText(text);
     }
 
     parseFromText(text: string) {
@@ -39,29 +45,42 @@ export class Compiler {
     }
 
     getGenerator(name: string = "latex"): Generator | undefined {
-        return this.generator.get(name)
+        return this.generator.get(name);
     }
 
-    async generate(generator = this.curGenerator) {
-        await this.parse();
-        await generator.generate(this.parser.analysedTree, this.parser.references);
+    async generate(generator = "latex") {
+        let text = await this.fileOperation.readFile(this.fileOperation.relativePath);
+        if (text === undefined) {
+            return;
+        }
+        await this.generateFromText(text, generator);
     }
 
-    async generateFromText(text: string, generator = this.curGenerator) {
+    async generateFromText(text: string, generator = "latex") {
         this.parseFromText(text);
-        await generator.generate(this.parser.analysedTree, this.parser.references);
+        let gen = this.getGenerator(generator);
+        if (gen === undefined) {
+            return;
+        }
+        await this.fileOperation.createDirectory(this.fileOperation.cacheDirectory);
+        await this.fileOperation.operateByRecord(this.parser.fileRecords);
+        gen.generate(this.parser.analysedTree, this.parser.references);
     }
 
-    async compile(name: string = "latex") {
-        let generator = this.getGenerator(name);
-        if (generator === undefined) {
+    async compile(generator: string = "latex") {
+        let gen = this.getGenerator(generator);
+        if (gen === undefined) {
             return;
         }
         await this.generate(generator);
-        let output = generator.output;
-
-        let fileName = this.fileOperation.fileName;
-        await this.fileOperation.createDirectory("./.lix");
-        await this.fileOperation.writeFile(`./.lix/${fileName}.tex`, output);
+        if (generator === "latex") {
+            await this.fileOperation.writeFile(this.fileOperation.cacheDirectory + `${this.fileOperation.fileName}.tex`, gen.output);
+        }
+        else if (generator === "markdown") {
+            await this.fileOperation.writeFile(this.fileOperation.cacheDirectory + `${this.fileOperation.fileName}.md`, gen.output);
+        }
+        else {
+            await this.fileOperation.writeFile(this.fileOperation.cacheDirectory + `${this.fileOperation.fileName}.txt`, gen.output);
+        }
     }
 }

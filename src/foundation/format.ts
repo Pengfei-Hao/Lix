@@ -5,6 +5,7 @@
 declare global {
 	interface String {
 		format(...args: any[]): string;
+		formatWithAutoBlank(...args: any[]): string;
 	}
 }
 
@@ -58,7 +59,7 @@ if (!String.prototype.format) {
 
 		// regex matches either ${...} or $${...} (escape)
 		// using \$\$?\{([^}]+)\}  -> matches '${key}' or '$${key}', group1 is key
-		const re = /\$\$?\{([^}]+)\}/g;
+		const re = /\$\{([^}]+)\}/g;
 
 		return this.replace(re, (match, inner) => {
 			// If pattern was $${...} (escape), match starts with "$${"
@@ -89,6 +90,57 @@ if (!String.prototype.format) {
 					const v = safeGetOwn(namedArgs, inner);
 					if (v !== undefined) return String(v);
 				}
+			}
+
+			// fallback: maybe it's a numeric-like string but with leading zeros etc -> try parseInt?
+			// We already handled pure digits above; otherwise treat as missing
+			if (strict) {
+				throw new Error(`formatString: missing named argument "${inner}"`);
+			}
+			return match; // keep original ${...}
+		});
+	}
+}
+
+if (!String.prototype.formatWithAutoBlank) {
+	String.prototype.formatWithAutoBlank = function (...args: any[]) {
+		const strict = false;
+
+		const namedArgs =
+				args.length > 0 &&
+				args[0] != null &&
+				typeof args[0] === "object" &&
+				!Array.isArray(args[0])
+				? args[0] as Record<string, any>
+				: null;
+
+		// regex matches either ${...} or $${...} (escape)
+		// using \$\$?\{([^}]+)\}  -> matches '${key}' or '$${key}', group1 is key
+		const re = /\$\$?\{([^}]+)\}/g;
+
+		return this.replace(re, (match, inner, offset) => {
+			// If pattern was $${...} (escape), match starts with "$${"
+			if (match.startsWith("$$")) {
+				// Return literal ${inner}
+				return "${" + inner + "}";
+			}
+
+			// numeric index?
+			if (/^\d+$/.test(inner)) {
+				const idx = Number(inner);
+				if (idx < args.length) {
+					let value =  String(args[idx]);
+					const prevChar = this[offset - 1] ?? "";
+    const nextChar = this[offset + match.length] ?? "";
+    const needLeftSpace = /[A-Za-z]/.test(prevChar) && /^[A-Za-z]/.test(value);
+    const needRightSpace = /[A-Za-z]$/.test(value) && /^[A-Za-z]/.test(nextChar);
+
+    return (needLeftSpace ? " " : "") + value + (needRightSpace ? " " : "");
+				}
+				if (strict) {
+					throw new Error(`formatString: missing positional argument ${idx}`);
+				}
+				return match; // keep ${...} as-is
 			}
 
 			// fallback: maybe it's a numeric-like string but with leading zeros etc -> try parseInt?

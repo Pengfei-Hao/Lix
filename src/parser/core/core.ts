@@ -2,7 +2,7 @@ import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
-import { BasicResult, HighlightType, NodeResult, Result, ResultState } from "../result";
+import { BasicResult, FileOperationType, HighlightType, NodeResult, Result, ResultState } from "../result";
 import { MessageType } from "../../foundation/message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
 import { LixError } from "../../foundation/error";
@@ -431,6 +431,13 @@ export class Core extends Module {
     imageBlockHandler(args: Node): NodeResult {
         let result = this.parser.formatLikeBlockHandler("image", this.imageType, args);
         result.discarded = false;
+        let path = this.parser.getArgument(args, "path");
+        if(this.parser.fileOperation.getFileExtension(path) === "tikz") {
+            result.addFileRecord(FileOperationType.readFile, path, "");
+        }
+        else {
+            result.addFileRecord(FileOperationType.copyFile, path, this.parser.fileOperation.cacheDirectory);
+        }
         return result;
     }
 
@@ -941,7 +948,7 @@ export class Core extends Module {
                 result.addHighlight(HighlightType.operator, curIndex, 0, 2);
                 break;
             }
-            else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format)) {
+            else if (this.parser.isNonSomeBlock(BlockType.format)) {
                 mergeWordsNode();
                 break;
             }

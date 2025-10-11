@@ -8,7 +8,7 @@
 
 [date 2024.11.3]
 
-This test is set for the basic blocks in lix.
+This test is set for the basic blocks in lix. 111111
 
  \\
 
@@ -51,7 +51,7 @@ Symbols test. / a B 𝚿 aℬa a𝕒b 𝔹 𝔞 ⨛ ∪ ∑ liminf ↽ exp to : 
 
 /min_[x∊X] F(x₁,x₂,…,x_s ∑) = f(x₁,x₂,…,x_s) + [∑ i=1 to s : r_i(x_i)]/
 
-/x^k_i = min_[x_i∊X^k_i] {⟨g^k_i, x_i-x^[k-1]_i⟩ + [L^[k-1] ⁄ 2] norm [x_i-x^[k-1]_i]²₂ + r_i(x_i) }  / 
+/x^k_i = min_[x_i∊X^k_i] {⟨g^k_i, x_i-x^[k-1]_i⟩ + [L^[k-1] ⁄ 2] ‖x_i-x^[k-1]_i‖²₂ + r_i(x_i) }  / 
 
 [section Comment Test]
 
@@ -64,7 +64,7 @@ abcd // line comment.
 
 [section Reference Test]
 
-Reference test. This is a reference @reference;. [emph @refer].
+Reference test. This is a reference @refer;. [emph @refer].
 
 [section Error Test]
 

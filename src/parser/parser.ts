@@ -8,13 +8,14 @@ import { TypeTable } from "../sytnax-tree/type-table";
 import { BlockTable, BlockType, BlockHandler, ArgumentType } from "./block-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
-import { Highlight, HighlightType, Reference, NodeResult, ResultState, BasicResult, Result } from "./result";
+import { Highlight, HighlightType, Reference, NodeResult, ResultState, BasicResult, Result, FileRecord } from "./result";
 import { Message, MessageType } from "../foundation/message";
 import { Core } from "./core/core";
 import { Article } from "./article/article";
 import { Config } from "../compiler/config";
 import { InsertionHandler, InsertionTable } from "./insertion-table";
 import { LixError } from "../foundation/error";
+import { FileOperation } from "../compiler/file-operation";
 
 export type MatchResult = NodeResult;
 
@@ -24,26 +25,32 @@ export class Parser {
 
     // Configs
     configs: Config;
+    fileOperation: FileOperation;
 
     // Types in type table
     typeTable: TypeTable;
 
     documentType: Type;
+
+    settingType: Type;
+    settingParameterType: Type;
+
     paragraphType: Type;
     textType: Type;
-    insertionType: Type;
     wordsType: Type;
+    insertionType: Type;
+    escapeCharType: Type;
+    
+    blockType: Type;
+    argumentsType: Type;
+    argumentType: Type;
     nameType: Type;
     stringType: Type;
     numberType: Type;
-    escapeCharType: Type;
     referenceType: Type;
-    settingType: Type;
-    settingParameterType: Type;
-    blockType: Type;
+
     errorType: Type;
-    argumentsType: Type;
-    argumentType: Type;
+
 
     // Block & insertion table
     blockTable: BlockTable;
@@ -70,21 +77,20 @@ export class Parser {
     syntaxTree: Node;
     analysedTree: Node;
 
-    // Message list
-    messageList: Message[];
-
-    // Highlights
-    highlights: Highlight[];
-
-    // References
-    references: Reference[];
-
     // State
     state: ResultState;
 
-    constructor(configs: Config) {
+    // Environment
+    messages: Message[];
+    highlights: Highlight[];
+    references: Reference[];
+    fileRecords: FileRecord[];
+
+
+    constructor(configs: Config, fileOperation: FileOperation) {
 
         this.configs = configs;
+        this.fileOperation = fileOperation;
 
         // **************** Types ****************
 
@@ -151,9 +157,10 @@ export class Parser {
 
         this.syntaxTree = new Node(this.documentType);
         this.analysedTree = new Node(this.documentType);
-        this.messageList = [];
+        this.messages = [];
         this.highlights = [];
         this.references = [];
+        this.fileRecords = [];
         this.state = ResultState.failing;
     }
 
@@ -167,9 +174,10 @@ export class Parser {
 
         this.syntaxTree = new Node(this.documentType);
         this.analysedTree = new Node(this.documentType);
-        this.messageList = [];
+        this.messages = [];
         this.highlights = [];
         this.references = [];
+        this.fileRecords = [];
         this.state = ResultState.failing;
 
         // 统一行尾
@@ -189,10 +197,11 @@ export class Parser {
         let result = this.matchDocument();
         this.syntaxTree = result.node;
         this.analysedTree = result.analysedNode;
-        this.messageList = result.messages;
-        this.highlights = result.highlights;
         this.state = result.state;
+        this.messages = result.messages;
+        this.highlights = result.highlights;
         this.references = result.references;
+        this.fileRecords = result.fileRecords;
     }
 
     // **************** Matching, Analysing & Skipping ****************
