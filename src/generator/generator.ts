@@ -4,8 +4,12 @@ import { Reference } from "../parser/result";
 import { Node } from "../sytnax-tree/node";
 import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
+import { GeneratorText, getGeneratorText } from "../foundation/i18n";
+import "../foundation/format";
 
 export abstract class Generator {
+
+    private lang: GeneratorText;
 
     // **************** Types ****************
 
@@ -25,10 +29,11 @@ export abstract class Generator {
     constructor(
         public typeTable: TypeTable,
 
-        public config: Config,
+        public configs: Config,
         public fileOperation: FileOperation
     ) {
         this.output = "";
+        this.lang = getGeneratorText(configs.get("i18n"), configs.settings.language);
 
         // parser
 
@@ -95,4 +100,3 @@ export abstract class Generator {
     }
 
 }
-

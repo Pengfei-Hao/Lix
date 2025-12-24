@@ -8,6 +8,8 @@ import { BlockOption, ArgumentType, BlockType } from "../block-table";
 
 export class Article extends Module {
 
+    private lang = this.parser.lang;
+
     // types of syntax tree node
 
     titleType: Type;
@@ -185,7 +187,7 @@ export class Article extends Module {
             else if (this.parser.isNonSomeBlock("bib-item")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage("Bibliography block should not have other block.", MessageType.error, preIndex, 0, length);
+                result.addMessage(this.lang.BibliographyDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -200,7 +202,7 @@ export class Article extends Module {
             }
 
             else {
-                result.addMessage("Bibliography block should not have non block contents.", MessageType.error, preIndex, 0, 1);
+                result.addMessage(this.lang.BibliographyDisallowsText, MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }

@@ -6,8 +6,11 @@ import { BasicResult, FileOperationType, HighlightType, NodeResult, Result, Resu
 import { MessageType } from "../../foundation/message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
 import { LixError } from "../../foundation/error";
+import { exceptionText } from "../../foundation/i18n";
 
 export class Core extends Module {
+
+    private lang = this.parser.lang;
 
     // types of syntax tree node
 
@@ -190,13 +193,13 @@ export class Core extends Module {
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Inline code ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.lang.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
             else if (this.parser.isMultilineBlankGtOne()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Inline code ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.lang.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
@@ -404,7 +407,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock("image", "caption")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage("Figure block should not have other block.", MessageType.error, preIndex, 0, length);
+                result.addMessage(this.lang.FigureDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -419,7 +422,7 @@ export class Core extends Module {
             }
 
             else {
-                result.addMessage("Figure block should not have non block contents.", MessageType.error, preIndex, 0, 1);
+                result.addMessage(this.lang.FigureDisallowsText, MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }
@@ -474,7 +477,7 @@ export class Core extends Module {
 
         result.merge(this.parser.match("\n"));
         if (result.shouldTerminate) {
-            result.addMessage("First line should not have codes.", MessageType.error, this.parser.index, 0, 1);
+            result.addMessage(this.lang.CodeBlockHeaderRequiresNewline, MessageType.error, this.parser.index, 0, 1);
             return;
         }
 
@@ -482,7 +485,7 @@ export class Core extends Module {
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage("Code block ended abruptly.", MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.lang.CodeBlockEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
             else if (this.parser.is("]")) {
@@ -541,7 +544,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "item")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage("List block should not have other block.", MessageType.error, preIndex, 0, length);
+                result.addMessage(this.lang.ListDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((nodeRes = this.matchFreeItem()).matched) {
@@ -559,7 +562,7 @@ export class Core extends Module {
 
             else {
                 // 理论上不会出现
-                throw new LixError("[[Logical Error]] Matching list item and free item failed.");
+                throw new LixError(exceptionText.LogicalMatchListItemFailed);
             }
         }
     }
@@ -626,7 +629,7 @@ export class Core extends Module {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError("[[Logical Error]]Unintended 'else'. Free list match failed.");
+                throw new LixError(exceptionText.LogicalFreeListBranch);
             }
         }
     }
@@ -780,7 +783,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "cell")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage("Table block should not have other block.", MessageType.error, preIndex, 0, length);
+                result.addMessage(this.lang.TableDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((res = this.parser.match("&")).matched) {
@@ -820,7 +823,7 @@ export class Core extends Module {
 
             else {
                 // 理论上不会出现
-                throw new LixError("[[Logical Error]] Matching table cell and free cell failed.");
+                throw new LixError(exceptionText.LogicalMatchTableCellFailed);
             }
         }
     }
@@ -878,7 +881,7 @@ export class Core extends Module {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError("[[Logical Error]]Unintended 'else'. Free cell match failed.");
+                throw new LixError(exceptionText.LogicalFreeCellBranch);
             }
         }
     }

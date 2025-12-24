@@ -1181,7 +1181,7 @@ export class MarkdownGenerator extends Generator {
         this.mathGenerator = mathGenerator;
 
         this.references = [];
-        this.json = JSON.parse(this.config.get("markdown"));
+        this.json = JSON.parse(this.configs.get("markdown"));
 
         // **************** Types ****************
 

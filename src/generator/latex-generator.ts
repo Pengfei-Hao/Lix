@@ -155,7 +155,7 @@ export class LatexGenerator extends Generator {
         this.document = "";
         this.hasMakedTitle = false;
         this.references = [];
-        this.json = JSON.parse(this.config.get("latex"));
+        this.json = JSON.parse(this.configs.get("latex"));
 
         // **************** Types ****************
 

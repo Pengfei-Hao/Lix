@@ -2,6 +2,7 @@ import { TextDecoder, TextEncoder } from "util";
 import { FileOperation } from "../compiler/file-operation";
 import * as vscode from 'vscode';
 import { FileOperationType, FileRecord } from "../parser/result";
+import { VscodeText } from "../foundation/i18n";
 
 export class VSCodeFileOperation extends FileOperation {
 
@@ -9,7 +10,8 @@ export class VSCodeFileOperation extends FileOperation {
     private records: FileRecord[];
 
     constructor(
-        public fileUri: vscode.Uri
+        public fileUri: vscode.Uri,
+        public lang: VscodeText
     ) {
         super();
         this.workingDirectory = vscode.Uri.joinPath(fileUri, "..");
@@ -25,7 +27,8 @@ export class VSCodeFileOperation extends FileOperation {
         } catch (error) {
             console.log(error);
 
-            vscode.window.showErrorMessage(`Encountered an error when reading file "${path.fsPath}".`);
+            const message = (this.lang.FileReadFailed).format(path.fsPath);
+            vscode.window.showErrorMessage(message);
             return;
         }
     }
@@ -39,7 +42,8 @@ export class VSCodeFileOperation extends FileOperation {
         } catch (error) {
             console.log(error);
 
-            vscode.window.showErrorMessage(`Encountered an error when copying file "${sourcePath.fsPath}" to "${targetPath.fsPath}".`);
+            const message = (this.lang.FileCopyFailed).format(sourcePath.fsPath, targetPath.fsPath);
+            vscode.window.showErrorMessage(message);
             return;
         }
     }
@@ -51,7 +55,8 @@ export class VSCodeFileOperation extends FileOperation {
             await vscode.workspace.fs.writeFile(path, encoder.encode(content));
         } catch (error) {
             console.log(error);
-            vscode.window.showErrorMessage(`Encountered an error when writing file "${path.fsPath}".`);
+            const message = (this.lang.FileWriteFailed).format(path.fsPath);
+            vscode.window.showErrorMessage(message);
         }
     }
 
@@ -61,7 +66,8 @@ export class VSCodeFileOperation extends FileOperation {
             await vscode.workspace.fs.createDirectory(directory);
         } catch (error) {
             console.log(error);
-            vscode.window.showErrorMessage(`Encountered an error when creating directory "${directory.fsPath}".`);
+            const message = (this.lang.DirectoryCreateFailed).format(directory.fsPath);
+            vscode.window.showErrorMessage(message);
         }
     }
 
@@ -89,7 +95,8 @@ export class VSCodeFileOperation extends FileOperation {
             return res;
         } catch (error) {
             console.log(error);
-            vscode.window.showErrorMessage(`Encountered an error when reading directory "${directory.fsPath}".`);
+            const message = (this.lang.DirectoryReadFailed).format(directory.fsPath);
+            vscode.window.showErrorMessage(message);
             return [];
         }
     }

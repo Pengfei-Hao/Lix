@@ -16,6 +16,7 @@ import { Config } from "../compiler/config";
 import { InsertionHandler, InsertionTable } from "./insertion-table";
 import { LixError } from "../foundation/error";
 import { FileOperation } from "../compiler/file-operation";
+import { ParserText, exceptionText, getParserText } from "../foundation/i18n";
 
 export type MatchResult = NodeResult;
 
@@ -26,6 +27,9 @@ export class Parser {
     // Configs
     configs: Config;
     fileOperation: FileOperation;
+
+    // Language
+    lang: ParserText;
 
     // Types in type table
     typeTable: TypeTable;
@@ -91,6 +95,7 @@ export class Parser {
 
         this.configs = configs;
         this.fileOperation = fileOperation;
+        this.lang = getParserText(configs.get("i18n"), configs.settings.language);
 
         // **************** Types ****************
 
@@ -316,7 +321,7 @@ export class Parser {
             else if (this.isNonSomeBlock(BlockType.structural, BlockType.basic, BlockType.format)) {
                 result.mergeState(ResultState.skippable);
                 let length = this.skipByBrackets();
-                result.addMessage("Document should only have structural blocks.", MessageType.error, this.index, -length, 0);
+                result.addMessage(this.lang.DocumentRequiresStructuralBlocks, MessageType.error, this.index, -length, 0);
             }
 
             else if ((nodeRes = this.matchSetting()).matched) {
@@ -345,7 +350,7 @@ export class Parser {
 
             else {
                 // 理论上不会出现
-                throw new LixError("[[Logical Error]] Matching paragraph, setting and block failed.");
+                throw new LixError(exceptionText.LogicalMatchDocumentFailed);
             }
         }
     }
@@ -378,7 +383,7 @@ export class Parser {
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            result.addMessage("Missing name.", MessageType.error, hashIndex, 0, 1);
+            result.addMessage(this.lang.SettingNameMissing, MessageType.error, hashIndex, 0, 1);
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
@@ -393,7 +398,7 @@ export class Parser {
         let colonIndex = this.index;
         result.merge(this.match(":"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing ':'.", MessageType.error, nameIndex, 0, nameRes.value.length);
+            result.addMessage(this.lang.SettingColonMissing, MessageType.error, nameIndex, 0, nameRes.value.length);
 
             result.promoteToSkippable();
             this.skipToEndOfLine();
@@ -468,7 +473,7 @@ export class Parser {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError("[[Logical Error]]Unintended 'else'. Free paragraph match failed.");
+                throw new LixError(exceptionText.LogicalFreeParagraphBranch);
             }
         }
     }
@@ -669,7 +674,7 @@ export class Parser {
             else if (this.isNonSomeBlock(BlockType.basic, BlockType.format)) {   
                 result.mergeState(ResultState.skippable);
                 let length = this.skipByBrackets();
-                result.addMessage("Paragraph block should not have other block.", MessageType.error, preIndex, 0, length);
+                result.addMessage(this.lang.ParagraphDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
                 continue;
             }
 
@@ -686,7 +691,7 @@ export class Parser {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError("[[Logical Error]]Unintended 'else'. Matching paragraph block failed.");
+                throw new LixError(exceptionText.LogicalParagraphBlockBranch);
             }
         }
     }
@@ -853,7 +858,7 @@ export class Parser {
             }
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
-                result.addMessage("Text block should not have \\\\.", MessageType.warning, curIndex, 0, 2);
+                result.addMessage(this.lang.TextDisallowsLineBreakEscape, MessageType.warning, curIndex, 0, 2);
                 text += "\\\\";
                 // result.mergeState(ResultState.skippable);
             }
@@ -861,7 +866,7 @@ export class Parser {
                 mergeWordsNode();
                 result.mergeState(ResultState.skippable);
                 let length = this.skipByBrackets();
-                result.addMessage("Text block should not have non format block", MessageType.error, curIndex, 0, length);
+                result.addMessage(this.lang.TextDisallowsNonFormatBlocks, MessageType.error, curIndex, 0, length);
             }
 
             else if ((blkRes = this.matchMultilineBlank()).matched) {
@@ -957,7 +962,7 @@ export class Parser {
             }
             else if ((symRes = this.match("\\\\")).matched) {
                 resetIndex();
-                result.addMessage("Format block should not have \\\\.", MessageType.warning, curIndex, 0, 2);
+                result.addMessage(this.lang.FormatDisallowsLineBreakEscape, MessageType.warning, curIndex, 0, 2);
                 text += "\\\\";
                 // result.mergeState(ResultState.skippable);
             }
@@ -965,7 +970,7 @@ export class Parser {
                 mergeWordsNode();
                 result.mergeState(ResultState.skippable);
                 let length = this.skipByBrackets();
-                result.addMessage("Format block should not have block.", MessageType.error, curIndex, 0, length);
+                result.addMessage(this.lang.FormatDisallowsNestedBlocks, MessageType.error, curIndex, 0, length);
             }
 
             else if ((blkRes = this.matchMultilineBlank()).matched) {
@@ -1018,7 +1023,7 @@ export class Parser {
         if(result.shouldTerminate) { // EOF
             node.content = "\\";
             result.promoteToSkippable();
-            result.addMessage(`Escape char ended abruptly.`, MessageType.warning, beginIndex, 0, 1);
+            result.addMessage(this.lang.EscapeSequenceIncomplete, MessageType.warning, beginIndex, 0, 1);
             return;
         }
         switch (valRes.value) {
@@ -1030,7 +1035,7 @@ export class Parser {
             default:
                 node.content += "\\";
                 node.content += valRes.value;
-                result.addMessage(`\\${valRes.value} is not an escape char.`, MessageType.warning, beginIndex, 0, 2);
+                result.addMessage(this.lang.InvalidEscapeSequence.format(valRes.value), MessageType.warning, beginIndex, 0, 2);
                 break;
         }
 
@@ -1059,7 +1064,7 @@ export class Parser {
         let nameRes = this.matchName();
         result.merge(nameRes);
         if (result.shouldTerminate) {
-            result.addMessage("Missing reference name.", MessageType.error, beginIndex, 0, 1);
+            result.addMessage(this.lang.ReferenceNameMissing, MessageType.error, beginIndex, 0, 1);
             result.promoteToSkippable();
             return;
         }
@@ -1187,7 +1192,7 @@ export class Parser {
         let endIndex = this.index;
         result.merge(this.match("]"));
         if (result.shouldTerminate) {
-            result.addMessage("Missing ']'.", MessageType.error, beginIndex, 0, endIndex - beginIndex);
+            result.addMessage(this.lang.BlockClosingBracketMissing, MessageType.error, beginIndex, 0, endIndex - beginIndex);
             result.promoteToSkippable();
             return;
         }
@@ -1216,19 +1221,19 @@ export class Parser {
             let name = argument.content;
             if (argument.children.length === 0) {
                 // 不可能的情况
-                throw new LixError(`Argument '${name}' has no value.`);
+                throw new LixError(exceptionText.ArgumentHasNoValue.format(name));
             }
 
             let argumentValue = argument.children[0];
 
             if (argumentValue.type === this.referenceType) {
                 if(!argumentsSpec.allowReference) {
-                    result.addMessage(`References is not allowed in block '${blockName}'.`, MessageType.error, argumentValue);
+                    result.addMessage(this.lang.ReferencesNotAllowedInBlock.format(blockName), MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                     continue;
                 }
                 if (references.has(argumentValue.content)) {
-                    result.addMessage(`Reference '${argumentValue.content}' is repeated.`, MessageType.error, argumentValue);
+                    result.addMessage(this.lang.ReferenceDuplicated.format(argumentValue.content), MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                 }
                 references.add(argumentValue.content);
@@ -1247,11 +1252,11 @@ export class Parser {
                     }
                 })
                 if (notUnique) {
-                    result.addMessage(`Implicit argument '${argumentValue.content}' is not unique.`, MessageType.error, argumentValue);
+                    result.addMessage(this.lang.UnknownArgumentImplicitValueNotUnique.format(argumentValue.content), MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                 }
                 if (name === "") {
-                    result.addMessage(`Implicit argument '${argumentValue.content}' is not correct.`, MessageType.error, argumentValue);
+                    result.addMessage(this.lang.UnknownArgumentImplicitValue.format(argumentValue.content), MessageType.error, argumentValue);
                     result.mergeState(ResultState.skippable);
                     continue;
                 }
@@ -1259,19 +1264,19 @@ export class Parser {
 
             let spec = argumentsSpec.argumentOptions.get(name);
             if (!spec) {
-                result.addMessage(`Argument '${name}' not identified.`, MessageType.error, argument);
+                result.addMessage(this.lang.ArgumentUnknown.format(name), MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
 
             if (argumentTypeToType.get(spec.type) !== argumentValue.type) {
-                result.addMessage(`Type of argument '${name}' is not correct.`, MessageType.error, argument);
+                result.addMessage(this.lang.ArgumentTypeMismatch.format(name), MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
 
             if (spec.type === ArgumentType.enumeration && spec.options.indexOf(argumentValue.content) === -1) {
-                result.addMessage(`Value of enumeration argument '${name}' is not correct.`, MessageType.error, argument);
+                result.addMessage(this.lang.ArgumentEnumerationValueInvalid.format(name), MessageType.error, argument);
                 result.mergeState(ResultState.skippable);
                 continue;
             }
@@ -1305,7 +1310,7 @@ export class Parser {
 
             let preIndex = this.index;
             if (this.isEOF()) {
-                result.addMessage(`Argument ended abruptly.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                result.addMessage(this.lang.ArgumentsEndedUnexpectedly, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -1322,7 +1327,7 @@ export class Parser {
                 while (true) {
                     preIndex = this.index;
                     if (this.isEOF()) {
-                        result.addMessage(`Argument ended abruptly.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                        result.addMessage(this.lang.ArgumentsEndedUnexpectedly, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                         result.mergeState(ResultState.skippable);
                         break;
                     }
@@ -1334,7 +1339,7 @@ export class Parser {
 
                     result.merge(this.match(","));
                     if (result.shouldTerminate) {
-                        result.addMessage(`Missing ','.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                        result.addMessage(this.lang.ArgumentCommaMissing, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                         result.promoteToSkippable();
                         this.skipToAfter(")");
                         return;
@@ -1356,7 +1361,7 @@ export class Parser {
                 }
             }
             else {
-                result.addMessage(`Unrecognized argument.`, MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                result.addMessage(this.lang.ArgumentUnrecognized, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 this.skipToAfter(")");
                 return;
@@ -1391,14 +1396,14 @@ export class Parser {
             result.merge(this.skipBlank());
 
             let nameIndex = this.index;
-            let nameRes = this.matchName();
-            result.merge(nameRes);
-            if (result.shouldTerminate) {
-                result.addMessage("Missing reference name.", MessageType.error, beginIndex, 0, 1);
-                result.promoteToSkippable();
-                result.addNode(this.referenceType, nameRes.value, [], beginIndex, 0, 1);
-                return;
-            }
+        let nameRes = this.matchName();
+        result.merge(nameRes);
+        if (result.shouldTerminate) {
+            result.addMessage(this.lang.ReferenceNameMissing, MessageType.error, beginIndex, 0, 1);
+            result.promoteToSkippable();
+            result.addNode(this.referenceType, nameRes.value, [], beginIndex, 0, 1);
+            return;
+        }
             result.addNode(this.referenceType, nameRes.value, [], beginIndex, 0, this.index - beginIndex);
             result.addHighlight(HighlightType.keyword, nameIndex, 0, nameRes.value.length);
         }
@@ -1442,7 +1447,7 @@ export class Parser {
                 }
                 else {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("Missing argument value.", MessageType.error, colonIndex, 0, 1);
+                    result.addMessage(this.lang.ArgumentValueMissing, MessageType.error, colonIndex, 0, 1);
                     result.addNode(this.nameType, "", [], preIndex, 0, 0);
                 }
 
@@ -1535,7 +1540,7 @@ export class Parser {
             }
         });
         if(found === undefined) {
-            throw new LixError("Argument not found.");
+            throw new LixError(exceptionText.ArgumentNotFound);
         }
         return found;
     }
@@ -1603,7 +1608,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.error, beginIndex, 0, this.index - beginIndex);
+                    result.addMessage(this.lang.StringNewlineForbidden, MessageType.error, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1611,7 +1616,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
+                        result.addMessage(this.lang.StringEndedUnexpectedly, MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1627,7 +1632,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.error, beginIndex, 0, this.index - beginIndex);
+                    result.addMessage(this.lang.StringNewlineForbidden, MessageType.error, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1635,7 +1640,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
+                        result.addMessage(this.lang.StringEndedUnexpectedly, MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1651,7 +1656,7 @@ export class Parser {
                 }
                 else if (this.is(Parser.newline)) {
                     result.mergeState(ResultState.skippable);
-                    result.addMessage("String should not have new line.", MessageType.warning, beginIndex, 0, this.index - beginIndex);
+                    result.addMessage(this.lang.StringNewlineForbidden, MessageType.warning, beginIndex, 0, this.index - beginIndex);
                     break;
                 }
                 else {
@@ -1659,7 +1664,7 @@ export class Parser {
                     result.merge(valRes);
                     if (result.shouldTerminate) {
                         result.promoteToSkippable();
-                        result.addMessage("String abruptly end.", MessageType.error, beginIndex, 0, this.index - beginIndex);
+                        result.addMessage(this.lang.StringEndedUnexpectedly, MessageType.error, beginIndex, 0, this.index - beginIndex);
                         break;
                     }
                     result.value += valRes.value;
@@ -1894,7 +1899,7 @@ export class Parser {
                 if (result.shouldTerminate) {
                     // EOF
                     result.promoteToSkippable();
-                    result.addMessage("Multiline comment ended abruptly.", MessageType.warning, beginIndex, 0, this.index - beginIndex);
+                    result.addMessage(this.lang.MultilineCommentEndedUnexpectedly, MessageType.warning, beginIndex, 0, this.index - beginIndex);
                     return;
                 }
             }
@@ -2022,13 +2027,13 @@ export class Parser {
 
     private checkIndex() {
         if (this.index < 0 || this.index > this.text.length) {
-            throw new LixError("Index out of bounds [0, length].");
+            throw new LixError(exceptionText.IndexOutOfBoundsInclusive);
         }
     }
 
     private checkIndexStrict() {
         if (this.index < 0 || this.index >= this.text.length) {
-            throw new LixError("Index out of bounds [0, length).");
+            throw new LixError(exceptionText.IndexOutOfBoundsExclusive);
         }
     }
 
@@ -2102,8 +2107,8 @@ export class Parser {
                 return { line: i, character: index - this.lineRanges[i] };
             }
         }
-        
-        throw new LixError("getLineAndCharacter: index out of bounds.");
+
+        throw new LixError(exceptionText.GetLineAndCharacterOutOfBounds);
     }
 
     getIndex(line: number, character: number, truncate: boolean = true): number {
@@ -2117,7 +2122,7 @@ export class Parser {
             }
         }
 
-        throw new LixError("getIndex: line or character out of bounds.");
+        throw new LixError(exceptionText.GetIndexOutOfBounds);
     }
 
     // process

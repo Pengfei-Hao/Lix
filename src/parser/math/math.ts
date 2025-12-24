@@ -11,9 +11,12 @@ import { Ref } from "../../foundation/ref";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
 import "../../foundation/union"
 import { LixError } from "../../foundation/error";
+import { exceptionText } from "../../foundation/i18n";
 
 
 export class Math extends Module {
+
+    private lang = this.parser.lang;
 
     // Types of syntax tree node
 
@@ -116,7 +119,7 @@ export class Math extends Module {
                         patterns.push(new PrefixOperatorPattern(PrefixOperatorType.matrix, new Set(pattern.options)));
                         break;
                     default:
-                        throw new LixError("Wrong prefix operator type.");
+                        throw new LixError(exceptionText.PrefixOperatorTypeInvalid);
                 }
             }
             this.operatorTable.addPrefixOperator(patterns);
@@ -180,7 +183,7 @@ export class Math extends Module {
         let endIndex = this.parser.index;
         result.merge(this.parser.match("/"));
         if (result.shouldTerminate) {
-            result.addMessage(`Missing '/' in inline formula.`, MessageType.error, beginIndex, 0, endIndex - beginIndex);
+            result.addMessage(this.lang.InlineFormulaMissingClosingSlash, MessageType.error, beginIndex, 0, endIndex - beginIndex);
             result.promoteToSkippable();
             return;
         }
@@ -277,7 +280,7 @@ export class Math extends Module {
                 let endIndex = this.parser.index;
                 result.merge(this.parser.match("]"));
                 if (result.shouldTerminate) {
-                    result.addMessage(`Missing ']' in formula.`, MessageType.error, preIndex, 0, endIndex - preIndex);
+                    result.addMessage(this.lang.FormulaMissingRightBracket, MessageType.error, preIndex, 0, endIndex - preIndex);
                     result.promoteToSkippable();
                     return;
                 }
@@ -297,7 +300,7 @@ export class Math extends Module {
                 let endIndex = this.parser.index;
                 result.merge(this.parser.match("`"));
                 if (result.shouldTerminate) {
-                    result.addMessage(`Missing '\`' in formula.`, MessageType.error, preIndex, 0, endIndex - preIndex);
+                    result.addMessage(this.lang.FormulaMissingBacktick, MessageType.error, preIndex, 0, endIndex - preIndex);
                     result.promoteToSkippable();
                     return;
                 }
@@ -333,7 +336,7 @@ export class Math extends Module {
 
             else {
                 result.mergeState(ResultState.skippable);
-                result.addMessage(`Unrecognizable character '${this.parser.curUnicodeChar()}' in formula.`, MessageType.error, preIndex, 0, this.parser.curIsUnicode() ? 2 : 1);
+                result.addMessage(this.lang.FormulaUnrecognizedCharacter.format(this.parser.curUnicodeChar()), MessageType.error, preIndex, 0, this.parser.curIsUnicode() ? 2 : 1);
                 this.parser.moveUnicode();
             }
         }
@@ -404,7 +407,7 @@ export class Math extends Module {
     
                 result.node.type = this.elementType;
                 result.node.content = "@";
-                result.addMessage("'@' must be followed by an element.", MessageType.error, beginIndex, 0, 1);
+                result.addMessage(this.lang.InlineMathAtMustFollowElement, MessageType.error, beginIndex, 0, 1);
                 return;
             }
             result.node.content = nodeRes.node.content;
@@ -420,7 +423,7 @@ export class Math extends Module {
                 result.promoteToSkippable();
     
                 result.node.content = "\\";
-                result.addMessage("'\\' must be followed by an element.", MessageType.error, beginIndex, 0, 1);
+                result.addMessage(this.lang.InlineMathBackslashMustFollowElement, MessageType.error, beginIndex, 0, 1);
                 return;
             }
             result.node.content = nodeRes.node.content;
@@ -456,7 +459,7 @@ export class Math extends Module {
                 break;
             }
             else if(this.parser.isMultilineBlankGtOne()) {
-                result.addMessage("Formula inline text ended abruptly.", MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                result.addMessage(this.lang.FormulaInlineTextEndedUnexpectedly, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 return;
             }
@@ -465,7 +468,7 @@ export class Math extends Module {
                 result.merge(valRes);
                 if (result.shouldTerminate) {
                     result.promoteToSkippable();
-                    result.addMessage("Formula inline text ended abruptly.", MessageType.error, beginIndex, 0, preIndex - beginIndex);
+                    result.addMessage(this.lang.FormulaInlineTextEndedUnexpectedly, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                     return;
                 }
                 node.content += valRes.value;
@@ -669,7 +672,7 @@ export class Math extends Module {
                     result.mergeState(ResultState.skippable);
                     // 直接扔掉多余的 infix operator
                     let trashOp = operatorHeap.pop()!;
-                    result.addMessage("Missing last term of expression.", MessageType.error, trashOp);
+                    result.addMessage(this.lang.ExpressionMissingLastTerm, MessageType.error, trashOp);
                     hasInfixOperator = false;
                 }
                 // same as above
@@ -679,7 +682,7 @@ export class Math extends Module {
                 }
 
                 if (termHeap.length !== 1 || operatorHeap.length !== 0) {
-                    throw new LixError("[[logical error]] analyse subformula failed.");
+                    throw new LixError(exceptionText.LogicalAnalyseSubformulaFailed);
                 }
 
                 result.value = termHeap.pop()!;
@@ -715,7 +718,7 @@ export class Math extends Module {
                 // 不会失败
 
                 if (hasInfixOperator) {
-                    result.addMessage("Infix operator repeated.", MessageType.error, res.value);
+                    result.addMessage(this.lang.InfixOperatorRepeated, MessageType.error, res.value);
                     result.mergeState(ResultState.skippable);
                     // 直接丢弃这一项
                     continue;
@@ -734,7 +737,7 @@ export class Math extends Module {
             }
 
             else {
-                throw new LixError("[[Logical Error]] Analysing formula.");
+                throw new LixError(exceptionText.LogicalAnalyseFormulaFailed);
             }
         }
     }
@@ -771,7 +774,7 @@ export class Math extends Module {
                 }
             }
             for(let n of trashOp) {
-                result.addMessage("Infix operator pattern failed.", MessageType.error, n);
+                result.addMessage(this.lang.InfixOperatorPatternInvalid, MessageType.error, n);
             }
             result.mergeState(ResultState.skippable);
             return;
@@ -876,7 +879,7 @@ export class Math extends Module {
 
                     result.merge(res);
                     if (result.shouldTerminate) { // 只能是遇到了 infix operator 或 EOF
-                        result.addMessage("Prefix match [term] failed.", MessageType.error, beginTerm);
+                        result.addMessage(this.lang.PrefixTermMatchFailed, MessageType.error, beginTerm);
                         result.promoteToSkippable();
 
                         nNode.children.push(new Node(this.prefixType, ""));
@@ -901,7 +904,7 @@ export class Math extends Module {
                     // 此处 endTerm 必须设为 [], 就近匹配, 例如 (()) 第一个右括号要跟第二个左括号结合
                     if (this.isEOF(parnode, index, new Set())) {
                         result.mergeState(ResultState.skippable);
-                        result.addMessage("Prefix match element ended abruptly.", MessageType.error, beginTerm);
+                        result.addMessage(this.lang.PrefixElementEndedUnexpectedly, MessageType.error, beginTerm);
                         break;
                     }
                     node = parnode.children[index.value];
@@ -914,7 +917,7 @@ export class Math extends Module {
                     }
                     else {
                         result.mergeState(ResultState.skippable);
-                        result.addMessage(`Prefix match element failed.`, MessageType.error, beginTerm);
+                        result.addMessage(this.lang.PrefixElementMatchFailed, MessageType.error, beginTerm);
                     }
                     break;
             }

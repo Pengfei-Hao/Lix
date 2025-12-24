@@ -46,7 +46,7 @@ export class MathLatexGenerator extends Generator {
 
         this.latexSymbolsAndNotations = new Map();
         this.latexOperator = new Map();
-        this.json = JSON.parse(this.config.get("formula-latex"));
+        this.json = JSON.parse(this.configs.get("formula-latex"));
         for (let [key, value] of this.json.SymbolsAndNotations) {
             this.latexSymbolsAndNotations.set(key, value);
         }

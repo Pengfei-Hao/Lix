@@ -1,5 +1,6 @@
 import { Type } from "./type";
 import { LixError } from "../foundation/error";
+import { exceptionText } from "../foundation/i18n";
 
 export class TypeTable {
 
@@ -16,14 +17,14 @@ export class TypeTable {
     get(name: string): Type {
         let type = this.names.get(name);
         if (type === undefined) {
-            throw new LixError(`Type '${name}' do not exist.`);
+            throw new LixError(exceptionText.TypeNotExist.format(name));
         }
         return type;
     }
 
     add(name: string): Type {
         if (this.has(name)) {
-            throw new LixError(`Type '${name}' repeated.`);
+            throw new LixError(exceptionText.TypeAlreadyExists.format(name));
         }
 
         let newType = new Type(name, this);

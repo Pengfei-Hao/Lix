@@ -20,10 +20,12 @@ import { DocumentSelector } from 'vscode-languageclient';
 import { Node } from './sytnax-tree/node';
 import { LixFoldingRangeProvider } from './extension/folding-range-provider';
 import './foundation/format';
+import { getVscodeText, VscodeText } from './foundation/i18n';
 
 
 let config: VSCodeConfig;
 let lixContext: LixContext;
+let lang: VscodeText;
 
 let documentProvider = new LatexProvider();
 export let diagnosticCollection: vscode.DiagnosticCollection;
@@ -83,11 +85,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	config = new VSCodeConfig(context.extensionUri);
 	let success = await config.readAll();
+	lang = getVscodeText(config.get("i18n"), config.settings.language);
 	//console.log(`Configs loading success: ${success}`);
 
 	// lix contexts
 
-	lixContext = new LixContext(config);
+	lixContext = new LixContext(config, lang);
 
 	// diagnostic
 

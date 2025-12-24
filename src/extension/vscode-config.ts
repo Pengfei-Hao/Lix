@@ -1,18 +1,19 @@
 import { TextDecoder, TextEncoder } from 'util';
 import * as vscode from 'vscode';
 import { workspace } from 'vscode';
+import { Config } from '../compiler/config';
 
-export class VSCodeConfig {
+export class VSCodeConfig extends Config {
     uri: vscode.Uri;
 
     configs: Map<string, string>;
 
    constructor(configUri: vscode.Uri) {
+        super();
         this.uri = configUri;
         this.uri = vscode.Uri.joinPath(this.uri, "config");
         this.configs = new Map();
-
-        this.readAll();
+        this.settings = { language: "en-US" };
     }
 
     checkAndCreateConfigDirectory(): Thenable<void> {
@@ -35,6 +36,7 @@ export class VSCodeConfig {
                 this.configs.set(name.substring(0, name.length - 5), content);
             }
         }
+        this.settings = JSON.parse(this.get("settings"));
         return true;
     }
 

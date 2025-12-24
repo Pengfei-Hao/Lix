@@ -2,6 +2,7 @@ import { Node } from "../sytnax-tree/node";
 import { LixError } from "../foundation/error";
 import { Message, MessageType } from "../foundation/message";
 import { Type } from "../sytnax-tree/type";
+import { exceptionText } from "../foundation/i18n";
 
 export enum HighlightType {
     operator,
@@ -88,13 +89,13 @@ export class BasicResult {
     get shouldTerminate(): boolean {
         if (this.promotedToMatched) {
             if (this.state === ResultState.failing) {
-                throw new LixError("Result.shouldTerminate has logic error.");
+                throw new LixError(exceptionText.ResultShouldTerminateLogicError);
             }
             return this.state === ResultState.matched;
         }
         else {
             if (this.state === ResultState.matched) {
-                throw new LixError("Result.shouldTerminate has logic error.");
+                throw new LixError(exceptionText.ResultShouldTerminateLogicError);
             }
             return this.state === ResultState.failing;
         }
@@ -116,13 +117,13 @@ export class BasicResult {
     promoteToSkippable() {
         if (this.promotedToMatched) {
             if (this.state !== ResultState.matched) {
-                throw new LixError("Result.promote has logic error.");
+                throw new LixError(exceptionText.ResultPromoteLogicError);
             }
             this.state = ResultState.skippable;
         }
         else {
             if (this.state !== ResultState.failing) {
-                throw new LixError("Result.promote has logic error.");
+                throw new LixError(exceptionText.ResultPromoteLogicError);
             }
             this.state = ResultState.skippable;
         }
@@ -148,7 +149,7 @@ export class BasicResult {
             const table = [[-1, -1, -1, -1], [1, 1, 2, 3], [1, 1, 2, 2], [1, 1, 2, 3]]
             let res = table[this.state][state];
             if (res === -1) {
-                throw new LixError("Result.merge has logic error.");
+                throw new LixError(exceptionText.ResultMergeLogicError);
             }
             else {
                 this.state = res;
@@ -158,7 +159,7 @@ export class BasicResult {
             const table = [[0, 0, 2, 3], [-1, -1, -1, -1], [0, 0, 2, 2], [0, 0, 2, 3]]
             let res = table[this.state][state];
             if (res === -1) {
-                throw new LixError("Result.merge has logic error.");
+                throw new LixError(exceptionText.ResultMergeLogicError);
             }
             else {
                 this.state = res;

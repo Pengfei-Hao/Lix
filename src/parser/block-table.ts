@@ -1,6 +1,7 @@
 import { Node } from "../sytnax-tree/node";
 import { NodeResult } from "./result";
 import { LixError } from "../foundation/error";
+import { exceptionText } from "../foundation/i18n";
 
 export type BlockHandler = (args: Node) => NodeResult;
 
@@ -40,7 +41,7 @@ export class BlockTable {
 
     add(name: string, handler: BlockHandler, thisArg?: unknown, blockOption?: BlockOption) {
         if (this.has(name)) {
-            throw new LixError(`Block handler '${name}' repeated.`);
+            throw new LixError(exceptionText.BlockHandlerAlreadyExists.format(name));
         }
         this.handlers.set(name, handler.bind(thisArg));
         let options = blockOption ?? new BlockOption();
