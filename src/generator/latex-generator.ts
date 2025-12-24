@@ -841,7 +841,7 @@ export class LatexGenerator extends Generator {
     // Syntax Tree type: bib-item
     generateBibItem(node: Node): string {
         let refLatex = this.getReferences(node).at(0) ?? "";
-        return this.json.BibItem.format({ reference: refLatex, content: this.generateFormatLike(node) })
+        return this.json.BibItem.format({ reference: refLatex, content: this.generateTextLike(node) })
     }
 
     // GenerateTheorem

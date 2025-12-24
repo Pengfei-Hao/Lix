@@ -97,7 +97,7 @@
 
 	"sgn", "lcm", "mod", "sh", "ch", "th", "argmin", "argmax", 
 
-	"cases", "norm", "mat", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec"
+	"cases", "norm", "mat", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"
 ],
 
 "Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
@@ -110,7 +110,7 @@
 		{ "type": "expression", "options" : [] }
 	],
 	[
-		{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂"] },
+		{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂", "∫"] },
 		{ "type": "expression", "options" : [] },
 		{ "type": "enumeration", "options" : ["to"] },
 		{ "type": "expression", "options" : [] },
@@ -137,7 +137,7 @@
 		{ "type": "matrix", "options" : [] }
 	],
 	[
-		{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec"] },
+		{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"] },
 		{ "type": "term", "options" : [] }
 	]
 ],
