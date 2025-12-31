@@ -14,7 +14,7 @@
 
     "InlineFormula": "$${0}$",
     "NumberedFormula": "\\begin{equation}${reference}\n\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n${content}\n\\end{equation}",
-    "UnnumberedFormula": "\\begin{equation*}${reference}\n\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n${content}\n\\end{equation}",
+    "UnnumberedFormula": "\\begin{equation*}${reference}\n\\setlength\\abovedisplayskip{4pt}\\setlength\\belowdisplayskip{4pt}\n${content}\n\\end{equation*}",
     "MultilineFormula": "\\begin{aligned}\n${content}\n\\end{aligned}",
 
     "Figure": "\\begin{figure}[!htbp]\n\\centering\n\\vspace{-0.3em}\n${content}\n\\vspace{-0.3em}\n${caption}${reference}\\vspace{-0.7em}\n\\end{figure}",

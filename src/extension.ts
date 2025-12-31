@@ -11,7 +11,7 @@ import { Generator } from './generator/generator';
 import { VSCodeConfig } from './extension/vscode-config';
 import { LixCompletionProvider } from './extension/completion-provider';
 import { LixContext } from './extension/lix-context';
-import { blockProvider, formulaProvider } from './extension/tree-data-provider';
+import { LixCommandProvider, blockProvider, formulaProvider } from './extension/tree-data-provider';
 import { LatexProvider } from './extension/document-provider';
 import { LixSemanticProvider } from './extension/semantic-provider';
 import { updateDiagnostic } from './extension/diagnostic-provider';
@@ -26,6 +26,7 @@ import { getVscodeText, VscodeText } from './foundation/i18n';
 let config: VSCodeConfig;
 let lixContext: LixContext;
 let lang: VscodeText;
+let lixCommandProvider: LixCommandProvider;
 
 let documentProvider = new LatexProvider();
 export let diagnosticCollection: vscode.DiagnosticCollection;
@@ -55,20 +56,24 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.selectCompileTarget', selectCompileTarget)
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.debug', debug)
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.test', async () => {
 			let msg = "";
-			if(workspace.name) {
-				msg=msg.concat(workspace.name,":");
+			if (workspace.name) {
+				msg = msg.concat(workspace.name, ":");
 			}
 			else {
-				msg=msg.concat("None:");
+				msg = msg.concat("None:");
 			}
-			for(let doc of workspace.textDocuments) {
-				msg=msg.concat(doc.fileName, ";");
+			for (let doc of workspace.textDocuments) {
+				msg = msg.concat(doc.fileName, ";");
 			}
 			vscode.window.showInformationMessage(msg);
 
@@ -115,11 +120,15 @@ export async function activate(context: vscode.ExtensionContext) {
 	let tokenModifiers = ['declaration', 'documentation'];
 	let legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
 
-	vscode.languages.registerDocumentSemanticTokensProvider(docSel, new LixSemanticProvider(lixContext, legend), legend);
-	
+	// vscode.languages.registerDocumentSemanticTokensProvider(docSel, new LixSemanticProvider(lixContext, legend), legend);
+
 
 	// tree data provider
 
+	lixCommandProvider = new LixCommandProvider(() => generatorName);
+	context.subscriptions.push(
+		vscode.window.registerTreeDataProvider("lix-command-list", lixCommandProvider)
+	);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-label-list", new blockProvider(lixContext))
 	);
@@ -161,7 +170,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 // This method is called when your extension is deactivated
 export async function deactivate(): Promise<void> {
-	
+
 	// if (!client) {
 	// 	return;
 	// }
@@ -173,34 +182,34 @@ export async function deactivate(): Promise<void> {
 let isDebugging = false;
 
 async function onSelectionChange(change: vscode.TextEditorSelectionChangeEvent) {
-	if(!isDebugging) {
+	if (!isDebugging) {
 		return;
 	}
 
 	let doc = change.textEditor.document;
-	if(vscode.languages.match(docSel, doc) !== 10) {
+	if (vscode.languages.match(docSel, doc) !== 10) {
 		return;
 	}
-	
+
 	let parser = lixContext.getCompiler(doc.uri).parser;
 	let pos = change.selections[0].start;
 
 	let index = parser.getIndex(pos.line, pos.character)!;
-	let line = locate(index, parser.syntaxTree)-1+1;
+	let line = locate(index, parser.syntaxTree) - 1 + 1;
 	//console.log(`index:${index};line:${pos.line},char:${pos.character}`);
 	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
 
 	vscode.workspace.openTextDocument(getUri(doc.uri, "parse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : new vscode.Range(line,0,line,0)};
+		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: false, preserveFocus: true, selection: new vscode.Range(line, 0, line, 0) };
 		vscode.window.showTextDocument(doc, opt);
-		
+
 	});
 
-	let lineA = locate(index, parser.analysedTree)-1+1;
+	let lineA = locate(index, parser.analysedTree) - 1 + 1;
 	vscode.workspace.openTextDocument(getUri(doc.uri, "analyse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : false, preserveFocus : true, selection : new vscode.Range(lineA,0,lineA,0)};
+		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: false, preserveFocus: true, selection: new vscode.Range(lineA, 0, lineA, 0) };
 		vscode.window.showTextDocument(doc, opt);
-		
+
 	});
 
 }
@@ -210,11 +219,11 @@ function locate(pos: number, node: Node, skip = false): number {
 
 	for (let i = 0; i < node.children.length; i++) {
 		if (!skip) {
-			if(node.children[i].begin <= pos && pos < node.children[i].end) {
+			if (node.children[i].begin <= pos && pos < node.children[i].end) {
 				line += locate(pos, node.children[i], false);
 				return line;
 			}
-			else if(node.children[i].end <= pos) {
+			else if (node.children[i].end <= pos) {
 				line += locate(pos, node.children[i], true);
 			}
 			else {
@@ -230,7 +239,7 @@ function locate(pos: number, node: Node, skip = false): number {
 }
 
 function onTerminalClosed(terminal: vscode.Terminal) {
-	if(terminal === compileTerminal) {
+	if (terminal === compileTerminal) {
 		compileTerminal = undefined;
 	}
 }
@@ -258,7 +267,7 @@ async function onChange(event: vscode.TextDocumentChangeEvent) {
 	// }
 	// parseFile();
 
-	if(getDocument(event.document) === undefined) {
+	if (getDocument(event.document) === undefined) {
 		return;
 	}
 
@@ -274,19 +283,37 @@ async function onChange(event: vscode.TextDocumentChangeEvent) {
 
 let compileTerminal: vscode.Terminal | undefined;
 
+let generatorName = "latex"; // "markdown", "latex", "blog"
+const availableGeneratorTargets = ["markdown", "latex", "blog"];
+
+async function selectCompileTarget(target?: string) {
+	let nextTarget = target;
+	if (!nextTarget || !availableGeneratorTargets.includes(nextTarget)) {
+		const picked = await vscode.window.showQuickPick(availableGeneratorTargets, { placeHolder: "Select compile target" });
+		if (!picked) {
+			return;
+		}
+		nextTarget = picked;
+	}
+
+	generatorName = nextTarget;
+	lixCommandProvider?.refresh();
+	vscode.window.showInformationMessage(`Compile target set to ${nextTarget}`);
+}
+
 async function compile() {
 	let document = getDocument();
-	if(!document) {
+	if (!document) {
 		return;
 	}
 	await vscode.workspace.saveAll();
 
 	let compiler = lixContext.getCompiler(document.uri);
-	await compiler.compile("latex");
+	await compiler.compile(generatorName);
 
 	updateDiagnostic(document, lixContext);
 	let st = "";
-	switch(compiler.parser.state) {
+	switch (compiler.parser.state) {
 		case ResultState.successful:
 			st = "successful";
 			break;
@@ -305,43 +332,59 @@ async function compile() {
 
 	let uri = document.uri;
 	let fileName = compiler.fileOperation.fileName;
-
 	let dirUri = vscode.Uri.joinPath(uri, "../.lix/");
-	let latexUri = vscode.Uri.joinPath(dirUri, fileName + ".tex");
-	let pdfUri = vscode.Uri.joinPath(dirUri, fileName + ".pdf");
-	let newPdfUri = vscode.Uri.joinPath(dirUri, "..", fileName + ".pdf");
 
-	if(compileTerminal === undefined) {
-		compileTerminal = vscode.window.createTerminal({name: "Lix Compiler", hideFromUser : true});
+	if (compileTerminal === undefined) {
+		compileTerminal = vscode.window.createTerminal({ name: "Lix Compiler", hideFromUser: true });
 		//compileTerminal.hide();
 	}
 
-	compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
-	compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
-	//compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
-	compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
-	//compileTerminal.sendText(`open "${newPdfUri.fsPath}"`);
-	//workspace.openTextDocument(newPdfUri).then(doc => vscode.window.showTextDocument(doc));
-	vscode.commands.executeCommand(
-		'vscode.openWith',
-		newPdfUri,
-		'latex-workshop-pdf-hook', // use Latex Workshop
-		vscode.ViewColumn.Beside
-	)
+	if (generatorName === "markdown" || generatorName === "blog") {
+		let mdUri = vscode.Uri.joinPath(dirUri, fileName + ".md");
+		let newMdUri = vscode.Uri.joinPath(dirUri, "..", fileName + ".md");
+
+		compileTerminal.sendText(`cp "${mdUri.fsPath}" "${newMdUri.fsPath}"`);
+
+		vscode.commands.executeCommand(
+			'vscode.openWith',
+			mdUri,
+			"vscode.markdown.preview.editor", // use built-in markdown preview
+			vscode.ViewColumn.Beside
+		);
+		return;
+	}
+	else if (generatorName === "latex") {
+		let latexUri = vscode.Uri.joinPath(dirUri, fileName + ".tex");
+		let pdfUri = vscode.Uri.joinPath(dirUri, fileName + ".pdf");
+		let newPdfUri = vscode.Uri.joinPath(dirUri, "..", fileName + ".pdf");
+
+		compileTerminal.sendText(`cd "${dirUri.fsPath}"`);
+		compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
+		//compileTerminal.sendText(`xelatex -synctex=1 -interaction=nonstopmode "${latexUri.fsPath}"`);
+		compileTerminal.sendText(`cp "${pdfUri.fsPath}" "${newPdfUri.fsPath}"`);
+		//compileTerminal.sendText(`open "${newPdfUri.fsPath}"`);
+		//workspace.openTextDocument(newPdfUri).then(doc => vscode.window.showTextDocument(doc));
+		vscode.commands.executeCommand(
+			'vscode.openWith',
+			newPdfUri,
+			'latex-workshop-pdf-hook', // use Latex Workshop
+			vscode.ViewColumn.Beside
+		)
+	}
 }
 
 async function generate() {
 	let document = getDocument();
-	if(!document) {
+	if (!document) {
 		return;
 	}
-	await generateLatexFromDocument(document);
+	await generateFromDocument(document);
 	showFile(getUri(document.uri, "generate"));
 }
 
 async function parse() {
 	let document = getDocument();
-	if(!document) {
+	if (!document) {
 		return;
 	}
 	parseFromDocument(document);
@@ -353,22 +396,22 @@ function test() {
 	vscode.window.showInformationMessage("abcd");
 }
 
-function bu(f : ()=>void, thisArg?: unknown) {
+function bu(f: () => void, thisArg?: unknown) {
 	return f.bind(thisArg)
 }
 function helloWorld() {
 
 	console.log("${0}$${0}".formatWithAutoBlank("a${0}").formatWithAutoBlank("b"));
-// => "test abc, 123"
+	// => "test abc, 123"
 
-console.log("a${0}1".formatWithAutoBlank("b"));
-// => "a b1"
+	console.log("a${0}1".formatWithAutoBlank("b"));
+	// => "a b1"
 
-console.log("a${0}c".formatWithAutoBlank("b"));
-// => "a b c"
+	console.log("a${0}c".formatWithAutoBlank("b"));
+	// => "a b c"
 
-console.log("a${0}1".formatWithAutoBlank("1b"));
-// => "a1b1"
+	console.log("a${0}1".formatWithAutoBlank("1b"));
+	// => "a1b1"
 	//bu(test)();
 	// ✅ 数字占位符
 	console.log("${0}+${1}".format("${1} + 1", "2"));
@@ -387,32 +430,32 @@ console.log("a${0}1".formatWithAutoBlank("1b"));
 	// => "Missing: ${x}, A"
 
 	// 你的特殊例子（关键：被插入的 "${1} + 1" 不会被再次替换）
-console.log("${0}+${1}".format("${1} + 1", "2"));
-// => "${0} + 1+2"
+	console.log("${0}+${1}".format("${1} + 1", "2"));
+	// => "${0} + 1+2"
 
-// 命名参数
-console.log("${user} has ${count} items".format({ user: "Alice", count: 3 })); 
-// => "Alice has 3 items"
+	// 命名参数
+	console.log("${user} has ${count} items".format({ user: "Alice", count: 3 }));
+	// => "Alice has 3 items"
 
-// 嵌套属性
-console.log("Name: ${user.name}, City: ${user.address.city}".format({
-  user: { name: "Bob", address: { city: "NYC" } }
-}));
-// => "Name: Bob, City: NYC"
+	// 嵌套属性
+	console.log("Name: ${user.name}, City: ${user.address.city}".format({
+		user: { name: "Bob", address: { city: "NYC" } }
+	}));
+	// => "Name: Bob, City: NYC"
 
-// 转义：想保留字面 ${0}，写成 $${0}
-console.log("literal: $${0} and ${0}".format("X"));
-// => "literal: ${0} and X"
+	// 转义：想保留字面 ${0}，写成 $${0}
+	console.log("literal: $${0} and ${0}".format("X"));
+	// => "literal: ${0} and X"
 
-// 参数不足（默认非 strict） => 保留原样
-console.log("Missing: ${0}, ${1}".format("A"));
-// => "Missing: A, ${1}"
+	// 参数不足（默认非 strict） => 保留原样
+	console.log("Missing: ${0}, ${1}".format("A"));
+	// => "Missing: A, ${1}"
 
 }
 
 async function debug() {
 	isDebugging = !isDebugging;
-	if(isDebugging) {
+	if (isDebugging) {
 		compileTerminal?.show();
 	}
 	else {
@@ -422,11 +465,9 @@ async function debug() {
 
 // **************** assistance ****************
 
-let generatorName = "latex"; // "markdown", "latex"
-
-export async function generateLatexFromDocument(document: vscode.TextDocument): Promise<Generator> {
+async function generateFromDocument(document: vscode.TextDocument): Promise<Generator> {
 	let compiler = lixContext.getCompiler(document.uri);
-	let generator = compiler.getGenerator(generatorName)!; // latex
+	let generator = compiler.getGenerator(generatorName)!;
 	await compiler.generateFromText(document.getText(), generatorName);
 
 	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);
@@ -444,7 +485,7 @@ export function parseFromDocument(document: vscode.TextDocument, updateDocument 
 	updateDiagnostic(document, lixContext);
 
 	let st = "";
-	switch(parser.state) {
+	switch (parser.state) {
 		case ResultState.successful:
 			st = "successful";
 			break;
@@ -458,7 +499,7 @@ export function parseFromDocument(document: vscode.TextDocument, updateDocument 
 			st = "failing";
 			break;
 	}
-	if(updateDocument) {
+	if (updateDocument) {
 		documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${st}]]`);
 		documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString());
 	}
@@ -472,7 +513,7 @@ async function updateFileList(document: vscode.TextDocument) {
 	let list = await compiler.fileOperation.getFilesInDirectory(".");
 	let figlist: string[] = [];
 	for (let item of list) {
-		if(item.includes(".lix")) {
+		if (item.includes(".lix")) {
 			continue;
 		}
 		let ext = compiler.fileOperation.getFileExtension(item);
@@ -486,9 +527,9 @@ async function updateFileList(document: vscode.TextDocument) {
 
 function showFile(uri: vscode.Uri) {
 	vscode.workspace.openTextDocument(uri).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = {viewColumn : vscode.ViewColumn.Beside, preview : true, preserveFocus : true, selection : undefined};
-		vscode.window.showTextDocument(doc,opt);
-		
+		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: true, preserveFocus: true, selection: undefined };
+		vscode.window.showTextDocument(doc, opt);
+
 	});
 }
 
@@ -503,7 +544,7 @@ function showFile(uri: vscode.Uri) {
 // 	</body>
 // 	</html>`;
 // 	let panel = vscode.window.createWebviewPanel("lix-pdf-preview", "Lix PDF", vscode.ViewColumn.Two, {});
-	
+
 // 	panel.webview.html = html;
 // }
 
@@ -512,10 +553,10 @@ function getUri(uri: vscode.Uri, flag: string): vscode.Uri {
 }
 
 function getDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document): vscode.TextDocument | undefined {
-	if(!document) {
+	if (!document) {
 		return;
 	}
-	if(vscode.languages.match(docSel, document) == 10) {
+	if (vscode.languages.match(docSel, document) == 10) {
 		return document;
 	}
 }

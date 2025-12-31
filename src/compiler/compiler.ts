@@ -27,7 +27,8 @@ export class Compiler {
         this.generator = new Map([
             ["math-latex", mathLatexGenerator],
             ["latex", this.curGenerator],
-            ["markdown", new MarkdownGenerator(this.parser.typeTable, config, fileOperation, mathLatexGenerator)]
+            ["markdown", new MarkdownGenerator(this.parser.typeTable, config, fileOperation, mathLatexGenerator, "markdown")],
+            ["blog", new MarkdownGenerator(this.parser.typeTable, config, fileOperation, mathLatexGenerator, "blog")]
         ]);
     }
 
@@ -76,7 +77,7 @@ export class Compiler {
         if (generator === "latex") {
             await this.fileOperation.writeFile(this.fileOperation.cacheDirectory + `${this.fileOperation.fileName}.tex`, gen.output);
         }
-        else if (generator === "markdown") {
+        else if (generator === "markdown" || generator === "blog") {
             await this.fileOperation.writeFile(this.fileOperation.cacheDirectory + `${this.fileOperation.fileName}.md`, gen.output);
         }
         else {

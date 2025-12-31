@@ -32,6 +32,12 @@
         "icon" : "$(preview)"
       },
       {
+        "command": "lix.selectCompileTarget",
+        "title": "Select compile target",
+        "category": "Lix",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "lix.parse",
         "title": "Parse the file and generate syntax tree",
         "shortTitle": "Parse",
@@ -99,6 +105,10 @@
     },
     "views": {
       "lix-navigator": [
+        {
+          "id": "lix-command-list",
+          "name": "Commands"
+        },
         {
           "id": "lix-label-list",
           "name": "Label List"

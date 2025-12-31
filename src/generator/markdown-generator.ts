@@ -1176,12 +1176,12 @@ export class MarkdownGenerator extends Generator {
         Proof: string,
     }
 
-    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation, mathGenerator: Generator) {
+    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation, mathGenerator: Generator, template: string) {
         super(typeTable, config, fileOperation);
         this.mathGenerator = mathGenerator;
 
         this.references = [];
-        this.json = JSON.parse(this.configs.get("markdown"));
+        this.json = JSON.parse(this.configs.get(template));
 
         // **************** Types ****************
 

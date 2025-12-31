@@ -7,7 +7,9 @@
   },
   // symbols used as brackets
   "brackets": [
-      ["{", "}"]
+      ["{", "}"],
+      ["[", "]"],
+      ["\\[", "\\]"]
   ],
   // symbols that are auto closed when typing
   "autoClosingPairs": [
@@ -32,7 +34,7 @@
       ["`","`"]
   ],
 
-  "wordPattern": "([0-9a-zA-Z]+)",
+  "wordPattern": "([0-9a-zA-Z]+)|(\\\\])",
 
   "folding": {
     "markers": {

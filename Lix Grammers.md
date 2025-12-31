@@ -58,6 +58,31 @@ skip-blank -> singleline-blank | NULL
 skip-multiline-blank -> multiline-blank | NULL
 ```
 
+等价的标准产生式（EBNF）：
+```ebnf
+nameChar           ::= "A" | ... | "Z" | "a" | ... | "z" | "0" | ... | "9" | "-" ;
+name               ::= nameChar { nameChar } ;
+newline            ::= "\r" | "\n" ;
+blankchar          ::= "\t" | " " | "\v" | "\f" ;
+digit              ::= "0" | ... | "9" ;
+nonNewlineChar     ::= ? any Unicode code point except CR or LF ? ;
+anyChar            ::= ? any Unicode code point ? ;
+nonBacktickNonEOF  ::= ? any Unicode code point except "`" and EOF ? ;
+
+string             ::= "`" { nonNewlineChar } "`"
+                     | "'" { nonNewlineChar } "'"
+                     | "\"" { nonNewlineChar } "\"" ;
+number             ::= ["+" | "-"] digit { digit } ["." digit { digit }] ;
+
+singleline-comment ::= "/" "/" { nonNewlineChar } ;
+ltiline-comment  ::= "/*" { multiline-comment | anyChar } "*/" ;
+
+singleline-blank   ::= { blankchar | multiline-comment } [ singleline-comment ] ;
+multiline-blank    ::= { blankchar | newline | singleline-comment | multiline-comment } ;
+skip-blank         ::= singleline-blank | ε ;
+skip-multiline-blank ::= multiline-blank | ε ;
+```
+
 ### Document & Setting & Block
 
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
@@ -98,6 +123,35 @@ format-block -> <block> + name = emph, bold, italic
 = matchBlock(): Result<Node>
 ```
 
+等价的标准产生式（EBNF）：
+```ebnf
+document      ::= { setting | free-paragraph | block } EOF ;
+
+setting       ::= "#" skip-blank name skip-blank ":" { nonNewlineChar } ;
+
+argument      ::= "@" name
+                | name [ skip-blank ":" skip-blank (name | string) ] ;
+arguments     ::= "(" [ argument { skip-blank "," skip-blank argument } ] ")" | ":" | ε ;
+
+block         ::= "[" skip-blank name skip-blank arguments block-body "]" ;
+(* block-body 由对应 block handler 解释 *)
+
+structural-name ::= "paragraph" | "section" | "subsection" | "subsubsection"
+                  | "tableofcontents" | "newpage" | "title" | "author" | "date"
+                  | "definition" | "lemma" | "proposition" | "theorem" | "corollary" | "proof"
+                  | "bibliography" ;
+basic-name      ::= "text" | "formula" | "figure" | "list" | "table" | "code" ;
+format-name     ::= "emph" | "bold" | "italic" ;
+subblock-name   ::= "image" | "item" | "cell" | "caption" | "bib-item" ;
+structural-block ::= block with name = structural-name ;
+basic-block      ::= block with name = basic-name ;
+format-block     ::= block with name = format-name ;
+subblock         ::= block with name = subblock-name ;
+structural-block-error ::= structural-block ;
+basic-block-error      ::= basic-block ;
+format-block-error     ::= format-block ;
+```
+
 ### Paragraph & Text
 
 本部分给出 paragraph 块, text 块及其简略写法的产生式.
@@ -129,6 +183,55 @@ paragraph-block-handler -> repeat (<par-free-text> | <basic-block> | !<structura
 par-free-text -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *] | \ \ | *<basic-block> | *<structural-block>)
 
 text-block-handler -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
+```
+
+等价的标准产生式（EBNF）：
+```ebnf
+multiline-blank-leq-1 ::= multiline-blank | ε ;   (* 实际实现中区分空行数量 *)
+multiline-blank-gt-1  ::= newline multiline-blank { newline } ;
+
+escape-char    ::= "\" ( "[" | "]" | "(" | ")" | "#" | "@" | "/" ) ;
+reference      ::= "@" name skip-blank ;
+inline-formula ::= "/" elements "/" ;
+inline-code    ::= inline-backtick-open { inline-code-char } inline-backtick-close ;  (* 行内 code，定界符反引号数量一致 *)
+inline-backtick-open  ::= "`" { "`" } ;
+inline-backtick-close ::= inline-backtick-open ;  (* 语义约束：数量与 open 一致 *)
+inline-code-char      ::= anyChar ;               (* 未遇到匹配数量的反引号时均视为内容 *)
+
+free-text      ::= { multiline-blank-leq-1
+                   | escape-char
+                   | reference
+                   | inline-formula
+                   | inline-code
+                   | format-block
+                   | text-char
+                   } ;
+text-char      ::= anyChar - {"\\", "[", "]"} ;
+
+free-paragraph ::= { free-text | basic-block } ;
+(* 结束于 EOF | multiline-blank-gt-1 | structural-block | setting 开头 *)
+
+paragraph-block-handler
+                ::= { par-free-text | basic-block | structural-block-error } ;
+par-free-text  ::= { multiline-blank-leq-1
+                   | escape-char
+                   | reference
+                   | inline-formula
+                   | inline-code
+                   | format-block
+                   | par-char
+                   } ;
+par-char       ::= anyChar - {"\\", "]"} ;
+
+text-block-handler
+                ::= { multiline-blank-leq-1
+                   | escape-char
+                   | reference
+                   | inline-formula
+                   | inline-code
+                   | format-block
+                   | text-char
+                   } ;
 ```
 
 ### Math
@@ -175,6 +278,49 @@ infix -> <expression> <operator> <expression>
 expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)
 ```
 
+等价的标准产生式（EBNF）：
+```ebnf
+formula-block     ::= "[" skip-blank "formula" skip-blank formula-args elements_rbrack "]" ;
+formula-args      ::= "(" [ "style" skip-blank ":" skip-blank ("numbered" | "unnumbered")
+                        [ skip-blank "," skip-blank "line" skip-blank ":" skip-blank ("single" | "multi") ]
+                        | "line" skip-blank ":" skip-blank ("single" | "multi")
+                        ] ")"
+                      | ":" | ε ;
+inline-formula    ::= "/" elements_slash "/" ;
+
+elements_rbrack   ::= { element-piece-rbrack } ;
+element-piece-rbrack ::= multiline-blank-leq-1
+                      | "[" elements_rbrack "]"
+                      | "`" elements_backtick "`"
+                      | escape-element
+                      | inline-text
+                      | element ;
+
+elements_slash    ::= { element-piece-slash } ;
+element-piece-slash ::= multiline-blank-leq-1
+                      | "[" elements_rbrack "]"
+                      | "`" elements_backtick "`"
+                      | escape-element
+                      | inline-text
+                      | element ;
+
+elements_backtick ::= { element-piece-backtick } ;
+element-piece-backtick ::= multiline-blank-leq-1
+                      | "[" elements_rbrack "]"
+                      | "`" elements_backtick "`"
+                      | escape-element
+                      | inline-text
+                      | element ;
+
+escape-element    ::= "@" element ;
+inline-text       ::= "\"" { inline-text-char } "\"" ;
+inline-text-char  ::= anyChar - {"\""} ;
+
+element           ::= notation | symbol ;
+notation          ::= nameChar { nameChar } ;   (* 符号/记号集合取自 math 配置文件 *)
+symbol            ::= unicodeSymbol | asciiSymbol ;  (* 取自 math 配置，含 Unicode *)
+```
+
 ### Core
 
 本部分给出 Core 模块对应功能的产生式, 主要包括 figure, code, table 等基础块以及 emph, bold 等格式块的产生式.
@@ -197,6 +343,72 @@ bold-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <referen
 
 italic-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
 
+```
+
+等价的标准产生式（EBNF）：
+```ebnf
+figure-block     ::= "[" skip-blank "figure" skip-blank arguments figure-body "]" ;
+figure-body      ::= { multiline-blank-leq-1
+                     | image-block
+                     | caption-block
+                     } ;
+image-block      ::= "[" skip-blank "image" skip-blank image-args text-block-handler "]" ;
+image-args       ::= "(" "path" skip-blank ":" skip-blank (string | name) [ skip-blank "," skip-blank "size" skip-blank ":" skip-blank number ] ")" ;
+caption-block    ::= "[" skip-blank "caption" skip-blank arguments text-block-handler "]" ;
+
+list-block       ::= "[" skip-blank "list" skip-blank list-args list-body "]" ;
+list-args        ::= "(" [ "style" skip-blank ":" skip-blank ("numbered" | "unnumbered") ] ")" | ":" | ε ;
+list-body        ::= { list-item | free-item } ;
+list-item        ::= "[" skip-blank "item" skip-blank item-args paragraph-block-handler "]" ;
+item-args        ::= "(" [ "level" skip-blank ":" skip-blank ("first" | "second" | "third" | "fourth") ] ")" | ":" | ε ;
+free-item        ::= "*" { "*" } free-item-body ;   (* 1~4 个 * 表示层级 *)
+free-item-body   ::= paragraph-block-handler ;      (* 结束于新项、空行>1、"]" *)
+
+table-block      ::= "[" skip-blank "table" skip-blank arguments table-body "]" ;
+table-body       ::= row { ";" row } ;
+row              ::= cell { "&" cell } ;
+cell             ::= "[" skip-blank "cell" skip-blank cell-args paragraph-block-handler "]"
+                   | free-cell ;
+cell-args        ::= "(" [ "width" skip-blank ":" skip-blank number ] [ skip-blank "," skip-blank "height" skip-blank ":" skip-blank number ] ")" | ":" | ε ;
+free-cell        ::= paragraph-block-handler ;      (* 结束于 '&' | ';' | ']' | 空行>1 *)
+
+code-block       ::= "[" skip-blank "code" skip-blank arguments code-body "]" ;
+code-body        ::= code-open newline { code-char } code-close ;
+code-open        ::= "`" { "`" } ;     (* 至少 1 个反引号，记录数量 N *)
+code-close       ::= "`" { "`" } ;     (* 同样 N 个反引号作为结束标记；内部 ']' 不终止 *)
+code-char        ::= anyChar ;         (* 行内反引号计数不达 N 视为内容 *)
+
+emph-block       ::= "[" skip-blank "emph" skip-blank arguments text-block-handler "]" ;
+bold-block       ::= "[" skip-blank "bold" skip-blank arguments text-block-handler "]" ;
+italic-block     ::= "[" skip-blank "italic" skip-blank arguments text-block-handler "]" ;
+```
+
+### Article
+
+Article 模块（标题/章节/文献/数学环境等）的产生式。
+
+```ebnf
+section-block      ::= "[" skip-blank "section" skip-blank section-args paragraph-block-handler "]" ;
+subsection-block   ::= "[" skip-blank "subsection" skip-blank section-args paragraph-block-handler "]" ;
+subsubsection-block::= "[" skip-blank "subsubsection" skip-blank section-args paragraph-block-handler "]" ;
+section-args       ::= "(" [ "style" skip-blank ":" skip-blank ("numbered" | "unnumbered") ] ")" | ":" | ε ;
+
+title-block        ::= "[" skip-blank "title" skip-blank arguments text-block-handler "]" ;
+author-block       ::= "[" skip-blank "author" skip-blank arguments text-block-handler "]" ;
+date-block         ::= "[" skip-blank "date" skip-blank arguments text-block-handler "]" ;
+tableofcontents-block ::= "[" skip-blank "tableofcontents" skip-blank arguments text-block-handler "]" ;
+newpage-block      ::= "[" skip-blank "newpage" skip-blank arguments text-block-handler "]" ;
+
+bibliography-block ::= "[" skip-blank "bibliography" skip-blank arguments bibliography-body "]" ;
+bibliography-body  ::= { bib-item-block } ;
+bib-item-block     ::= "[" skip-blank "bib-item" skip-blank arguments text-block-handler "]" ;
+
+definition-block   ::= "[" skip-blank "definition" skip-blank arguments paragraph-block-handler "]" ;
+lemma-block        ::= "[" skip-blank "lemma" skip-blank arguments paragraph-block-handler "]" ;
+proposition-block  ::= "[" skip-blank "proposition" skip-blank arguments paragraph-block-handler "]" ;
+theorem-block      ::= "[" skip-blank "theorem" skip-blank arguments paragraph-block-handler "]" ;
+corollary-block    ::= "[" skip-blank "corollary" skip-blank arguments paragraph-block-handler "]" ;
+proof-block        ::= "[" skip-blank "proof" skip-blank arguments paragraph-block-handler "]" ;
 ```
 
 ## Implement
