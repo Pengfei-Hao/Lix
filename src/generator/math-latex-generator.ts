@@ -1,5 +1,6 @@
+import { Compiler } from "../compiler/compiler";
 import { Config } from "../compiler/config";
-import { FileOperation } from "../compiler/file-operation";
+import { FileSystem } from "../compiler/file-system";
 import { Reference } from "../parser/result";
 import { Node } from "../sytnax-tree/node";
 import { Type } from "../sytnax-tree/type";
@@ -34,8 +35,8 @@ export class MathLatexGenerator extends Generator {
         Default: string
     }
 
-    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation) {
-        super(typeTable, config, fileOperation);
+    constructor(compiler: Compiler) {
+        super(compiler);
 
         this.formulaType = this.typeTable.get("formula");
         this.elementType = this.typeTable.get("element");
@@ -46,7 +47,7 @@ export class MathLatexGenerator extends Generator {
 
         this.latexSymbolsAndNotations = new Map();
         this.latexOperator = new Map();
-        this.json = JSON.parse(this.configs.get("formula-latex"));
+        this.json = JSON.parse(this.config.get("formula-latex"));
         for (let [key, value] of this.json.SymbolsAndNotations) {
             this.latexSymbolsAndNotations.set(key, value);
         }

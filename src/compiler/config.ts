@@ -1,15 +1,12 @@
-export abstract class Config {
 
-    configs: Map<string, string>;
+export interface Config {
 
-    settings: { language: string };
+    settings: {
+        locale: string;
+        cacheDirectory: string;
+    };
 
-    constructor() {
-        this.configs = new Map();
-        this.settings = { language: "en-US" };
-    }
+    get(name: string): string;
 
-    abstract get(name: string): string;
-
-    abstract set(name: string, content: string): void;
+    set(name: string, content: string): void;
 }

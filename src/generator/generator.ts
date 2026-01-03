@@ -1,15 +1,21 @@
 import { Config } from "../compiler/config";
-import { FileOperation } from "../compiler/file-operation";
+import { FileSystem } from "../compiler/file-system";
 import { Reference } from "../parser/result";
 import { Node } from "../sytnax-tree/node";
 import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
-import { GeneratorText, getGeneratorText } from "../foundation/i18n";
 import "../foundation/format";
+import { GeneratorTexts } from "./texts";
+import { Compiler } from "../compiler/compiler";
 
 export abstract class Generator {
 
-    private lang: GeneratorText;
+    // Compiler
+    compiler: Compiler;
+    protected typeTable: TypeTable;
+    protected config: Config;
+    protected fileSystem: FileSystem;
+    protected texts: GeneratorTexts;
 
     // **************** Types ****************
 
@@ -26,14 +32,15 @@ export abstract class Generator {
     numberType: Type;
     referenceType: Type;
 
-    constructor(
-        public typeTable: TypeTable,
+    constructor(compiler: Compiler) {
 
-        public configs: Config,
-        public fileOperation: FileOperation
-    ) {
+        this.compiler = compiler;
+        this.typeTable = compiler.typeTable;
+        this.config = compiler.config;
+        this.fileSystem = compiler.fileSystem;
+        this.texts = compiler.texts.Generator;
+
         this.output = "";
-        this.lang = getGeneratorText(configs.get("i18n"), configs.settings.language);
 
         // parser
 
@@ -64,7 +71,7 @@ export abstract class Generator {
             return undefined;
         }
         let args = node.children[0];
-        if(args.type !== this.argumentsType) {
+        if (args.type !== this.argumentsType) {
             return undefined;
         }
 

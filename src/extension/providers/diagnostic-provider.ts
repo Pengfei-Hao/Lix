@@ -1,23 +1,23 @@
 import * as vscode from 'vscode';
-import { LixContext } from './lix-context';
-import { MessageType } from '../foundation/message';
-import { ResultState } from '../parser/result';
-import { diagnosticCollection } from '../extension';
+import { CompilerManager } from '../compiler-manager';
+import { MessageType } from '../../parser/message';
+import { ResultState } from '../../parser/result';
+import { diagnosticCollection } from '../../extension';
 
 
-export function updateDiagnostic(document: vscode.TextDocument, context: LixContext) {
+export function updateDiagnostic(document: vscode.TextDocument, context: CompilerManager) {
 
-    let parser = context.getCompiler(document.uri).parser;
-    let messageList = parser.messages;
+	let parser = context.getCompiler(document.uri).parser;
+	let messageList = parser.messages;
 	let state = parser.state;
 
-    let diags: vscode.Diagnostic[] = [];
-	for(let msg of messageList) {
+	let diags: vscode.Diagnostic[] = [];
+	for (let msg of messageList) {
 		let begin = parser.getLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
 		let end = parser.getLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
 
 		let diag = new vscode.Diagnostic(new vscode.Range(begin.line, begin.character, end.line, end.character), msg.toString());
-		switch(msg.type) {
+		switch (msg.type) {
 			case MessageType.message:
 				diag.severity = vscode.DiagnosticSeverity.Information;
 				break;
@@ -32,7 +32,7 @@ export function updateDiagnostic(document: vscode.TextDocument, context: LixCont
 	}
 
 	let st = "";
-	switch(state) {
+	switch (state) {
 		case ResultState.successful:
 			st = "successful";
 			break;
@@ -47,7 +47,7 @@ export function updateDiagnostic(document: vscode.TextDocument, context: LixCont
 			break;
 	}
 
-	let diag = new vscode.Diagnostic(new vscode.Range(0,0,0,1),"State: " + st, vscode.DiagnosticSeverity.Information);
+	let diag = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "State: " + st, vscode.DiagnosticSeverity.Information);
 	diags.push(diag);
 
 	diagnosticCollection.set(document.uri, diags);

@@ -1,7 +1,7 @@
 import { Node } from "../sytnax-tree/node";
 import { NodeResult } from "./result";
 import { LixError } from "../foundation/error";
-import { exceptionText } from "../foundation/i18n";
+import { parserExceptionTexts } from "./texts";
 
 export type BlockHandler = (args: Node) => NodeResult;
 
@@ -41,7 +41,7 @@ export class BlockTable {
 
     add(name: string, handler: BlockHandler, thisArg?: unknown, blockOption?: BlockOption) {
         if (this.has(name)) {
-            throw new LixError(exceptionText.BlockHandlerAlreadyExists.format(name));
+            throw new LixError(parserExceptionTexts.BlockHandlerAlreadyExists.format(name));
         }
         this.handlers.set(name, handler.bind(thisArg));
         let options = blockOption ?? new BlockOption();

@@ -19,35 +19,42 @@
         "category": "Lix"
       },
       {
+        "command": "lix.test",
+        "title": "Test Lix",
+        "category": "Lix"
+      },
+      {
+        "command": "lix.parse",
+        "title": "Parse file and build syntax tree",
+        "shortTitle": "Parse",
+        "category": "Lix",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "lix.analyse",
+        "title": "Analyse syntax tree",
+        "shortTitle": "Analyse",
+        "category": "Lix",
+        "icon": "$(list-tree)"
+      },
+      {
         "command": "lix.generate",
-        "title": "Generate target (LaTeX, Markdown...) code",
+        "title": "Generate target output",
         "shortTitle": "Generate",
         "category": "Lix",
         "icon": "$(file-code)"
       },
       {
         "command": "lix.compile",
-        "title": "Compile Lix file to PDF",
+        "title": "Compile document",
         "category": "Lix",
-        "icon" : "$(preview)"
+        "icon": "$(preview)"
       },
       {
-        "command": "lix.selectCompileTarget",
-        "title": "Select compile target",
+        "command": "lix.pick",
+        "title": "Pick generate target",
         "category": "Lix",
         "icon": "$(settings-gear)"
-      },
-      {
-        "command": "lix.parse",
-        "title": "Parse the file and generate syntax tree",
-        "shortTitle": "Parse",
-        "category": "Lix",
-        "icon": "$(list-tree)"
-      },
-      {
-        "command": "lix.test",
-        "title": "Test Lix",
-        "category": "Lix"
       },
       {
         "command": "lix.debug",
@@ -122,6 +129,40 @@
           "name": "Math List"
         }
       ]
+    },
+    "configuration": {
+      "title": "Lix",
+      "properties": {
+        "lix.locale": {
+          "type": "string",
+          "enum": [
+            "zh-CN",
+            "en-US"
+          ],
+          "default": "en-US",
+          "description": "UI language for Lix."
+        },
+        "lix.latexCommand.mac": {
+          "type": "string",
+          "default": "xelatex -synctex=1 -interaction=nonstopmode",
+          "description": "Command used to invoke LaTeX on macOS."
+        },
+        "lix.latexCommand.linux": {
+          "type": "string",
+          "default": "xelatex -synctex=1 -interaction=nonstopmode",
+          "description": "Command used to invoke LaTeX on Linux."
+        },
+        "lix.latexCommand.windows": {
+          "type": "string",
+          "default": "xelatex.exe -synctex=1 -interaction=nonstopmode",
+          "description": "Command used to invoke LaTeX on Windows."
+        },
+        "lix.cacheDirectory": {
+          "type": "string",
+          "default": ".lix",
+          "description": "Directory for temporary build artifacts. Relative paths are resolved from the current Lix file."
+        }
+      }
     }
   },
   "scripts": {
@@ -133,22 +174,23 @@
     "test": "node ./out/test/runTest.js"
   },
   "dependencies": {
+    "vscode-languageclient": "^7.0.0",
     "vscode-languageserver": "^7.0.0",
-    "vscode-languageserver-textdocument": "^1.0.1",
-    "vscode-languageclient": "^7.0.0"
+    "vscode-languageserver-textdocument": "^1.0.1"
   },
   "devDependencies": {
-    "@types/vscode": "^1.77.0",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
+    "@types/vscode": "^1.77.0",
     "@typescript-eslint/eslint-plugin": "^5.56.0",
     "@typescript-eslint/parser": "^5.56.0",
+    "@vscode/test-electron": "^2.3.0",
     "eslint": "^8.36.0",
     "glob": "^8.1.0",
     "mocha": "^10.2.0",
+    "pdfjs-dist": "^3.10.111",
     "typescript": "^4.9.5",
-    "@vscode/test-electron": "^2.3.0",
-    "pdfjs-dist": "^3.10.111"
+    "vscode-uri": "^3.1.0"
   }
 }

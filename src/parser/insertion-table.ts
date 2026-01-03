@@ -1,8 +1,6 @@
-
-import { Node } from "../sytnax-tree/node";
 import { NodeResult } from "./result";
 import { LixError } from "../foundation/error";
-import { exceptionText } from "../foundation/i18n";
+import { parserExceptionTexts } from "./texts";
 
 export type InsertionHandler = () => NodeResult;
 
@@ -19,7 +17,7 @@ export class InsertionTable {
 
     add(name: string, handler: InsertionHandler, thisArg?: unknown) {
         if (this.has(name)) {
-            throw new LixError(exceptionText.InsertionHandlerAlreadyExists.format(name));;
+            throw new LixError(parserExceptionTexts.InsertionHandlerAlreadyExists.format(name));;
         }
         this.insertionHandlers.set(name, handler.bind(thisArg));
     }

@@ -1,26 +1,25 @@
 import * as vscode from 'vscode';
-import { LixContext } from './lix-context';
-import { HighlightType } from '../parser/result';
-import { parseFromDocument } from '../extension';
+import { CompilerManager } from '../compiler-manager';
+import { HighlightType } from '../../parser/result';
 
 export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
-  context: LixContext;
+  context: CompilerManager;
   legend: vscode.SemanticTokensLegend;
 
-  constructor(context: LixContext, legend: vscode.SemanticTokensLegend) {
+  constructor(context: CompilerManager, legend: vscode.SemanticTokensLegend) {
     this.context = context;
     this.legend = legend;
   }
 
   provideDocumentSemanticTokens(document: vscode.TextDocument): vscode.ProviderResult<vscode.SemanticTokens> {
-    
+
     // analyze the document and return semantic tokens
     //parseFromDocument(document);
 
     const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend);
     // on line 1, characters 1-5 are a class declaration
-    
+
     let parser = this.context.getCompiler(document.uri).parser;
     let highlights = parser.highlights;
     for (let hlt of highlights) {
@@ -46,10 +45,10 @@ export class LixSemanticProvider implements vscode.DocumentSemanticTokensProvide
       let lp = parser.getLineAndCharacter(hlt.begin);
       let lpe = parser.getLineAndCharacter(hlt.end);
 
-      if(lp.line != lpe.line) {
+      if (lp.line != lpe.line) {
         console.log(`${lp.line},${lp.character}:${lpe.line},${lpe.character}`);
       }
-      if(lp.line == -1 || lpe.line == -1) {
+      if (lp.line == -1 || lpe.line == -1) {
         console.log(`${lp.line},${lpe.line}`);
       }
 

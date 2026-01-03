@@ -7,7 +7,7 @@ import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
 import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
-import { FileOperation } from "../compiler/file-operation";
+import { FileSystem } from "../compiler/file-system";
 import { Config } from "../compiler/config";
 import { Reference } from "../parser/result";
 
@@ -147,15 +147,15 @@ export class LatexGenerator extends Generator {
         Proof: string,
     }
 
-    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation, mathGenerator: Generator) {
-        super(typeTable, config, fileOperation);
+    constructor(compiler: Compiler, mathGenerator: Generator) {
+        super(compiler);
         this.mathGenerator = mathGenerator;
 
         this.introduction = "";
         this.document = "";
         this.hasMakedTitle = false;
         this.references = [];
-        this.json = JSON.parse(this.configs.get("latex"));
+        this.json = JSON.parse(this.config.get("latex"));
 
         // **************** Types ****************
 
@@ -271,7 +271,7 @@ export class LatexGenerator extends Generator {
     // 下面的 generate 类函数行尾没有换行
 
     // Generate
-    async generate(syntaxTree: Node, references: Reference[]) {
+    generate(syntaxTree: Node, references: Reference[]) {
 
         this.init();
 
@@ -304,7 +304,7 @@ export class LatexGenerator extends Generator {
 
         this.addIntrodunction(`\\usepackage{hyperref}\n\\hypersetup{hypertex=true, colorlinks=true, linkcolor=blue, anchorcolor=blue, citecolor=blue}`);
 
-        this.addContent(await this.generateDocument(syntaxTree));
+        this.addContent(this.generateDocument(syntaxTree));
 
         this.output = `\\documentclass{article}\n${this.introduction}\n\\begin{document}\n${this.document}\n\\end{document}`;
 
@@ -605,11 +605,11 @@ export class LatexGenerator extends Generator {
     generateImage(single: boolean, node: Node): string {
         let path = this.getArgument(node, "path")!;
         let content = path;
-        if(this.fileOperation.getFileExtension(path) === "tikz") {
-            content = this.fileOperation.readFileByRecord(path);
+        if (this.fileSystem.path.extname(path) === ".tikz") {
+            content = this.fileSystem.readTextFileByRecord(this.fileSystem.pathToUri(path)) ?? "";
         }
         else {
-            this.fileOperation.copyFile(path, this.fileOperation.cacheDirectory);
+            this.fileSystem.copyByRecord(this.fileSystem.pathToUri(path), this.fileSystem.cacheDirectoryUri);
         }
 
         if (single) {
@@ -678,7 +678,7 @@ export class LatexGenerator extends Generator {
             }
 
         }
-        
+
         return this.json.Table.format({ args: "c".repeat(columnCount), content: res, caption: "", reference: "" });
     }
 

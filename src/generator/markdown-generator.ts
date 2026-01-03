@@ -7,7 +7,7 @@ import { Type } from "../sytnax-tree/type";
 import { TypeTable } from "../sytnax-tree/type-table";
 import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
-import { FileOperation } from "../compiler/file-operation";
+import { FileSystem } from "../compiler/file-system";
 import { Config } from "../compiler/config";
 import { Reference } from "../parser/result";
 
@@ -224,7 +224,7 @@ import { Reference } from "../parser/result";
 //             [this.propositionType, this.generateProposition],
 //             [this.proofType, this.generateProof],
 //         ]);
-        
+
 //         for (let n of node.children) {
 //             if (n.type === this.settingType) {
 //                 res += this.generateSetting(n);
@@ -1176,12 +1176,12 @@ export class MarkdownGenerator extends Generator {
         Proof: string,
     }
 
-    constructor(typeTable: TypeTable, config: Config, fileOperation: FileOperation, mathGenerator: Generator, template: string) {
-        super(typeTable, config, fileOperation);
+    constructor(compiler: Compiler, mathGenerator: Generator, template: string) {
+        super(compiler);
         this.mathGenerator = mathGenerator;
 
         this.references = [];
-        this.json = JSON.parse(this.configs.get(template));
+        this.json = JSON.parse(this.config.get(template));
 
         // **************** Types ****************
 
@@ -1289,7 +1289,7 @@ export class MarkdownGenerator extends Generator {
     // 下面的 generate 类函数行尾没有换行
 
     // Generate
-    async generate(syntaxTree: Node, references: Reference[]) {
+    generate(syntaxTree: Node, references: Reference[]) {
         this.init();
         this.references = references;
 
@@ -1555,11 +1555,11 @@ export class MarkdownGenerator extends Generator {
         }
 
         let res = "";
-            for (let n of node.children) {
-                if (n.type === this.imageType) {
-                    res += this.generateImage(false, n);
-                }
+        for (let n of node.children) {
+            if (n.type === this.imageType) {
+                res += this.generateImage(false, n);
             }
+        }
 
         return this.json.Figure.format({ content: res, caption: caption === undefined ? "" : this.generateCaption(caption), reference: refLatex });
     }
@@ -1569,7 +1569,7 @@ export class MarkdownGenerator extends Generator {
     generateImage(single: boolean, node: Node): string {
         let path = this.getArgument(node, "path")!;
         let content = path;
-        this.fileOperation.copyFile(path, this.fileOperation.cacheDirectory);
+        this.fileSystem.copyByRecord(this.fileSystem.pathToUri(path), this.fileSystem.cacheDirectoryUri);
 
         if (single) {
             return this.json.Image.format({ size: this.getArgument(node, "size")!, path: content });
@@ -1637,7 +1637,7 @@ export class MarkdownGenerator extends Generator {
             }
 
         }
-        
+
         return this.json.Table.format({ args: "c".repeat(columnCount), content: res, caption: "", reference: "" });
     }
 

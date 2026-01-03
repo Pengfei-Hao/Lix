@@ -1,15 +1,14 @@
 import * as vscode from 'vscode';
-import { Parser } from '../parser/parser';
-import { LixContext } from './lix-context';
-import { Node } from '../sytnax-tree/node';
-import * as file from 'fs';
-import { Type } from '../sytnax-tree/type';
-import { ArgumentType } from '../parser/block-table';
+import { Parser } from '../../parser/parser';
+import { CompilerManager } from '../compiler-manager';
+import { Node } from '../../sytnax-tree/node';
+import { Type } from '../../sytnax-tree/type';
+import { ArgumentType } from '../../parser/block-table';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {
-    context: LixContext;
+    context: CompilerManager;
 
-    constructor(context: LixContext) {
+    constructor(context: CompilerManager) {
         this.context = context;
     }
 
@@ -94,11 +93,11 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && (context.triggerCharacter == "(" || context.triggerCharacter == ",")) {
             let node = this.where(parser.blockType, parser.syntaxTree, parser.getIndex(position.line, position.character)!);
             if (node) {
-                if(context.triggerCharacter == "," && !this.where(parser.argumentsType, parser.syntaxTree, parser.getIndex(position.line, position.character)!)) {
+                if (context.triggerCharacter == "," && !this.where(parser.argumentsType, parser.syntaxTree, parser.getIndex(position.line, position.character)!)) {
                     return res;
                 }
                 let argNode = node.children.at(0);
-                if(context.triggerCharacter == "(" && argNode && argNode.type === parser.argumentsType && argNode.begin != argNode.end) {
+                if (context.triggerCharacter == "(" && argNode && argNode.type === parser.argumentsType && argNode.begin != argNode.end) {
                     return res;
                 }
                 let compiler = this.context.getCompiler(document.uri);

@@ -2,15 +2,13 @@ import { Node } from "../../sytnax-tree/node";
 import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
-import { BasicResult, FileOperationType, HighlightType, NodeResult, Result, ResultState } from "../result";
-import { MessageType } from "../../foundation/message";
+import { BasicResult, HighlightType, NodeResult, Result, ResultState } from "../result";
+import { MessageType } from "../message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
 import { LixError } from "../../foundation/error";
-import { exceptionText } from "../../foundation/i18n";
+import { parserExceptionTexts } from "../texts";
 
 export class Core extends Module {
-
-    private lang = this.parser.lang;
 
     // types of syntax tree node
 
@@ -37,18 +35,18 @@ export class Core extends Module {
         // **************** Types ****************
 
         // Init syntax tree node type
-        this.figureType = this.parser.typeTable.add("figure");
-        this.imageType = this.parser.typeTable.add("image");
-        this.codeType = this.parser.typeTable.add("code");
-        this.listType = this.parser.typeTable.add("list");
-        this.itemType = parser.typeTable.add("item");
-        this.tableType = this.parser.typeTable.add("table");
-        this.cellType = this.parser.typeTable.add("cell");
-        this.captionType = this.parser.typeTable.add("caption");
+        this.figureType = this.typeTable.add("figure");
+        this.imageType = this.typeTable.add("image");
+        this.codeType = this.typeTable.add("code");
+        this.listType = this.typeTable.add("list");
+        this.itemType = this.typeTable.add("item");
+        this.tableType = this.typeTable.add("table");
+        this.cellType = this.typeTable.add("cell");
+        this.captionType = this.typeTable.add("caption");
 
-        this.emphType = this.parser.typeTable.add("emph");
-        this.boldType = this.parser.typeTable.add("bold");
-        this.italicType = this.parser.typeTable.add("italic");
+        this.emphType = this.typeTable.add("emph");
+        this.boldType = this.typeTable.add("bold");
+        this.italicType = this.typeTable.add("italic");
 
         // **************** Basic Blocks ****************
 
@@ -193,13 +191,13 @@ export class Core extends Module {
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage(this.lang.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
             else if (this.parser.isMultilineBlankGtOne()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage(this.lang.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
 
@@ -407,7 +405,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock("image", "caption")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage(this.lang.FigureDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
+                result.addMessage(this.texts.FigureDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -422,7 +420,7 @@ export class Core extends Module {
             }
 
             else {
-                result.addMessage(this.lang.FigureDisallowsText, MessageType.error, preIndex, 0, 1);
+                result.addMessage(this.texts.FigureDisallowsText, MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }
@@ -435,11 +433,11 @@ export class Core extends Module {
         let result = this.parser.formatLikeBlockHandler("image", this.imageType, args);
         result.discarded = false;
         let path = this.parser.getArgument(args, "path");
-        if(this.parser.fileOperation.getFileExtension(path) === "tikz") {
-            result.addFileRecord(FileOperationType.readFile, path, "");
+        if(this.fileSystem.path.extname(path) === ".tikz") {
+            result.addFileRecord({ kind: 'readFile' , uri: this.fileSystem.pathToUri(path)});
         }
         else {
-            result.addFileRecord(FileOperationType.copyFile, path, this.parser.fileOperation.cacheDirectory);
+            result.addFileRecord({ kind: 'copy', source: this.fileSystem.pathToUri(path), target: this.fileSystem.cacheDirectoryUri });
         }
         return result;
     }
@@ -477,7 +475,7 @@ export class Core extends Module {
 
         result.merge(this.parser.match("\n"));
         if (result.shouldTerminate) {
-            result.addMessage(this.lang.CodeBlockHeaderRequiresNewline, MessageType.error, this.parser.index, 0, 1);
+            result.addMessage(this.texts.CodeBlockHeaderRequiresNewline, MessageType.error, this.parser.index, 0, 1);
             return;
         }
 
@@ -485,7 +483,7 @@ export class Core extends Module {
         while (true) {
             if (this.parser.isEOF()) {
                 result.mergeState(ResultState.skippable);
-                result.addMessage(this.lang.CodeBlockEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
+                result.addMessage(this.texts.CodeBlockEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
                 return;
             }
             else if (this.parser.is("]")) {
@@ -544,7 +542,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "item")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage(this.lang.ListDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
+                result.addMessage(this.texts.ListDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((nodeRes = this.matchFreeItem()).matched) {
@@ -562,7 +560,7 @@ export class Core extends Module {
 
             else {
                 // 理论上不会出现
-                throw new LixError(exceptionText.LogicalMatchListItemFailed);
+                throw new LixError(parserExceptionTexts.LogicalMatchListItemFailed);
             }
         }
     }
@@ -629,7 +627,7 @@ export class Core extends Module {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError(exceptionText.LogicalFreeListBranch);
+                throw new LixError(parserExceptionTexts.LogicalFreeListBranch);
             }
         }
     }
@@ -783,7 +781,7 @@ export class Core extends Module {
             else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "cell")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage(this.lang.TableDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
+                result.addMessage(this.texts.TableDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((res = this.parser.match("&")).matched) {
@@ -823,7 +821,7 @@ export class Core extends Module {
 
             else {
                 // 理论上不会出现
-                throw new LixError(exceptionText.LogicalMatchTableCellFailed);
+                throw new LixError(parserExceptionTexts.LogicalMatchTableCellFailed);
             }
         }
     }
@@ -881,7 +879,7 @@ export class Core extends Module {
                 result.mergeNodeToChildren(nodeRes);
             }
             else {
-                throw new LixError(exceptionText.LogicalFreeCellBranch);
+                throw new LixError(parserExceptionTexts.LogicalFreeCellBranch);
             }
         }
     }

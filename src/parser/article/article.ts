@@ -3,12 +3,10 @@ import { Type } from "../../sytnax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
 import { NodeResult, Result, ResultState } from "../result";
-import { MessageType } from "../../foundation/message";
+import { MessageType } from "../message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
 
 export class Article extends Module {
-
-    private lang = this.parser.lang;
 
     // types of syntax tree node
 
@@ -48,9 +46,9 @@ export class Article extends Module {
         this.parser.blockTable.add("subsection", this.subsectionBlockHandler, this, sectionOption);
         this.parser.blockTable.add("subsubsection", this.subsubsectionBlockHandler, this, sectionOption);
 
-        this.sectionType = this.parser.typeTable.add("section");
-        this.subsectionType = this.parser.typeTable.add("subsection");
-        this.subsubsectionType = this.parser.typeTable.add("subsubsection");
+        this.sectionType = this.typeTable.add("section");
+        this.subsectionType = this.typeTable.add("subsection");
+        this.subsubsectionType = this.typeTable.add("subsubsection");
 
         // **************** Document ****************
 
@@ -65,11 +63,11 @@ export class Article extends Module {
         this.parser.blockTable.add("author", this.authorBlockHandler, this, defaultOption);
         this.parser.blockTable.add("date", this.dateBlockHandler, this, defaultOption);
 
-        this.tableofcontentsType = this.parser.typeTable.add("tableofcontents");
-        this.newpageType = this.parser.typeTable.add("newpage");
-        this.titleType = this.parser.typeTable.add("title");
-        this.authorType = this.parser.typeTable.add("author");
-        this.dateType = this.parser.typeTable.add("date");
+        this.tableofcontentsType = this.typeTable.add("tableofcontents");
+        this.newpageType = this.typeTable.add("newpage");
+        this.titleType = this.typeTable.add("title");
+        this.authorType = this.typeTable.add("author");
+        this.dateType = this.typeTable.add("date");
 
         // **************** Bibliography ****************
 
@@ -83,8 +81,8 @@ export class Article extends Module {
             allowReference: true
         });
 
-        this.bibliographyType = this.parser.typeTable.add("bibliography");
-        this.bibItemType = this.parser.typeTable.add("bib-item");
+        this.bibliographyType = this.typeTable.add("bibliography");
+        this.bibItemType = this.typeTable.add("bib-item");
 
         // **************** Math Envirionment ****************
 
@@ -102,12 +100,12 @@ export class Article extends Module {
         this.parser.blockTable.add("proof", this.proofBlockHandler, this, mathOption);
 
         // 此 definition 与 math 冲突了
-        this.definitionType = this.parser.typeTable.add("definition'");
-        this.lemmaType = this.parser.typeTable.add("lemma");
-        this.propositionType = this.parser.typeTable.add("proposition");
-        this.theoremType = this.parser.typeTable.add("theorem");
-        this.corollaryType = this.parser.typeTable.add("corollary");
-        this.proofType = this.parser.typeTable.add("proof");
+        this.definitionType = this.typeTable.add("definition'");
+        this.lemmaType = this.typeTable.add("lemma");
+        this.propositionType = this.typeTable.add("proposition");
+        this.theoremType = this.typeTable.add("theorem");
+        this.corollaryType = this.typeTable.add("corollary");
+        this.proofType = this.typeTable.add("proof");
     }
 
     init() {
@@ -187,7 +185,7 @@ export class Article extends Module {
             else if (this.parser.isNonSomeBlock("bib-item")) {
                 result.mergeState(ResultState.skippable);
                 let length = this.parser.skipByBrackets();
-                result.addMessage(this.lang.BibliographyDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
+                result.addMessage(this.texts.BibliographyDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
@@ -202,7 +200,7 @@ export class Article extends Module {
             }
 
             else {
-                result.addMessage(this.lang.BibliographyDisallowsText, MessageType.error, preIndex, 0, 1);
+                result.addMessage(this.texts.BibliographyDisallowsText, MessageType.error, preIndex, 0, 1);
                 result.mergeState(ResultState.skippable);
                 this.parser.move();
             }

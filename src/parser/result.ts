@@ -1,8 +1,9 @@
 import { Node } from "../sytnax-tree/node";
 import { LixError } from "../foundation/error";
-import { Message, MessageType } from "../foundation/message";
+import { Message, MessageType } from "./message";
 import { Type } from "../sytnax-tree/type";
-import { exceptionText } from "../foundation/i18n";
+import { parserExceptionTexts } from "./texts";
+import { FileSystemRecord } from "../compiler/file-system";
 
 export enum HighlightType {
     operator,
@@ -45,24 +46,6 @@ export enum ResultState {
     failing = 0
 }
 
-export enum FileOperationType {
-    readFile,
-    copyFile,
-    writeFile,
-    createDirectory,
-    getFilesInDirectory
-}
-
-export class FileRecord {
-    constructor(
-        public type: FileOperationType,
-        public from: string,
-        public to: string,
-        public result: undefined | string | string[]
-    ) {
-    }
-}
-
 // **************** Result ****************
 
 export class BasicResult {
@@ -78,7 +61,7 @@ export class BasicResult {
         public messages: Message[] = [],
         public highlights: Highlight[] = [],
         public references: Reference[] = [],
-        public fileRecords: FileRecord[] = []
+        public fileRecords: FileSystemRecord[] = []
     ) {
         this.state = ResultState.failing;
         this.promotedToMatched = false;
@@ -89,13 +72,13 @@ export class BasicResult {
     get shouldTerminate(): boolean {
         if (this.promotedToMatched) {
             if (this.state === ResultState.failing) {
-                throw new LixError(exceptionText.ResultShouldTerminateLogicError);
+                throw new LixError(parserExceptionTexts.ResultShouldTerminateLogicError);
             }
             return this.state === ResultState.matched;
         }
         else {
             if (this.state === ResultState.matched) {
-                throw new LixError(exceptionText.ResultShouldTerminateLogicError);
+                throw new LixError(parserExceptionTexts.ResultShouldTerminateLogicError);
             }
             return this.state === ResultState.failing;
         }
@@ -117,13 +100,13 @@ export class BasicResult {
     promoteToSkippable() {
         if (this.promotedToMatched) {
             if (this.state !== ResultState.matched) {
-                throw new LixError(exceptionText.ResultPromoteLogicError);
+                throw new LixError(parserExceptionTexts.ResultPromoteLogicError);
             }
             this.state = ResultState.skippable;
         }
         else {
             if (this.state !== ResultState.failing) {
-                throw new LixError(exceptionText.ResultPromoteLogicError);
+                throw new LixError(parserExceptionTexts.ResultPromoteLogicError);
             }
             this.state = ResultState.skippable;
         }
@@ -149,7 +132,7 @@ export class BasicResult {
             const table = [[-1, -1, -1, -1], [1, 1, 2, 3], [1, 1, 2, 2], [1, 1, 2, 3]]
             let res = table[this.state][state];
             if (res === -1) {
-                throw new LixError(exceptionText.ResultMergeLogicError);
+                throw new LixError(parserExceptionTexts.ResultMergeLogicError);
             }
             else {
                 this.state = res;
@@ -159,7 +142,7 @@ export class BasicResult {
             const table = [[0, 0, 2, 3], [-1, -1, -1, -1], [0, 0, 2, 2], [0, 0, 2, 3]]
             let res = table[this.state][state];
             if (res === -1) {
-                throw new LixError(exceptionText.ResultMergeLogicError);
+                throw new LixError(parserExceptionTexts.ResultMergeLogicError);
             }
             else {
                 this.state = res;
@@ -218,8 +201,8 @@ export class BasicResult {
     }
 
     // file operation
-    addFileRecord(type: FileOperationType, from: string, to: string) {
-        this.fileRecords.push(new FileRecord(type, from, to, undefined));
+    addFileRecord(record: FileSystemRecord) {
+        this.fileRecords.push(record);
     }
 }
 

@@ -1,67 +1,68 @@
 import * as vscode from 'vscode';
-import { LixContext } from './lix-context';
+import { CompilerManager } from '../compiler-manager';
 
 export class LixFoldingRangeProvider implements vscode.FoldingRangeProvider {
-    context: LixContext;
+    context: CompilerManager;
 
-    constructor(context: LixContext) {
+    constructor(context: CompilerManager) {
         this.context = context;
     }
 
     provideFoldingRanges(document: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
         let res: vscode.FoldingRange[] = [];
-        let parser = this.context.getCompiler(document.uri).parser;
+        let compiler = this.context.getCompiler(document.uri);
+        let parser = compiler.parser;
 
-        for(let block of parser.syntaxTree.children) {
-            if(block.type === parser.blockType) {
+        for (let block of parser.syntaxTree.children) {
+            if (block.type === parser.blockType) {
                 let start = parser.getLineAndCharacter(block.begin)!;
                 let end = parser.getLineAndCharacter(block.end)!;
-                if(start.line >= end.line) {
+                if (start.line >= end.line) {
                     continue;
                 }
                 res.push(new vscode.FoldingRange(start.line, end.line));
             }
         }
 
-        const sectionType = parser.typeTable.get("section");
-        const subsectionType = parser.typeTable.get("subsection");
-        const subsubsectionType = parser.typeTable.get("subsubsection");
+        const sectionType = compiler.typeTable.get("section");
+        const subsectionType = compiler.typeTable.get("subsection");
+        const subsubsectionType = compiler.typeTable.get("subsubsection");
 
         let secStartLine: number | undefined = undefined;
         let subsecStartLine: number | undefined = undefined;
         let subsubsecStartLine: number | undefined = undefined;
 
 
-        for(let block of parser.analysedTree.children) {
-            if(block.type === sectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin -1)!.line;
-                if(secStartLine !== undefined) {
+        for (let block of parser.analysedTree.children) {
+            if (block.type === sectionType) {
+                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                if (secStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(secStartLine, endLine));
                 }
                 secStartLine = parser.getLineAndCharacter(block.begin)!.line;
-                if(subsecStartLine !== undefined) {
+                if (subsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsecStartLine, endLine));
                 }
                 subsecStartLine = undefined;
-                if(subsubsecStartLine !== undefined) {
+                if (subsubsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
                 }
                 subsubsecStartLine = undefined;
             }
-            if(block.type === subsectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin -1)!.line;
-                if(subsecStartLine !== undefined) {
+            if (block.type === subsectionType) {
+                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                if (subsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsecStartLine, endLine));
                 }
                 subsecStartLine = parser.getLineAndCharacter(block.begin)!.line;
-                if(subsubsecStartLine !== undefined) {
+                if (subsubsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
                 }
                 subsubsecStartLine = undefined;
             }
-            if(block.type === subsubsectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin -1)!.line;
-                if(subsubsecStartLine !== undefined) {
+            if (block.type === subsubsectionType) {
+                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                if (subsubsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
                 }
                 subsubsecStartLine = parser.getLineAndCharacter(block.begin)!.line;
@@ -70,13 +71,13 @@ export class LixFoldingRangeProvider implements vscode.FoldingRangeProvider {
         }
 
         let endLine = parser.getLineAndCharacter(parser.syntaxTree.end - 1)!.line;
-        if(secStartLine !== undefined) {
+        if (secStartLine !== undefined) {
             res.push(new vscode.FoldingRange(secStartLine, endLine));
         }
-        if(subsecStartLine !== undefined) {
+        if (subsecStartLine !== undefined) {
             res.push(new vscode.FoldingRange(subsecStartLine, endLine));
         }
-        if(subsubsecStartLine !== undefined) {
+        if (subsubsecStartLine !== undefined) {
             res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
         }
         return res;

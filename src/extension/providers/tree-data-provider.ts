@@ -1,21 +1,21 @@
-import { LixContext } from "./lix-context";
+import { CompilerManager } from "../compiler-manager";
 import * as vscode from 'vscode';
 
 export class blockProvider implements vscode.TreeDataProvider<string> {
-    context: LixContext;
+    context: CompilerManager;
 
-    constructor(context: LixContext) {
+    constructor(context: CompilerManager) {
         this.context = context;
     }
 
     getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
         let document = vscode.window.activeTextEditor?.document;
-        if(!document) {
+        if (!document) {
             return [];
         }
-        if(!element) {
+        if (!element) {
             let res = [];
-            for(let label of this.context.getCompiler(document.uri).parser.blockTable.handlers.keys()) {
+            for (let label of this.context.getCompiler(document.uri).parser.blockTable.handlers.keys()) {
                 res.push(label);
             }
             return res;
@@ -33,24 +33,24 @@ export class blockProvider implements vscode.TreeDataProvider<string> {
 
 
 export class formulaProvider implements vscode.TreeDataProvider<string> {
-    context: LixContext;
+    context: CompilerManager;
 
-    constructor(context: LixContext) {
+    constructor(context: CompilerManager) {
         this.context = context;
     }
 
     getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
         let document = vscode.window.activeTextEditor?.document;
-        if(!document) {
+        if (!document) {
             return [];
         }
         let parser = this.context.getCompiler(document.uri).parser;
-        if(!element) {
+        if (!element) {
             let res = [];
-            for(let label of parser.mathModule.notations.keys()) {
+            for (let label of parser.mathModule.notations.keys()) {
                 res.push(label);
             }
-            for(let label of parser.mathModule.symbols.keys()) {
+            for (let label of parser.mathModule.symbols.keys()) {
                 res.push(label);
             }
             return res;
@@ -86,9 +86,10 @@ export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> 
     private _onDidChangeTreeData = new vscode.EventEmitter<CommandItem | undefined>();
     readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-    constructor(private readonly getGeneratorName: () => string) { }
+    constructor(private generatorName: string) { }
 
-    refresh(): void {
+    refresh(generatorName: string): void {
+        this.generatorName = generatorName;
         this._onDidChangeTreeData.fire(undefined);
     }
 
@@ -97,11 +98,12 @@ export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> 
     }
 
     getChildren(element?: CommandItem | undefined): vscode.ProviderResult<CommandItem[]> {
-        const currentTarget = this.getGeneratorName();
+        const currentTarget = this.generatorName;
         if (!element) {
             return [
                 this.createActionItem("Compile", "lix.compile", "run"),
                 this.createActionItem("Generate", "lix.generate", "file-code"),
+                this.createActionItem("Analyse", "lix.analyse", "list-tree"),
                 this.createActionItem("Parse", "lix.parse", "list-tree"),
                 this.createTargetRootItem(currentTarget)
             ];
@@ -133,7 +135,7 @@ export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> 
 
     private createTargetOption(target: string, description?: string): CommandItem {
         const item = new CommandItem(target, vscode.TreeItemCollapsibleState.None, "targetOption", {
-            command: "lix.selectCompileTarget",
+            command: "lix.pick",
             title: `Use ${target}`,
             arguments: [target]
         }, description);

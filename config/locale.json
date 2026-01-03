@@ -52,12 +52,36 @@
       "InlineFormatCannotContainBlock": "行内格式不能包含块。"
     },
     "Generator": {},
-    "Vscode": {
-      "DirectoryCreateFailed": "创建目录 \"${0}\" 失败。",
-      "DirectoryReadFailed": "读取目录 \"${0}\" 失败。",
-      "FileCopyFailed": "复制文件 \"${0}\" 到 \"${1}\" 失败。",
-      "FileReadFailed": "读取文件 \"${0}\" 失败。",
-      "FileWriteFailed": "写入文件 \"${0}\" 失败。"
+    "Compiler": {},
+    "SyntaxTree": {},
+    "VSCodeFileSystem": {
+      "DirectoryCreateFailed": "创建目录 \"${0}\" 失败。${addition}",
+      "DirectoryReadFailed": "读取目录 \"${0}\" 失败。${addition}",
+      "FileCopyFailed": "复制文件 \"${0}\" 到 \"${1}\" 失败。${addition}",
+      "FileReadFailed": "读取文件 \"${0}\" 失败。${addition}",
+      "FileWriteFailed": "写入文件 \"${0}\" 失败。${addition}",
+      "FileStatFailed": "读取文件信息失败: \"${0}\"。${addition}",
+      "FileDeleteFailed": "删除文件失败: \"${0}\"。${addition}",
+      "FileRenameFailed": "重命名文件失败: \"${0}\" 到 \"${1}\"。${addition}",
+      "FileExists": "（文件已存在）",
+      "FileIsADirectory": "（目标是一个目录）",
+      "FileNotADirectory": "（目标不是目录）",
+      "FileNotFound": "（未找到文件或目录）",
+      "NoPermissions": "（权限不足）",
+      "Unavailable": "（文件系统不可用）"
+    },
+    "NodePath": {
+      "PathNormalizeFailed": "规范化路径 \"${0}\" 失败。",
+      "PathJoinFailed": "拼接路径失败: ${0}",
+      "PathResolveFailed": "解析路径失败: ${0}",
+      "PathIsAbsoluteFailed": "判断是否为绝对路径失败: \"${0}\"",
+      "PathRelativeFailed": "计算相对路径失败: 从 \"${0}\" 到 \"${1}\"",
+      "PathDirnameFailed": "获取目录名失败: \"${0}\"",
+      "PathBasenameFailed": "获取文件名失败: \"${0}\"",
+      "PathExtnameFailed": "获取扩展名失败: \"${0}\"",
+      "PathParseFailed": "解析路径对象失败: \"${0}\"",
+      "PathFormatFailed": "格式化路径对象失败: ${0}",
+      "PathToNamespacedPathFailed": "转换为命名空间路径失败: \"${0}\""
     }
   },
   "en-US": {
@@ -113,12 +137,36 @@
       "InlineFormatCannotContainBlock": "Inline format cannot contain blocks."
     },
     "Generator": {},
-    "Vscode": {
-      "DirectoryCreateFailed": "Failed to create directory \"${0}\".",
-      "DirectoryReadFailed": "Failed to read directory \"${0}\".",
-      "FileCopyFailed": "Failed to copy file from \"${0}\" to \"${1}\".",
-      "FileReadFailed": "Failed to read file \"${0}\".",
-      "FileWriteFailed": "Failed to write file \"${0}\"."
+    "Compiler": {},
+    "SyntaxTree": {},
+    "VSCodeFileSystem": {
+      "DirectoryCreateFailed": "Failed to create directory \"${0}\". ${addition}",
+      "DirectoryReadFailed": "Failed to read directory \"${0}\". ${addition}",
+      "FileCopyFailed": "Failed to copy file from \"${0}\" to \"${1}\". ${addition}",
+      "FileReadFailed": "Failed to read file \"${0}\". ${addition}",
+      "FileWriteFailed": "Failed to write file \"${0}\". ${addition}",
+      "FileStatFailed": "Failed to stat file \"${0}\". ${addition}",
+      "FileDeleteFailed": "Failed to delete file \"${0}\". ${addition}",
+      "FileRenameFailed": "Failed to rename file \"${0}\" to \"${1}\". ${addition}",
+      "FileExists": " (File already exists)",
+      "FileIsADirectory": " (Target is a directory)",
+      "FileNotADirectory": " (Target is not a directory)",
+      "FileNotFound": " (File or directory not found)",
+      "NoPermissions": " (Insufficient permissions)",
+      "Unavailable": " (File system unavailable)"
+    },
+    "NodePath": {
+      "PathNormalizeFailed": "Failed to normalize path \"${0}\".",
+      "PathJoinFailed": "Failed to join paths: ${0}",
+      "PathResolveFailed": "Failed to resolve paths: ${0}",
+      "PathIsAbsoluteFailed": "Failed to check whether path is absolute: \"${0}\"",
+      "PathRelativeFailed": "Failed to compute relative path from \"${0}\" to \"${1}\"",
+      "PathDirnameFailed": "Failed to get directory name for \"${0}\"",
+      "PathBasenameFailed": "Failed to get basename for \"${0}\"",
+      "PathExtnameFailed": "Failed to get extension for \"${0}\"",
+      "PathParseFailed": "Failed to parse path \"${0}\"",
+      "PathFormatFailed": "Failed to format path object ${0}",
+      "PathToNamespacedPathFailed": "Failed to convert to namespaced path for \"${0}\""
     }
   }
 }

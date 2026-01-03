@@ -1,3 +1,9 @@
 {
-    "language": "zh-CN"
+    "language": "en-US",
+    "latexCommand": {
+        "mac": "xelatex -synctex=1 -interaction=nonstopmode",
+        "linux": "xelatex -synctex=1 -interaction=nonstopmode",
+        "windows": "xelatex.exe -synctex=1 -interaction=nonstopmode"
+    },
+    "tempDirectory": ".lix"
 }

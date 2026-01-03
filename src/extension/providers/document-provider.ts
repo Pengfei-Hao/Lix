@@ -9,11 +9,11 @@ export class LatexProvider implements vscode.TextDocumentContentProvider {
 	}
 
 	provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
-		return this.content.get(uri.path) ?? "[empty]";
+		return this.content.get(uri.toString()) ?? "[empty]";
 	}
 
 	updateContent(uri: vscode.Uri, content: string) {
-		this.content.set(uri.path, content);
+		this.content.set(uri.toString(), content);
 		this.onDidChangeEmitter.fire(uri);
 	}
 

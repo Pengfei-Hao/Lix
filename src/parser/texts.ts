@@ -1,8 +1,4 @@
-import "./format";
-
-// **************** Language Related Text ****************
-
-export type ParserText = {
+export type ParserTexts = {
     ArgumentCommaMissing: string;
     ArgumentEnumerationValueInvalid: string;
     ArgumentTypeMismatch: string;
@@ -54,41 +50,11 @@ export type ParserText = {
     InlineFormatCannotContainBlock: string;
 };
 
-export type GeneratorText = {};
+// export interface ParserTextBundle {
+//     parserTexts: ParserTexts;
+// }
 
-export type VscodeText = {
-    DirectoryCreateFailed: string;
-    DirectoryReadFailed: string;
-    FileCopyFailed: string;
-    FileReadFailed: string;
-    FileWriteFailed: string;
-};
-
-type TextBundle = {
-    Parser: ParserText;
-    Generator: GeneratorText;
-    Vscode: VscodeText;
-};
-
-type I18nConfig = {
-    "zh-CN": TextBundle;
-    "en-US": TextBundle;
-};
-
-const languages = new Set(["en-US", "zh-CN"]);
-
-function getTextBundle<K extends keyof TextBundle>(json: string, key: K, language = "en-US"): TextBundle[K] {
-    const lang = languages.has(language) ? language : "en-US";
-    return JSON.parse(json)[lang as keyof I18nConfig][key];
-}
-
-export const getParserText = (json: string, language?: string) => getTextBundle(json, "Parser", language);
-export const getGeneratorText = (json: string, language?: string) => getTextBundle(json, "Generator", language);
-export const getVscodeText = (json: string, language?: string) => getTextBundle(json, "Vscode", language);
-
-// **************** Exception Text ****************
-
-export const exceptionText = {
+export const parserExceptionTexts = {
     ArgumentHasNoValue: "Argument '${0}' has no value.",
     ArgumentNotFound: "Argument not found.",
     BlockHandlerAlreadyExists: "Block handler '${0}' is already registered.",
@@ -110,8 +76,5 @@ export const exceptionText = {
     ResultMergeLogicError: "Logical error in Result.merge.",
     ResultPromoteLogicError: "Logical error in Result.promote.",
     ResultShouldTerminateLogicError: "Logical error in Result.shouldTerminate.",
-    TypeAlreadyExists: "Type '${0}' is already registered.",
-    TypeNotExist: "Type '${0}' does not exist."
-} as const;
 
-// export type ExceptionKey = keyof typeof exceptionMessages;
+} as const;
