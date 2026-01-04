@@ -5,22 +5,23 @@ import { Node } from '../../syntax-tree/node';
 import { Type } from '../../syntax-tree/type';
 import { ArgumentType } from '../../parser/block-table';
 
-export class LixCompletionProvider implements vscode.CompletionItemProvider {
-    context: CompilerManager;
+export class CompletionProvider implements vscode.CompletionItemProvider {
 
-    constructor(context: CompilerManager) {
-        this.context = context;
+    constructor(
+        private compilerManager: CompilerManager
+    ) {
     }
 
-    public provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
+    public provideCompletionItems(allDocument: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
         //console.log(`${context.triggerCharacter},${context.triggerKind}`);
         //console.log(`${context.triggerCharacter},${position.line},${position.character}`);
-        if (document.languageId !== 'lix') {
-            return [];
+        let document = this.compilerManager.validateDocument(allDocument);
+        if (!document) {
+            return;
         }
 
         let res: vscode.CompletionItem[] = [];
-        let parser = this.context.getCompiler(document.uri).parser;
+        let parser = this.compilerManager.getParseResult(document);
 
         if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
             //if (this.inMath(parser, parser.getIndex(position.line, position.character-1)!)) {
@@ -76,16 +77,15 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
             if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.getIndex(position.line, position.character)!)) {
-                let list = this.context.getFileList(document.uri);
-                for (let item of list) {
-                    let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
-                    res.push(comp);
-                }
+                // let list = this.compilerManager.getFileList(document.uri);
+                // for (let item of list) {
+                //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
+                //     res.push(comp);
+                // }
             }
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "@") {
-            let compiler = this.context.getCompiler(document.uri);
-            for (let item of compiler.parser.references) {
+            for (let item of parser.references) {
                 let comp = new vscode.CompletionItem(item.name, vscode.CompletionItemKind.Reference);
                 res.push(comp);
             }
@@ -100,8 +100,7 @@ export class LixCompletionProvider implements vscode.CompletionItemProvider {
                 if (context.triggerCharacter == "(" && argNode && argNode.type === parser.argumentsType && argNode.begin != argNode.end) {
                     return res;
                 }
-                let compiler = this.context.getCompiler(document.uri);
-                let spec = compiler.parser.blockTable.getOption(node.content);
+                let spec = parser.blockTable.getOption(node.content);
                 if (spec) {
                     for (let [name, arg] of spec.argumentOptions) {
                         let comp = new vscode.CompletionItem(name, vscode.CompletionItemKind.Field);

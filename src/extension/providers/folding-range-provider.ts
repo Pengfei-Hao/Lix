@@ -1,17 +1,23 @@
 import * as vscode from 'vscode';
 import { CompilerManager } from '../compiler-manager';
 
-export class LixFoldingRangeProvider implements vscode.FoldingRangeProvider {
-    context: CompilerManager;
+export class FoldingRangeProvider implements vscode.FoldingRangeProvider {
 
-    constructor(context: CompilerManager) {
-        this.context = context;
+    constructor(
+        private compilerManager: CompilerManager
+
+    ) {
     }
 
-    provideFoldingRanges(document: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
+    provideFoldingRanges(allDocument: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
+        let document = this.compilerManager.validateDocument(allDocument);
+        if (!document) {
+            return [];
+        }
+
         let res: vscode.FoldingRange[] = [];
-        let compiler = this.context.getCompiler(document.uri);
-        let parser = compiler.parser;
+        let parser = this.compilerManager.getParseResult(document);
+        let typeTable = this.compilerManager.getTypeTable(document);
 
         for (let block of parser.syntaxTree.children) {
             if (block.type === parser.blockType) {
@@ -24,9 +30,9 @@ export class LixFoldingRangeProvider implements vscode.FoldingRangeProvider {
             }
         }
 
-        const sectionType = compiler.typeTable.get("section");
-        const subsectionType = compiler.typeTable.get("subsection");
-        const subsubsectionType = compiler.typeTable.get("subsubsection");
+        const sectionType = typeTable.get("section");
+        const subsectionType = typeTable.get("subsection");
+        const subsubsectionType = typeTable.get("subsubsection");
 
         let secStartLine: number | undefined = undefined;
         let subsecStartLine: number | undefined = undefined;

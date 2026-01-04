@@ -101,17 +101,7 @@
     "menus": {
       "editor/title": [
         {
-          "command": "lix.generate",
-          "group": "navigation",
-          "when": "editorLangId == lix && resourceScheme == file"
-        },
-        {
           "command": "lix.compile",
-          "group": "navigation",
-          "when": "editorLangId == lix && resourceScheme == file"
-        },
-        {
-          "command": "lix.parse",
           "group": "navigation",
           "when": "editorLangId == lix && resourceScheme == file"
         }
@@ -129,20 +119,20 @@
     "views": {
       "lix-navigator": [
         {
-          "id": "lix-command-list",
+          "id": "lix-command",
           "name": "Commands"
         },
         {
-          "id": "lix-label-list",
-          "name": "Label List"
+          "id": "lix-structure",
+          "name": "Structure"
         },
         {
-          "id": "lix-font-list",
-          "name": "Font List"
+          "id": "lix-block",
+          "name": "Blocks"
         },
         {
-          "id": "lix-math-list",
-          "name": "Math List"
+          "id": "lix-symbols",
+          "name": "Math Symbols"
         }
       ]
     },

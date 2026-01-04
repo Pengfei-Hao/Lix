@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-export class LatexProvider implements vscode.TextDocumentContentProvider {
+export class DocumentProvider implements vscode.TextDocumentContentProvider {
 
 	content: Map<string, string>;
 
@@ -9,7 +9,7 @@ export class LatexProvider implements vscode.TextDocumentContentProvider {
 	}
 
 	provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
-		return this.content.get(uri.toString()) ?? "[empty]";
+		return this.content.get(uri.toString()) ?? "[[empty]]";
 	}
 
 	updateContent(uri: vscode.Uri, content: string) {

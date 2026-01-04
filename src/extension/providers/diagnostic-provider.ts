@@ -2,17 +2,15 @@ import * as vscode from 'vscode';
 import { CompilerManager } from '../compiler-manager';
 import { MessageType } from '../../parser/message';
 import { ResultState } from '../../parser/result';
-import { diagnosticCollection } from '../../extension';
 
+export function updateDiagnostic(document: vscode.TextDocument, compilerManager: CompilerManager, diagnosticCollection: vscode.DiagnosticCollection) {
 
-export function updateDiagnostic(document: vscode.TextDocument, context: CompilerManager) {
-
-	let parser = context.getCompiler(document.uri).parser;
-	let messageList = parser.messages;
+	let parser = compilerManager.getParseResult(document);
+	let messages = parser.messages;
 	let state = parser.state;
 
 	let diags: vscode.Diagnostic[] = [];
-	for (let msg of messageList) {
+	for (let msg of messages) {
 		let begin = parser.getLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
 		let end = parser.getLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
 
@@ -48,7 +46,7 @@ export function updateDiagnostic(document: vscode.TextDocument, context: Compile
 	}
 
 	let diag = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "State: " + st, vscode.DiagnosticSeverity.Information);
-	diags.push(diag);
+	// diags.push(diag);
 
 	diagnosticCollection.set(document.uri, diags);
 }

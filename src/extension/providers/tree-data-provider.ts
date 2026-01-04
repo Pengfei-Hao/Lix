@@ -1,22 +1,28 @@
 import { CompilerManager } from "../compiler-manager";
 import * as vscode from 'vscode';
 
-export class blockProvider implements vscode.TreeDataProvider<string> {
-    context: CompilerManager;
+export class BlockProvider implements vscode.TreeDataProvider<string> {
 
-    constructor(context: CompilerManager) {
-        this.context = context;
+    onDidChangeTreeDataEmitter: vscode.EventEmitter<string | undefined>;
+    onDidChangeTreeData;
+
+    constructor(
+        private compilerManager: CompilerManager
+    ) {
+        this.onDidChangeTreeDataEmitter = new vscode.EventEmitter<string | undefined>();
+        this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     }
 
     getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
-        let document = vscode.window.activeTextEditor?.document;
+        let document = this.compilerManager.validateDocument();
         if (!document) {
             return [];
         }
         if (!element) {
             let res = [];
-            for (let label of this.context.getCompiler(document.uri).parser.blockTable.handlers.keys()) {
-                res.push(label);
+            let parser = this.compilerManager.getParseResult(document);
+            for (let blockName of parser.blockTable.handlers.keys()) {
+                res.push(blockName);
             }
             return res;
         }
@@ -32,26 +38,32 @@ export class blockProvider implements vscode.TreeDataProvider<string> {
 }
 
 
-export class formulaProvider implements vscode.TreeDataProvider<string> {
-    context: CompilerManager;
+export class SymbolsProvider implements vscode.TreeDataProvider<string> {
 
-    constructor(context: CompilerManager) {
-        this.context = context;
+    onDidChangeTreeDataEmitter: vscode.EventEmitter<string | undefined>;
+    onDidChangeTreeData;
+
+    constructor(
+        private compilerManager: CompilerManager
+    ) {
+        this.onDidChangeTreeDataEmitter = new vscode.EventEmitter<string | undefined>();
+        this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     }
 
     getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
-        let document = vscode.window.activeTextEditor?.document;
+        let document = this.compilerManager.validateDocument();
         if (!document) {
             return [];
         }
-        let parser = this.context.getCompiler(document.uri).parser;
         if (!element) {
             let res = [];
-            for (let label of parser.mathModule.notations.keys()) {
-                res.push(label);
-            }
-            for (let label of parser.mathModule.symbols.keys()) {
-                res.push(label);
+            let parser = this.compilerManager.getParseResult(document);
+            for (let notation of parser.mathModule.notations.keys()) {
+                let symbol = parser.mathModule.notationsToUnicodeSymbols.get(notation);
+                if (symbol) {
+                    notation = `${notation} ${symbol}`;
+                }
+                res.push(notation);
             }
             return res;
         }
@@ -66,7 +78,33 @@ export class formulaProvider implements vscode.TreeDataProvider<string> {
     }
 }
 
-type CommandItemType = "action" | "targetRoot" | "targetOption";
+export class StructureProvider implements vscode.TreeDataProvider<string> {
+
+    onDidChangeTreeDataEmitter: vscode.EventEmitter<string | undefined>;
+    onDidChangeTreeData;
+
+    constructor(
+        private compilerManager: CompilerManager
+    ) {
+        this.onDidChangeTreeDataEmitter = new vscode.EventEmitter<string | undefined>();
+        this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
+    }
+
+    getChildren(element?: string | undefined): vscode.ProviderResult<string[]> {
+        let document = this.compilerManager.validateDocument();
+        if (!document) {
+            return [];
+        }
+        return [];
+    }
+
+    getTreeItem(element: string): vscode.TreeItem | Thenable<vscode.TreeItem> {
+        let item = new vscode.TreeItem(element);
+        return item;
+    }
+}
+
+type CommandItemType = "action" | "generatorRoot" | "generatorOption";
 
 class CommandItem extends vscode.TreeItem {
     constructor(
@@ -82,15 +120,16 @@ class CommandItem extends vscode.TreeItem {
     }
 }
 
-export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<CommandItem | undefined>();
-    readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+export class CommandProvider implements vscode.TreeDataProvider<CommandItem> {
 
-    constructor(private generatorName: string) { }
+    onDidChangeTreeDataEmitter: vscode.EventEmitter<CommandItem | undefined>;
+    onDidChangeTreeData;
 
-    refresh(generatorName: string): void {
-        this.generatorName = generatorName;
-        this._onDidChangeTreeData.fire(undefined);
+    constructor(
+        private compilerManager: CompilerManager
+    ) {
+        this.onDidChangeTreeDataEmitter = new vscode.EventEmitter<CommandItem | undefined>();
+        this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
     }
 
     getTreeItem(element: CommandItem): vscode.TreeItem | Thenable<vscode.TreeItem> {
@@ -98,25 +137,31 @@ export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> 
     }
 
     getChildren(element?: CommandItem | undefined): vscode.ProviderResult<CommandItem[]> {
-        const currentTarget = this.generatorName;
+        let document = this.compilerManager.validateDocument();
+        if (!document) {
+            return [];
+        }
+        let currentGenerator = this.compilerManager.getGenerator(document);
         if (!element) {
             return [
-                this.createActionItem("Compile", "lix.compile", "run"),
-                this.createActionItem("Generate", "lix.generate", "file-code"),
-                this.createActionItem("Analyse", "lix.analyse", "list-tree"),
-                this.createActionItem("Parse", "lix.parse", "list-tree"),
-                this.createTargetRootItem(currentTarget)
+                this.getActionItem("Compile", "lix.compile", "run"),
+                this.getActionItem("Generate", "lix.generate", "file-code"),
+                this.getActionItem("Analyse", "lix.analyse", "list-tree"),
+                this.getActionItem("Parse", "lix.parse", "list-tree"),
+                this.getActionItem("Debug", "lix.debug", "bug"),
+                this.getGeneratorRootItem(currentGenerator)
             ];
         }
 
-        if (element.type === "targetRoot") {
-            return ["markdown", "latex", "blog"].map(target => this.createTargetOption(target, target === currentTarget ? "current" : undefined));
+        if (element.type === "generatorRoot") {
+            let allGenerators = this.compilerManager.getGenerators(document);
+            return allGenerators.map(generator => this.getGeneratorOption(generator, generator === currentGenerator));
         }
 
         return [];
     }
 
-    private createActionItem(label: string, commandId: string, icon?: string): CommandItem {
+    private getActionItem(label: string, commandId: string, icon?: string): CommandItem {
         const item = new CommandItem(label, vscode.TreeItemCollapsibleState.None, "action", {
             command: commandId,
             title: label
@@ -127,19 +172,19 @@ export class LixCommandProvider implements vscode.TreeDataProvider<CommandItem> 
         return item;
     }
 
-    private createTargetRootItem(currentTarget: string): CommandItem {
-        const item = new CommandItem(`Compile Target (${currentTarget})`, vscode.TreeItemCollapsibleState.Expanded, "targetRoot");
+    private getGeneratorRootItem(currentGenerator: string): CommandItem {
+        const item = new CommandItem(`Available Generators`, vscode.TreeItemCollapsibleState.Expanded, "generatorRoot");
         item.iconPath = new vscode.ThemeIcon("settings-gear");
         return item;
     }
 
-    private createTargetOption(target: string, description?: string): CommandItem {
-        const item = new CommandItem(target, vscode.TreeItemCollapsibleState.None, "targetOption", {
+    private getGeneratorOption(generator: string, selected: boolean): CommandItem {
+        const item = new CommandItem(generator, vscode.TreeItemCollapsibleState.None, "generatorOption", {
             command: "lix.pick",
-            title: `Use ${target}`,
-            arguments: [target]
-        }, description);
-        item.iconPath = new vscode.ThemeIcon("circle-filled");
+            title: `Use ${generator}`,
+            arguments: [generator]
+        });
+        item.iconPath = selected ? new vscode.ThemeIcon("circle-filled") : new vscode.ThemeIcon("circle-outline");
         return item;
     }
 }
