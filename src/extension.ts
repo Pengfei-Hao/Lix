@@ -24,14 +24,14 @@ import './foundation/format';
 import { loadTexts } from './extension/locale';
 import { Texts } from './extension/locale';
 import { Uri } from './compiler/uri';
-import { cp } from 'fs/promises';
-import { VSCodeFileSystem } from './extension/vscode-file-system';
 import { NodePath } from './extension/node-path';
+import { PdfViewerProvider } from './extension/providers/pdf-viewer-provider';
 
 
 let config: VSCodeConfig;
 let compilerManager: CompilerManager;
 let texts: Texts;
+let pdfPreviewer: PdfViewerProvider;
 
 let lixCommandProvider: LixCommandProvider;
 let documentProvider: LatexProvider;
@@ -61,6 +61,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Register providers
 	registerProviders(context);
+
+	// Register PDF viewer
+	await registerPdfViewer(context);
 
 	// Listen events
 	listenEvents(context);
@@ -114,6 +117,10 @@ function registerCommands(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.pick', pick)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.previewPdf', previewPdf)
 	);
 
 	context.subscriptions.push(
@@ -182,6 +189,15 @@ function registerProviders(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-math-list", new formulaProvider(compilerManager))
 	);
+}
+
+async function registerPdfViewer(context: vscode.ExtensionContext) {
+	// Custom PDF viewer
+	pdfPreviewer = new PdfViewerProvider(context.extensionUri);
+	await pdfPreviewer.init();
+	context.subscriptions.push(vscode.window.registerCustomEditorProvider(PdfViewerProvider.viewType, pdfPreviewer, {
+		webviewOptions: { retainContextWhenHidden: true }
+	}));
 }
 
 function listenEvents(context: vscode.ExtensionContext) {
@@ -420,6 +436,30 @@ async function parse() {
 	previewDocument(getUri(document.uri, "parse"));
 }
 
+async function previewPdf(uri?: vscode.Uri | Uri) {
+	let target: vscode.Uri | undefined;
+	if (uri instanceof vscode.Uri) {
+		target = uri;
+	}
+	else if (uri) {
+		target = convertUri(uri);
+	}
+
+	if (!target) {
+		const picked = await vscode.window.showOpenDialog({
+			filters: { PDF: ['pdf'] },
+			canSelectMany: false,
+			openLabel: "Open PDF to preview"
+		});
+		if (!picked || picked.length === 0) {
+			return;
+		}
+		target = picked[0];
+	}
+
+	await previewPDFDocument(target)
+}
+
 async function analyse() {
 	let document = getDocument();
 	if (!document) {
@@ -431,13 +471,6 @@ async function analyse() {
 
 function test() {
 	vscode.window.showInformationMessage("abcd");
-	let fs = new VSCodeFileSystem(vscode.Uri.file('/srd/'), new NodePath(texts.NodePath), texts.VSCodeFileSystem);
-	let path = fs.path;
-
-	console.log(path.isAbsolute("/a/b/c"));
-	console.log(path.isAbsolute("a/b/c"));
-	console.log(path.isAbsolute("../a/b/c"));
-	console.log(path.isAbsolute("./a/b/c"));
 }
 
 function bu(f: () => void, thisArg?: unknown) {
@@ -579,8 +612,8 @@ function previewDocument(uri: vscode.Uri) {
 	});
 }
 
-function previewMarkdownDocument(uri: vscode.Uri) {
-	vscode.commands.executeCommand(
+async function previewMarkdownDocument(uri: vscode.Uri) {
+	await vscode.commands.executeCommand(
 		'vscode.openWith',
 		uri,
 		"vscode.markdown.preview.editor", // use built-in markdown preview
@@ -588,41 +621,25 @@ function previewMarkdownDocument(uri: vscode.Uri) {
 	);
 }
 
-function previewTextDocument(uri: vscode.Uri) {
-	vscode.commands.executeCommand(
+async function previewTextDocument(uri: vscode.Uri) {
+	await vscode.commands.executeCommand(
 		'vscode.open',
 		uri,
 		vscode.ViewColumn.Beside
 	);
 }
 
-function previewPDFDocument(uri: vscode.Uri) {
-	vscode.commands.executeCommand(
+async function previewPDFDocument(uri: vscode.Uri) {
+	await vscode.commands.executeCommand(
 		'vscode.openWith',
 		uri,
-		'latex-workshop-pdf-hook', // use Latex Workshop
-		vscode.ViewColumn.Beside
-	)
+		PdfViewerProvider.viewType, // Lix PDF viewer
+		vscode.ViewColumn.Beside);
 }
 
 function convertUri(uri: Uri): vscode.Uri {
 	return vscode.Uri.from({ scheme: uri.scheme, authority: uri.authority, path: uri.path, query: uri.query, fragment: uri.fragment });
 }
-
-// function showPDF(file: string) {
-// 	let html = `<!DOCTYPE html>
-// 	<html lang="en">
-// 	<head>
-// 		<meta charset="UTF-8">
-// 	</head>
-// 	<body>
-// 		<iframe src="/web/viewer.html?file=${file}" width="100%" height="100%"/>
-// 	</body>
-// 	</html>`;
-// 	let panel = vscode.window.createWebviewPanel("lix-pdf-preview", "Lix PDF", vscode.ViewColumn.Two, {});
-
-// 	panel.webview.html = html;
-// }
 
 function getUri(uri: vscode.Uri, flag: string): vscode.Uri {
 	return vscode.Uri.from({ scheme: "lix", path: uri.path, fragment: flag });

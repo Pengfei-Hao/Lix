@@ -1,0 +1,13 @@
+Third-Party Notices
+====================
+
+This project includes third-party software listed below. The original license text and copyright notices for these components are reproduced here or retained in their respective directories.
+
+---
+mozilla/pdf.js
+https://github.com/mozilla/pdf.js
+
+Copyright (c) Mozilla Foundation
+License: Apache License 2.0
+License files: assets/pdf.js/LICENSE
+
