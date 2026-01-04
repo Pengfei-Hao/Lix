@@ -189,7 +189,7 @@ export class LatexGenerator extends Generator {
         this.newpageType = this.typeTable.get("newpage");
         this.bibliographyType = this.typeTable.get("bibliography");
         this.bibItemType = this.typeTable.get("bib-item");
-        this.definitionType = this.typeTable.get("definition'");
+        this.definitionType = this.typeTable.get("definition");
         this.lemmaType = this.typeTable.get("lemma");
         this.propositionType = this.typeTable.get("proposition");
         this.theoremType = this.typeTable.get("theorem");

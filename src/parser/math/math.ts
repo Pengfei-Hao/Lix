@@ -43,7 +43,7 @@ export class Math extends Module {
         this.formulaType = this.typeTable.add("formula");
         this.elementType = this.typeTable.add("element");
         this.escapeElementType = this.typeTable.add("escape-element");
-        //this.definitionType = this.typeTable.add("definition");
+        //this.definitionType = this.typeTable.add("definition'");
         this.inlineTextType = this.typeTable.add("inline-text");
         this.infixType = this.typeTable.add("infix");
         this.prefixType = this.typeTable.add("prefix");

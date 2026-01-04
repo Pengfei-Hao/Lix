@@ -100,7 +100,7 @@ export class Article extends Module {
         this.parser.blockTable.add("proof", this.proofBlockHandler, this, mathOption);
 
         // 此 definition 与 math 冲突了
-        this.definitionType = this.typeTable.add("definition'");
+        this.definitionType = this.typeTable.add("definition");
         this.lemmaType = this.typeTable.add("lemma");
         this.propositionType = this.typeTable.add("proposition");
         this.theoremType = this.typeTable.add("theorem");

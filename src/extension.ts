@@ -7,7 +7,7 @@ import * as vscode from 'vscode';
 import { VSCodeConfig } from './extension/vscode-config';
 import { CompletionProvider } from './extension/providers/completion-provider';
 import { CompilerManager } from './extension/compiler-manager';
-import { CommandProvider, BlockProvider, SymbolsProvider, StructureProvider } from './extension/providers/tree-data-provider';
+import { CommandProvider, BlockProvider, SymbolsProvider, StructureProvider, StructureSymbolProvider } from './extension/providers/tree-data-provider';
 import { DocumentProvider } from './extension/providers/document-provider';
 import { SemanticProvider } from './extension/providers/semantic-provider';
 import { updateDiagnostic } from './extension/providers/diagnostic-provider';
@@ -35,6 +35,7 @@ let commandProvider: CommandProvider;
 let structureProvider: StructureProvider;
 let blockProvider: BlockProvider;
 let symbolsProvider: SymbolsProvider;
+let structureSymbolProvider: StructureSymbolProvider;
 let statusBarItem: vscode.StatusBarItem;
 
 // **************** Extension ****************
@@ -135,6 +136,10 @@ function registerCommands(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.gotoLine', gotoLine)
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.helloWorld', helloWorld)
 	);
 
@@ -203,6 +208,11 @@ function registerProviders(context: vscode.ExtensionContext) {
 		vscode.window.registerTreeDataProvider("lix-symbols", symbolsProvider)
 	);
 
+	// Document symbol provider
+	structureSymbolProvider = new StructureSymbolProvider(compilerManager);
+	context.subscriptions.push(
+		vscode.languages.registerDocumentSymbolProvider(CompilerManager.docSel, structureSymbolProvider)
+	);
 }
 
 function registerStatusBar(context: vscode.ExtensionContext) {
@@ -488,6 +498,12 @@ async function parse() {
 	previewDocument(getPreviewUri(document.uri, "parse"));
 }
 
+async function gotoLine(uri: vscode.Uri, line: number) {
+	const doc = await vscode.workspace.openTextDocument(uri);
+	await vscode.window.showTextDocument(doc, { selection: new vscode.Range(line, 0, line, 0) });
+
+}
+
 async function previewPdf(uri?: vscode.Uri) {
 	if (!uri) {
 		const picked = await vscode.window.showOpenDialog({
@@ -698,4 +714,3 @@ async function previewPDFDocument(uri: vscode.Uri) {
 function convertUri(uri: Uri): vscode.Uri {
 	return vscode.Uri.from({ scheme: uri.scheme, authority: uri.authority, path: uri.path, query: uri.query, fragment: uri.fragment });
 }
-
