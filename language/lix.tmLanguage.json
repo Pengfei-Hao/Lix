@@ -1,20 +1,7 @@
 {
     "name": "Lix",
     "scopeName": "source.lix",
-    "patterns": [
-        {
-            "include": "#newline"
-        },
-        {
-            "include": "#blank"
-        },
-        {
-            "include": "#test"
-        },
-        {
-            "include": "#escape-char"
-        }
-    ],
+    "patterns": [],
     "repository": {
         "name": {
             "match": "[A-Za-z0-9-]+",

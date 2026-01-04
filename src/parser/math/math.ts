@@ -1,5 +1,5 @@
-import { Node } from "../../sytnax-tree/node";
-import { Type } from "../../sytnax-tree/type";
+import { Node } from "../../syntax-tree/node";
+import { Type } from "../../syntax-tree/type";
 import { Module } from "../module";
 import { MatchResult, Parser } from "../parser";
 import { BasicResult, HighlightType, NodeResult, Result, ResultState } from "../result";
@@ -102,8 +102,8 @@ export class Math extends Module {
         // Prefix operator
         for (let prefix of config.PrefixOperator) {
             let patterns: PrefixOperatorPattern[] = [];
-            for(let pattern of prefix) {
-                switch(pattern.type) {
+            for (let pattern of prefix) {
+                switch (pattern.type) {
                     case "enumeration":
                         patterns.push(new PrefixOperatorPattern(PrefixOperatorType.enumeration, new Set(pattern.options)));
                         break;
@@ -371,7 +371,7 @@ export class Math extends Module {
             // 数学的特殊符号属于 0x10000 平面, ts 使用 utf16 编码, 因而占两个字符的位置, 要使用 matchUnicodeChar
             valRes = this.parser.matchUnicodeChar();
             result.merge(valRes);
-            if(result.shouldTerminate) { // EOF
+            if (result.shouldTerminate) { // EOF
                 return;
             }
             if (!this.symbols.has(valRes.value)) {
@@ -394,15 +394,15 @@ export class Math extends Module {
         let res: BasicResult;
 
         let beginIndex = this.parser.index;
-        if((res = this.parser.match("@")).matched) {
+        if ((res = this.parser.match("@")).matched) {
             result.merge(res);
             result.GuaranteeMatched();
-    
+
             nodeRes = this.matchElement();
             result.merge(nodeRes);
             if (result.shouldTerminate) {
                 result.promoteToSkippable();
-    
+
                 result.node.type = this.elementType;
                 result.node.content = "@";
                 result.addMessage(this.texts.InlineMathAtMustFollowElement, MessageType.error, beginIndex, 0, 1);
@@ -410,16 +410,16 @@ export class Math extends Module {
             }
             result.node.content = nodeRes.node.content;
         }
-        else if((res = this.parser.match("\\")).matched) {
+        else if ((res = this.parser.match("\\")).matched) {
             result.merge(res);
             result.GuaranteeMatched();
             result.node.type = this.elementType;
-    
+
             nodeRes = this.matchElement();
             result.merge(nodeRes);
             if (result.shouldTerminate) {
                 result.promoteToSkippable();
-    
+
                 result.node.content = "\\";
                 result.addMessage(this.texts.InlineMathBackslashMustFollowElement, MessageType.error, beginIndex, 0, 1);
                 return;
@@ -456,7 +456,7 @@ export class Math extends Module {
                 result.merge(res);
                 break;
             }
-            else if(this.parser.isMultilineBlankGtOne()) {
+            else if (this.parser.isMultilineBlankGtOne()) {
                 result.addMessage(this.texts.FormulaInlineTextEndedUnexpectedly, MessageType.error, beginIndex, 0, preIndex - beginIndex);
                 result.mergeState(ResultState.skippable);
                 return;
@@ -473,7 +473,7 @@ export class Math extends Module {
             }
         }
     }
-    
+
     // **************** Analysing ****************
 
     // Part 2: analyse the syntax tree that constructed in Part 1, replace definition nodes with its content, and find out the correct math label function to handle the formula nodes. This part will use types of node as follows:
@@ -570,8 +570,8 @@ export class Math extends Module {
     }
 
     skipToEndTerm(node: Node, index: Ref<number>, endTerm: Set<string>) {
-        while(true) {
-            if(this.isEOF(node, index, endTerm)) {
+        while (true) {
+            if (this.isEOF(node, index, endTerm)) {
                 return;
             }
             index.value++;
@@ -579,7 +579,7 @@ export class Math extends Module {
     }
 
     skipOneTerm(node: Node, index: Ref<number>, endTerm: Set<string>) {
-        if(this.isEOF(node, index, endTerm)) {
+        if (this.isEOF(node, index, endTerm)) {
             return;
         }
         index.value++;
@@ -590,7 +590,7 @@ export class Math extends Module {
 
     analyseFormula(node: Node, multiline: boolean = false): Result<Node> {
         let index = new Ref<number>(0);
-        if(multiline) {
+        if (multiline) {
             let result = new Result<Node>(new Node(this.matrixType));
             this.parser.begin("analyse-multiline-formula");
             this.myAnalyseMatrix(node, index, new Set(), result);
@@ -771,7 +771,7 @@ export class Math extends Module {
                     break;
                 }
             }
-            for(let n of trashOp) {
+            for (let n of trashOp) {
                 result.addMessage(this.texts.InfixOperatorPatternInvalid, MessageType.error, n);
             }
             result.mergeState(ResultState.skippable);

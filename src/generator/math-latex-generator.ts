@@ -2,9 +2,9 @@ import { Compiler } from "../compiler/compiler";
 import { Config } from "../compiler/config";
 import { FileSystem } from "../compiler/file-system";
 import { Reference } from "../parser/result";
-import { Node } from "../sytnax-tree/node";
-import { Type } from "../sytnax-tree/type";
-import { TypeTable } from "../sytnax-tree/type-table";
+import { Node } from "../syntax-tree/node";
+import { Type } from "../syntax-tree/type";
+import { TypeTable } from "../syntax-tree/type-table";
 import { Generator } from "./generator";
 
 export class MathLatexGenerator extends Generator {
@@ -56,7 +56,7 @@ export class MathLatexGenerator extends Generator {
         }
     }
 
-    init(): void  {
+    init(): void {
         this.output = "";
     }
 

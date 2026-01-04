@@ -1,7 +1,7 @@
-import { Node } from "../sytnax-tree/node";
+import { Node } from "../syntax-tree/node";
 import { LixError } from "../foundation/error";
 import { Message, MessageType } from "./message";
-import { Type } from "../sytnax-tree/type";
+import { Type } from "../syntax-tree/type";
 import { parserExceptionTexts } from "./texts";
 import { FileSystemRecord } from "../compiler/file-system";
 

@@ -24,7 +24,7 @@
   * `extension`: 所有与 VSCode Extension 相关的实现, 如各种 Provider, 文件操作, 配置文件, UI 实现等.
 * Lix 编译器部分
   * `foundation`: 一些重要的数据结构, 如 Heap, Result, Message 等编译器需要的数据结构.
-  * `sytnax-tree`: 语法树节点的数据结构, 以及相关的类型.
+  * `syntax-tree`: 语法树节点的数据结构, 以及相关的类型.
   * `compiler`: 编译器相关的部分, 以及相关的类型.
   * `generator`: 生成器部分, 将语法树转换为对应的 LaTeX, Markdown 代码.
   * `parser`: 词法分析部分, 语法分析部分, 将文本解析为语法树.

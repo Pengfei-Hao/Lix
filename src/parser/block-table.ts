@@ -1,4 +1,4 @@
-import { Node } from "../sytnax-tree/node";
+import { Node } from "../syntax-tree/node";
 import { NodeResult } from "./result";
 import { LixError } from "../foundation/error";
 import { parserExceptionTexts } from "./texts";

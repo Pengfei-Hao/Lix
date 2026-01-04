@@ -1,5 +1,5 @@
-import { Node } from "../../sytnax-tree/node";
-import { Type } from "../../sytnax-tree/type";
+import { Node } from "../../syntax-tree/node";
+import { Type } from "../../syntax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
 import { BasicResult, HighlightType, NodeResult, Result, ResultState } from "../result";
@@ -433,8 +433,8 @@ export class Core extends Module {
         let result = this.parser.formatLikeBlockHandler("image", this.imageType, args);
         result.discarded = false;
         let path = this.parser.getArgument(args, "path");
-        if(this.fileSystem.path.extname(path) === ".tikz") {
-            result.addFileRecord({ kind: 'readFile' , uri: this.fileSystem.pathToUri(path)});
+        if (this.fileSystem.path.extname(path) === ".tikz") {
+            result.addFileRecord({ kind: 'readFile', uri: this.fileSystem.pathToUri(path) });
         }
         else {
             result.addFileRecord({ kind: 'copy', source: this.fileSystem.pathToUri(path), target: this.fileSystem.cacheDirectoryUri });
@@ -795,7 +795,7 @@ export class Core extends Module {
                 row.end = (row.children.at(-1)?.end) ?? row.end;
                 analysedRow.begin = (analysedRow.children.at(0)?.begin) ?? analysedRow.begin;
                 analysedRow.end = (analysedRow.children.at(-1)?.end) ?? analysedRow.end;
-                
+
                 row = result.addNode(this.cellType, "", [], this.parser.index, 0, 0);
                 analysedRow = result.addAnalysedNode(this.cellType, "", [], this.parser.index, 0, 0);
             }

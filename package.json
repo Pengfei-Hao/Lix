@@ -84,7 +84,7 @@
       {
         "language": "lix",
         "scopeName": "source.lix",
-        "path": "./syntaxes/lix.tmLanguage.json"
+        "path": "./language/lix.tmLanguage.json"
       }
     ],
     "customEditors": [

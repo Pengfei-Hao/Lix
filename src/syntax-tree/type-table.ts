@@ -1,6 +1,6 @@
 import { Type } from "./type";
 import { LixError } from "../foundation/error";
-import { sytnaxTreeExceptionTexts } from "./texts";
+import { syntaxTreeExceptionTexts } from "./texts";
 
 export class TypeTable {
 
@@ -17,14 +17,14 @@ export class TypeTable {
     get(name: string): Type {
         let type = this.names.get(name);
         if (type === undefined) {
-            throw new LixError(sytnaxTreeExceptionTexts.TypeNotExist.format(name));
+            throw new LixError(syntaxTreeExceptionTexts.TypeNotExist.format(name));
         }
         return type;
     }
 
     add(name: string): Type {
         if (this.has(name)) {
-            throw new LixError(sytnaxTreeExceptionTexts.TypeAlreadyExists.format(name));
+            throw new LixError(syntaxTreeExceptionTexts.TypeAlreadyExists.format(name));
         }
 
         let newType = new Type(name, this);

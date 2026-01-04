@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { Parser } from '../../parser/parser';
 import { CompilerManager } from '../compiler-manager';
-import { Node } from '../../sytnax-tree/node';
-import { Type } from '../../sytnax-tree/type';
+import { Node } from '../../syntax-tree/node';
+import { Type } from '../../syntax-tree/type';
 import { ArgumentType } from '../../parser/block-table';
 
 export class LixCompletionProvider implements vscode.CompletionItemProvider {

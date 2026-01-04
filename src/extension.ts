@@ -18,7 +18,7 @@ import { LixSemanticProvider } from './extension/providers/semantic-provider';
 import { updateDiagnostic } from './extension/providers/diagnostic-provider';
 import { ResultState } from './parser/result';
 import { DocumentSelector } from 'vscode-languageclient';
-import { Node } from './sytnax-tree/node';
+import { Node } from './syntax-tree/node';
 import { LixFoldingRangeProvider } from './extension/providers/folding-range-provider';
 import './foundation/format';
 import { loadTexts } from './extension/locale';
@@ -176,7 +176,7 @@ function registerProviders(context: vscode.ExtensionContext) {
 	let tokenTypes = ['keyword', 'operator', 'string', 'function', 'variable', 'comment', 'class', 'type'];
 	let tokenModifiers = ['declaration', 'documentation'];
 	let legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
-	// vscode.languages.registerDocumentSemanticTokensProvider(docSel, new LixSemanticProvider(lixContext, legend), legend);
+	vscode.languages.registerDocumentSemanticTokensProvider(docSel, new LixSemanticProvider(compilerManager, legend), legend);
 
 	// Tree data provider
 	lixCommandProvider = new LixCommandProvider(generatorNames[0]);
@@ -555,13 +555,12 @@ export function parseDocument(document: vscode.TextDocument, updateDocument = tr
 	let compiler = compilerManager.getCompiler(document.uri);
 	compiler.parseText(document.getText());
 
-	if (updateDocument) {
-		updateStates(document);
-	}
+	updateStates(document, updateDocument);
+
 	return compiler.parser;
 }
 
-function updateStates(document: vscode.TextDocument) {
+function updateStates(document: vscode.TextDocument, updateDocument: boolean = true) {
 	let compiler = compilerManager.getCompiler(document.uri);
 
 	updateDiagnostic(document, compilerManager);
@@ -582,9 +581,11 @@ function updateStates(document: vscode.TextDocument) {
 			break;
 	}
 
-	documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + compiler.parser.syntaxTree.toString() + `\n[[State: ${state}]]`);
-	documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + compiler.parser.analysedTree.toString() + `\n[[State: ${state}]]`);
-	documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + compiler.getCurrentGenerator().output);
+	if (updateDocument) {
+		documentProvider.updateContent(getUri(document.uri, "parse"), `[[Parsing Result]]\n` + compiler.parser.syntaxTree.toString() + `\n[[State: ${state}]]`);
+		documentProvider.updateContent(getUri(document.uri, "analyse"), `[[Analysing Result]]\n` + compiler.parser.analysedTree.toString() + `\n[[State: ${state}]]`);
+		documentProvider.updateContent(getUri(document.uri, "generate"), `[[Generating Result]]\n` + compiler.getCurrentGenerator().output);
+	}
 }
 
 async function updateFileList(document: vscode.TextDocument) {

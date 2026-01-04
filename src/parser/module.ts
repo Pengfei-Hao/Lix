@@ -2,7 +2,7 @@ import { Parser } from "./parser";
 import { Config } from "../compiler/config";
 import { FileSystem } from "../compiler/file-system";
 import { ParserTexts } from "./texts";
-import { TypeTable } from "../sytnax-tree/type-table";
+import { TypeTable } from "../syntax-tree/type-table";
 
 export abstract class Module {
 

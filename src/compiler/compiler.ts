@@ -4,7 +4,7 @@ import { LatexGenerator } from "../generator/latex-generator";
 import { MarkdownGenerator } from "../generator/markdown-generator";
 import { MathLatexGenerator } from "../generator/math-latex-generator";
 import { Parser } from "../parser/parser";
-import { TypeTable } from "../sytnax-tree/type-table";
+import { TypeTable } from "../syntax-tree/type-table";
 import { Config } from "./config";
 import { FileSystem } from "./file-system";
 import { compilerExceptionTexts } from "./texts";

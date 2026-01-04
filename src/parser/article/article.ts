@@ -1,5 +1,5 @@
-import { Node } from "../../sytnax-tree/node";
-import { Type } from "../../sytnax-tree/type";
+import { Node } from "../../syntax-tree/node";
+import { Type } from "../../syntax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
 import { NodeResult, Result, ResultState } from "../result";

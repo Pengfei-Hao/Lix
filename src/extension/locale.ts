@@ -3,7 +3,7 @@ import { ParserTexts } from "../parser/texts";
 import { GeneratorTexts } from "../generator/texts";
 import { NodePathTexts, VSCodeFileSystemTexts } from "./texts";
 import { CompilerTexts } from "../compiler/texts";
-import { SytnaxTreeTexts } from "../sytnax-tree/texts";
+import { SyntaxTreeTexts } from "../syntax-tree/texts";
 
 export type Texts = {
 
@@ -21,7 +21,7 @@ export type Texts = {
     Compiler: CompilerTexts;
 
     // Syntax tree texts
-    SyntaxTree: SytnaxTreeTexts;
+    SyntaxTree: SyntaxTreeTexts;
 }
 
 const locales = new Set(["en-US", "zh-CN"]);

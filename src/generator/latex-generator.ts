@@ -2,9 +2,9 @@
  * Latex generator: translate syntax tree to latex source
  */
 
-import { Node } from "../sytnax-tree/node";
-import { Type } from "../sytnax-tree/type";
-import { TypeTable } from "../sytnax-tree/type-table";
+import { Node } from "../syntax-tree/node";
+import { Type } from "../syntax-tree/type";
+import { TypeTable } from "../syntax-tree/type-table";
 import { Generator } from "./generator";
 import { Compiler } from "../compiler/compiler";
 import { FileSystem } from "../compiler/file-system";

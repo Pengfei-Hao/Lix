@@ -1,10 +1,10 @@
 /**
-* Parser: analyise the document, generate the sytnax tree
+* Parser: analyise the document, generate the syntax tree
 */
 
-import { Type } from "../sytnax-tree/type";
-import { Node } from "../sytnax-tree/node";
-import { TypeTable } from "../sytnax-tree/type-table";
+import { Type } from "../syntax-tree/type";
+import { Node } from "../syntax-tree/node";
+import { TypeTable } from "../syntax-tree/type-table";
 import { BlockTable, BlockType, BlockHandler, ArgumentType } from "./block-table";
 import { Math } from "./math/math";
 import { Module } from "./module";
