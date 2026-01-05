@@ -205,4 +205,4 @@ Lix 详细的开发文档可以参阅 `Lix Document.md`, 其中包含了本项�
 
 Copyright (c) Pengfei Hao. All rights reserved.
 
-Licensed under the [MIT](LICENSE.txt) license.
+Licensed under the [MIT](https://github.com/Pengfei-Hao/Lix/blob/main/LICENSE.txt) license.

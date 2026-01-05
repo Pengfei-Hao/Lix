@@ -6,8 +6,8 @@
 import * as vscode from 'vscode';
 import { VSCodeConfig } from './extension/vscode-config';
 import { CompletionProvider } from './extension/providers/completion-provider';
-import { CompilerManager } from './extension/compiler-manager';
-import { CommandProvider, BlockProvider, SymbolsProvider, StructureProvider, StructureSymbolProvider } from './extension/providers/tree-data-provider';
+import { DocumentManager } from './extension/document-manager';
+import { CommandProvider, InformationProvider, StructureProvider, StructureSymbolProvider } from './extension/providers/tree-data-provider';
 import { DocumentProvider } from './extension/providers/document-provider';
 import { SemanticProvider } from './extension/providers/semantic-provider';
 import { updateDiagnostic } from './extension/providers/diagnostic-provider';
@@ -20,21 +20,24 @@ import { Texts } from './extension/locale';
 import { Uri } from './compiler/uri';
 import { PdfViewerProvider } from './extension/providers/pdf-viewer-provider';
 import { on } from 'events';
+import { LatexOutputTool, MarkdownOutputTool, OutputUriTool, ParseMessagesTool, SyntaxTreeTool, VersionTool } from './extension/language-model/tool';
+import { assistantHandler } from './extension/language-model/assistant';
 
 
 let config: VSCodeConfig;
-let compilerManager: CompilerManager;
+let documentManager: DocumentManager;
 let texts: Texts;
 
 let isDebugging = false;
+
+let assistant: vscode.ChatParticipant;
 
 let documentProvider: DocumentProvider;
 let diagnosticCollection: vscode.DiagnosticCollection;
 let pdfViewer: PdfViewerProvider;
 let commandProvider: CommandProvider;
 let structureProvider: StructureProvider;
-let blockProvider: BlockProvider;
-let symbolsProvider: SymbolsProvider;
+let informationProvider: InformationProvider;
 let structureSymbolProvider: StructureSymbolProvider;
 let statusBarItem: vscode.StatusBarItem;
 
@@ -43,6 +46,8 @@ let statusBarItem: vscode.StatusBarItem;
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
+
+	vscode.window.showInformationMessage("Lix loading!");
 
 	// Load configs & language files
 	if (!await loadConfiguration(context)) {
@@ -55,13 +60,16 @@ export async function activate(context: vscode.ExtensionContext) {
 	texts = loadTexts(config.get("locale"), config.settings.locale);
 
 	// Compiler manager
-	compilerManager = new CompilerManager(config, texts);
+	documentManager = new DocumentManager(config, texts);
 
 	// Register commands
 	registerCommands(context);
 
 	// Register providers
 	registerProviders(context);
+
+	// Register language model
+	registerLanguageModel(context);
 
 	// Status bar
 	registerStatusBar(context);
@@ -78,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Success
 	console.log('Lix started successfully!');
-	//vscode.window.showInformationMessage("Lix started successfully!");
+	vscode.window.showInformationMessage("Lix started successfully!");
 }
 
 async function loadConfiguration(context: vscode.ExtensionContext): Promise<boolean> {
@@ -132,11 +140,11 @@ function registerCommands(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.debug', debug)
+		vscode.commands.registerCommand('lix.convertFile', convertFile)
 	);
 
 	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.gotoLine', gotoLine)
+		vscode.commands.registerCommand('lix.debug', debug)
 	);
 
 	context.subscriptions.push(
@@ -176,43 +184,70 @@ function registerProviders(context: vscode.ExtensionContext) {
 
 	// Completion provider
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(CompilerManager.docSel, new CompletionProvider(compilerManager), "[", "`", "(", "@", ",")
+		vscode.languages.registerCompletionItemProvider(DocumentManager.docSel, new CompletionProvider(documentManager), "[", "`", "(", "@", ",")
 	);
 
 	// Folding range provider
 	context.subscriptions.push(
-		vscode.languages.registerFoldingRangeProvider(CompilerManager.docSel, new FoldingRangeProvider(compilerManager))
+		vscode.languages.registerFoldingRangeProvider(DocumentManager.docSel, new FoldingRangeProvider(documentManager))
 	);
 
 	// Semantic token provider
 	let tokenTypes = ['keyword', 'operator', 'string', 'function', 'variable', 'comment', 'class', 'type'];
 	let tokenModifiers = ['declaration', 'documentation'];
 	let legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
-	vscode.languages.registerDocumentSemanticTokensProvider(CompilerManager.docSel, new SemanticProvider(compilerManager, legend), legend);
+	vscode.languages.registerDocumentSemanticTokensProvider(DocumentManager.docSel, new SemanticProvider(documentManager, legend), legend);
 
 	// Tree data provider
-	commandProvider = new CommandProvider(compilerManager);
+	commandProvider = new CommandProvider(documentManager);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-command", commandProvider)
 	);
-	structureProvider = new StructureProvider(compilerManager);
+	structureProvider = new StructureProvider(documentManager);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-structure", structureProvider)
 	);
-	blockProvider = new BlockProvider(compilerManager);
+	informationProvider = new InformationProvider(documentManager);
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-block", blockProvider)
-	);
-	symbolsProvider = new SymbolsProvider(compilerManager);
-	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-symbols", symbolsProvider)
+		vscode.window.registerTreeDataProvider("lix-information", informationProvider)
 	);
 
 	// Document symbol provider
-	structureSymbolProvider = new StructureSymbolProvider(compilerManager);
+	structureSymbolProvider = new StructureSymbolProvider(documentManager);
 	context.subscriptions.push(
-		vscode.languages.registerDocumentSymbolProvider(CompilerManager.docSel, structureSymbolProvider)
+		vscode.languages.registerDocumentSymbolProvider(DocumentManager.docSel, structureSymbolProvider)
 	);
+}
+
+function registerLanguageModel(context: vscode.ExtensionContext) {
+
+	// context.subscriptions.push(
+	// 	vscode.lm.registerTool("lix-get_version", new VersionTool())
+	// );
+
+	context.subscriptions.push(
+		vscode.lm.registerTool("lix-get_syntax_tree", new SyntaxTreeTool(documentManager))
+	);
+
+	context.subscriptions.push(
+		vscode.lm.registerTool("lix-get_parse_messages", new ParseMessagesTool(documentManager))
+	);
+
+	context.subscriptions.push(
+		vscode.lm.registerTool("lix-get_markdown_output", new MarkdownOutputTool(documentManager))
+	);
+
+	context.subscriptions.push(
+		vscode.lm.registerTool("lix-get_latex_output", new LatexOutputTool(documentManager))
+	);
+
+	context.subscriptions.push(
+		vscode.lm.registerTool("lix-get_output_uri", new OutputUriTool(documentManager))
+	);
+
+	// assistant = vscode.chat.createChatParticipant("lix", assistantHandler);
+	// assistant.iconPath = new vscode.ThemeIcon("preview");
+	// context.subscriptions.push(assistant);
 }
 
 function registerStatusBar(context: vscode.ExtensionContext) {
@@ -283,12 +318,12 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 	if (!isDebugging) {
 		return;
 	}
-	let document = compilerManager.validateDocument(change.textEditor.document);
+	let document = documentManager.validateDocument(change.textEditor.document);
 	if (!document) {
 		return;
 	}
 
-	let parser = compilerManager.getParseResult(document);
+	let parser = documentManager.getParseResult(document);
 	let pos = change.selections[0].start;
 
 	let index = parser.getIndex(pos.line, pos.character)!;
@@ -350,12 +385,12 @@ function onTerminalClosed(terminal: vscode.Terminal) {
 // Document events
 
 async function onDidOpenTextDocument(allDocument: vscode.TextDocument) {
-	let document = compilerManager.validateDocument(allDocument, false);
+	let document = documentManager.validateDocument(allDocument, false);
 	if (!document) {
 		return;
 	}
-	compilerManager.add(document);
-	compilerManager.parseDocument(document);
+	documentManager.add(document);
+	documentManager.parseDocument(document);
 	updateData(document, true);
 	updateUI(false);
 }
@@ -367,21 +402,21 @@ async function onDidSaveTextDocument(document: vscode.TextDocument) {
 }
 
 async function onDidChangeTextDocument(event: vscode.TextDocumentChangeEvent) {
-	let document = compilerManager.validateDocument(event.document);
+	let document = documentManager.validateDocument(event.document);
 	if (!document) {
 		return;
 	}
-	compilerManager.parseDocument(document);
+	documentManager.parseDocument(document);
 	updateData(document, true);
 	updateUI(true);
 }
 
 async function onDidCloseTextDocument(allDocument: vscode.TextDocument) {
-	let document = compilerManager.validateDocument(allDocument);
+	let document = documentManager.validateDocument(allDocument);
 	if (!document) {
 		return;
 	}
-	compilerManager.remove(document);
+	documentManager.remove(document);
 }
 
 // **************** Commands ****************
@@ -389,20 +424,20 @@ async function onDidCloseTextDocument(allDocument: vscode.TextDocument) {
 let compileTerminal: vscode.Terminal | undefined;
 
 async function pick(generator?: string) {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
 
-	let generatorNames = compilerManager.getGenerators(document);
+	let generatorNames = documentManager.getGenerators(document);
 	if (generator === undefined) {
 		generator = await vscode.window.showQuickPick(generatorNames, { placeHolder: "Select generator" });
 	}
-	if (generator === undefined || !compilerManager.getGenerators(document).includes(generator)) {
+	if (generator === undefined || !documentManager.getGenerators(document).includes(generator)) {
 		return;
 	}
 
-	compilerManager.setGenerator(document, generator);
+	documentManager.setGenerator(document, generator);
 	updateUI(true);
 }
 
@@ -418,19 +453,19 @@ function getLatexCommand(): string {
 }
 
 async function compile() {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
 	await vscode.workspace.saveAll();
 
-	await compilerManager.compile(document);
+	await documentManager.compile(document);
 	updateData(document, true);
 	updateUI(true);
 
-	let { outputUri } = compilerManager.getCompileResult(document);
+	let { outputUri } = documentManager.getCompileResult(document);
 	let outputName = outputUri.basename;
-	let fileSystem = compilerManager.getFileSystem(document);
+	let fileSystem = documentManager.getFileSystem(document);
 	let workingDirUri = fileSystem.workingDirectoryUri;
 
 	if (compileTerminal === undefined) {
@@ -438,7 +473,7 @@ async function compile() {
 		//compileTerminal.hide();
 	}
 
-	let generatorName = compilerManager.getGenerator(document);
+	let generatorName = documentManager.getGenerator(document);
 	if (generatorName === "latex") {
 		let cacheDirUri = fileSystem.cacheDirectoryUri;
 		let pdfName = outputUri.stem + ".pdf";
@@ -466,42 +501,36 @@ async function compile() {
 }
 
 async function generate() {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
-	compilerManager.generateDocument(document);
+	documentManager.generateDocument(document);
 	updateData(document, false);
 	updateUI(true);
 	previewDocument(getPreviewUri(document.uri, "generate"));
 }
 
 async function analyse() {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
-	compilerManager.parseDocument(document);
+	documentManager.parseDocument(document);
 	updateData(document, false);
 	updateUI(true);
 	previewDocument(getPreviewUri(document.uri, "analyse"));
 }
 
 async function parse() {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
-	compilerManager.parseDocument(document);
+	documentManager.parseDocument(document);
 	updateData(document, false);
 	updateUI(true);
 	previewDocument(getPreviewUri(document.uri, "parse"));
-}
-
-async function gotoLine(uri: vscode.Uri, line: number) {
-	const doc = await vscode.workspace.openTextDocument(uri);
-	await vscode.window.showTextDocument(doc, { selection: new vscode.Range(line, 0, line, 0) });
-
 }
 
 async function previewPdf(uri?: vscode.Uri) {
@@ -509,6 +538,7 @@ async function previewPdf(uri?: vscode.Uri) {
 		const picked = await vscode.window.showOpenDialog({
 			filters: { PDF: ['pdf'] },
 			canSelectMany: false,
+			canSelectFolders: false
 		});
 		uri = picked?.at(0);
 	}
@@ -516,6 +546,21 @@ async function previewPdf(uri?: vscode.Uri) {
 		return;
 	}
 	await previewPDFDocument(uri)
+}
+
+async function convertFile(uri?: vscode.Uri) {
+	if (!uri) {
+		const picked = await vscode.window.showOpenDialog({
+			canSelectMany: false,
+			canSelectFolders: false
+		});
+		uri = picked?.at(0);
+	}
+	if (!uri) {
+		return;
+	}
+	const prompt = `Read the file "${uri.fsPath}" and convert it to a Lix document in a new editor. Make sure that there are no errors in the Lix document. Use #lixLatexOutput #lixMarkdownOutput to preview the generated output. Make sure the output coincides with the original file as much as possible. Use  #lixParseMessages to get error messages.`;
+	await await vscode.commands.executeCommand('workbench.action.chat.openagent', prompt);
 }
 
 async function debug() {
@@ -528,8 +573,13 @@ async function debug() {
 	}
 }
 
-function test() {
+async function test() {
 	vscode.window.showInformationMessage("abcd");
+	console.log((await vscode.commands.getCommands(true)).filter(c => c.includes("chat")));
+	console.log(vscode.lm.tools.map(t => t.name));
+	await vscode.commands.executeCommand('workbench.action.chat.openagent', "hello",
+		vscode.Uri.file("/a/b/c"),
+		vscode.Uri.file("/a/b/c"));
 }
 
 function bu(f: () => void, thisArg?: unknown) {
@@ -592,18 +642,19 @@ function helloWorld() {
 // **************** Update ****************
 
 // Update data
-// Automatic: completion, folding range, semantic
+// Automatic: completion, folding range, semantic, structure symbols
 
 // Suppose document is already validated
 function updateData(document: vscode.TextDocument, fast: boolean) {
-	updateDiagnostic(document, compilerManager, diagnosticCollection);
+	updateDiagnostic(document, documentManager, diagnosticCollection);
+	updateStructure(document);
 	if (!fast) {
 		updateDocument(document);
 	}
 }
 
 function updateDocument(document: vscode.TextDocument) {
-	let parser = compilerManager.getParseResult(document);
+	let parser = documentManager.getParseResult(document);
 	let state = "";
 	switch (parser.state) {
 		case ResultState.successful:
@@ -621,8 +672,13 @@ function updateDocument(document: vscode.TextDocument) {
 	}
 	documentProvider.updateContent(getPreviewUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${state}]]`);
 	documentProvider.updateContent(getPreviewUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString() + `\n[[State: ${state}]]`);
-	documentProvider.updateContent(getPreviewUri(document.uri, "generate"), `[[Generating Result]]\n` + compilerManager.getGenerateResult(document).output);
+	documentProvider.updateContent(getPreviewUri(document.uri, "generate"), `[[Generating Result]]\n` + documentManager.getGenerateResult(document).output);
 
+}
+
+function updateStructure(document: vscode.TextDocument) {
+	let structure = StructureProvider.cacheTreeData(document, documentManager);
+	documentManager.setStructureData(document, structure);
 }
 
 // Update UI
@@ -633,13 +689,13 @@ function updateUI(fast: boolean) {
 }
 
 function updateStatusBar() {
-	let document = compilerManager.validateDocument();
+	let document = documentManager.validateDocument();
 	if (!document) {
 		statusBarItem.text = "$(dash) Lix";
 		statusBarItem.tooltip = "Lix";
 		return;
 	}
-	let state = compilerManager.getParseResult(document).state;
+	let state = documentManager.getParseResult(document).state;
 	switch (state) {
 		case ResultState.successful:
 			statusBarItem.text = "$(check) Lix";
@@ -665,8 +721,7 @@ function updateTreeData(fast: boolean = false) {
 	commandProvider.onDidChangeTreeDataEmitter.fire(undefined);
 	structureProvider.onDidChangeTreeDataEmitter.fire(undefined);
 	if (!fast) {
-		blockProvider.onDidChangeTreeDataEmitter.fire(undefined);
-		symbolsProvider.onDidChangeTreeDataEmitter.fire(undefined);
+		informationProvider.onDidChangeTreeDataEmitter.fire(undefined);
 	}
 }
 

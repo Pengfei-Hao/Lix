@@ -1,23 +1,23 @@
 import * as vscode from 'vscode';
-import { CompilerManager } from '../compiler-manager';
+import { DocumentManager } from '../document-manager';
 
 export class FoldingRangeProvider implements vscode.FoldingRangeProvider {
 
     constructor(
-        private compilerManager: CompilerManager
+        private documentManager: DocumentManager
 
     ) {
     }
 
     provideFoldingRanges(allDocument: vscode.TextDocument, context: vscode.FoldingContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.FoldingRange[]> {
-        let document = this.compilerManager.validateDocument(allDocument);
+        let document = this.documentManager.validateDocument(allDocument);
         if (!document) {
             return [];
         }
 
         let res: vscode.FoldingRange[] = [];
-        let parser = this.compilerManager.getParseResult(document);
-        let typeTable = this.compilerManager.getTypeTable(document);
+        let parser = this.documentManager.getParseResult(document);
+        let typeTable = this.documentManager.getTypeTable(document);
 
         for (let block of parser.syntaxTree.children) {
             if (block.type === parser.blockType) {

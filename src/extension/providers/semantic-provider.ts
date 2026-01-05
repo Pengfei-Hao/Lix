@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { CompilerManager } from '../compiler-manager';
+import { DocumentManager } from '../document-manager';
 import { HighlightType } from '../../parser/result';
 
 export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
     constructor(
-        private compilerManager: CompilerManager,
+        private documentManager: DocumentManager,
         private legend: vscode.SemanticTokensLegend) {
     }
 
@@ -13,7 +13,7 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
         // analyze the document and return semantic tokens
 
-        let document = this.compilerManager.validateDocument(allDocument);
+        let document = this.documentManager.validateDocument(allDocument);
         if (!document) {
             return;
         }
@@ -21,7 +21,7 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
         const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend);
         // on line 1, characters 1-5 are a class declaration
 
-        let parser = this.compilerManager.getParseResult(document);
+        let parser = this.documentManager.getParseResult(document);
         let highlights = parser.highlights;
         for (let hlt of highlights) {
             let type = "";

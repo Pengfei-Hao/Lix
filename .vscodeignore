@@ -1,0 +1,9 @@
+.gitignore
+.vscodeignore
+.vscode/
+.VSCodeCounter/
+src/
+tests/
+Lix Document.md
+Lix Grammers.md
+tsconfig.json

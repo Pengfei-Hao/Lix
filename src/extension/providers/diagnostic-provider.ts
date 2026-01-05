@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
-import { CompilerManager } from '../compiler-manager';
+import { DocumentManager } from '../document-manager';
 import { MessageType } from '../../parser/message';
 import { ResultState } from '../../parser/result';
 
-export function updateDiagnostic(document: vscode.TextDocument, compilerManager: CompilerManager, diagnosticCollection: vscode.DiagnosticCollection) {
+export function updateDiagnostic(document: vscode.TextDocument, documentManager: DocumentManager, diagnosticCollection: vscode.DiagnosticCollection) {
 
-	let parser = compilerManager.getParseResult(document);
+	let parser = documentManager.getParseResult(document);
 	let messages = parser.messages;
 	let state = parser.state;
 

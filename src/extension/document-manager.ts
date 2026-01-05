@@ -9,10 +9,12 @@ import { Texts } from "./locale";
 import { LixError } from "../foundation/error";
 import { FileSystem } from "../compiler/file-system";
 import { Uri } from "../compiler/uri";
+import { StructureItem } from "./providers/tree-data-provider";
 
-export class CompilerManager {
+export class DocumentManager {
 
     private compilers: Map<string, Compiler>;
+    private compilerWithoutFile: Compiler;
 
     private nodePath: NodePath;
 
@@ -25,6 +27,8 @@ export class CompilerManager {
     ) {
         this.compilers = new Map();
         this.nodePath = new NodePath(this.texts.NodePath);
+        this.structureData = new Map<string, StructureItem>();
+        this.compilerWithoutFile = new Compiler(this.config, new VSCodeFileSystem(vscode.Uri.file(''), this.nodePath, this.texts.VSCodeFileSystem), this.texts)
     }
 
     // Management
@@ -90,6 +94,17 @@ export class CompilerManager {
         await compiler.compile();
     }
 
+    parseWithoutDocument(text: string): Parser {
+        this.compilerWithoutFile.parseText(text);
+        return this.compilerWithoutFile.parser;
+    }
+
+    generateWithoutDocument(text: string, generator: string): { output: string } {
+        this.compilerWithoutFile.setCurrentGenerator(generator);
+        this.compilerWithoutFile.generateText(text);
+        return { output: this.compilerWithoutFile.getCurrentGenerator().output };
+    }
+
     // Environment
 
     getFileSystem(document: vscode.TextDocument): FileSystem {
@@ -151,13 +166,25 @@ export class CompilerManager {
         return { outputUri: compiler.getOutputUri() };
     }
 
+    private structureData: Map<string, StructureItem>;
+
+    setStructureData(document: vscode.TextDocument, data: StructureItem) {
+        let name = this.getName(document);
+        this.structureData.set(name, data);
+    }
+
+    getStructureData(document: vscode.TextDocument): StructureItem | undefined {
+        let name = this.getName(document);
+        return this.structureData.get(name);
+    }
+
     // Validation
 
     validateDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document, strict = true): vscode.TextDocument | undefined {
         if (!document) {
             return;
         }
-        if (vscode.languages.match(CompilerManager.docSel, document) == 10 && (!strict || this.has(document))) {
+        if (vscode.languages.match(DocumentManager.docSel, document) == 10 && (!strict || this.has(document))) {
             return document;
         }
     }

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Parser } from '../../parser/parser';
-import { CompilerManager } from '../compiler-manager';
+import { DocumentManager } from '../document-manager';
 import { Node } from '../../syntax-tree/node';
 import { Type } from '../../syntax-tree/type';
 import { ArgumentType } from '../../parser/block-table';
@@ -8,20 +8,20 @@ import { ArgumentType } from '../../parser/block-table';
 export class CompletionProvider implements vscode.CompletionItemProvider {
 
     constructor(
-        private compilerManager: CompilerManager
+        private documentManager: DocumentManager
     ) {
     }
 
     public provideCompletionItems(allDocument: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
         //console.log(`${context.triggerCharacter},${context.triggerKind}`);
         //console.log(`${context.triggerCharacter},${position.line},${position.character}`);
-        let document = this.compilerManager.validateDocument(allDocument);
+        let document = this.documentManager.validateDocument(allDocument);
         if (!document) {
             return;
         }
 
         let res: vscode.CompletionItem[] = [];
-        let parser = this.compilerManager.getParseResult(document);
+        let parser = this.documentManager.getParseResult(document);
 
         if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
             //if (this.inMath(parser, parser.getIndex(position.line, position.character-1)!)) {
@@ -77,7 +77,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
             if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.getIndex(position.line, position.character)!)) {
-                // let list = this.compilerManager.getFileList(document.uri);
+                // let list = this.documentManager.getFileList(document.uri);
                 // for (let item of list) {
                 //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
                 //     res.push(comp);

@@ -24,6 +24,12 @@
         "icon": "$(file-pdf)"
       },
       {
+        "command": "lix.convertFile",
+        "title": "Convert File to Lix",
+        "category": "Lix",
+        "icon": "$(file-pdf)"
+      },
+      {
         "command": "lix.test",
         "title": "Test Lix",
         "category": "Lix"
@@ -127,12 +133,8 @@
           "name": "Structure"
         },
         {
-          "id": "lix-block",
-          "name": "Blocks"
-        },
-        {
-          "id": "lix-symbols",
-          "name": "Math Symbols"
+          "id": "lix-information",
+          "name": "Information"
         }
       ]
     },
@@ -169,7 +171,152 @@
           "description": "Directory for temporary build artifacts. Relative paths are resolved from the current Lix file."
         }
       }
-    }
+    },
+    "languageModelTools": [
+      {
+        "name": "lix-get_version",
+        "tags": [
+          "lix",
+          "version"
+        ],
+        "toolReferenceName": "lixVersion",
+        "displayName": "Lix Version",
+        "modelDescription": "Get the version of Lix",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "description": "Indicating the version format.",
+              "enum": [
+                "short",
+                "long"
+              ],
+              "default": "short"
+            }
+          }
+        }
+      },
+      {
+        "name": "lix-get_syntax_tree",
+        "tags": [
+          "lix",
+          "language",
+          "syntax"
+        ],
+        "toolReferenceName": "lixSyntaxTree",
+        "displayName": "Lix Syntax Tree",
+        "modelDescription": "Get the syntax tree of Lix in current document.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "The text content to analyze for the syntax tree. If not provided, the current document will be used."
+            }
+          }
+        }
+      },
+      {
+        "name": "lix-get_parse_messages",
+        "tags": [
+          "lix",
+          "language",
+          "parse",
+          "messages"
+        ],
+        "toolReferenceName": "lixParseMessages",
+        "displayName": "Lix Parse Messages",
+        "modelDescription": "Get the parse messages of Lix in current document",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "The text content to analyze for the parse messages. If not provided, the current document will be used."
+            }
+          }
+        }
+      },
+      {
+        "name": "lix-get_markdown_output",
+        "tags": [
+          "lix",
+          "generate",
+          "markdown"
+        ],
+        "toolReferenceName": "lixMarkdownOutput",
+        "displayName": "Lix Markdown Output",
+        "modelDescription": "Get the markdown output of Lix in current document",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "The text content to analyze for the markdown output. If not provided, the current document will be used."
+            }
+          }
+        }
+      },
+      {
+        "name": "lix-get_latex_output",
+        "tags": [
+          "lix",
+          "generate",
+          "latex"
+        ],
+        "toolReferenceName": "lixLatexOutput",
+        "displayName": "Lix LaTeX Output",
+        "modelDescription": "Get the LaTeX output of Lix in current document",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "The text content to analyze for the LaTeX output. If not provided, the current document will be used."
+            }
+          }
+        }
+      },
+      {
+        "name": "lix-get_output_uri",
+        "tags": [
+          "lix",
+          "generate",
+          "output"
+        ],
+        "toolReferenceName": "lixOutputUri",
+        "displayName": "Lix Output URI",
+        "modelDescription": "Get the output file URI of Lix in current document. The uri is valid only if the current document is lix file.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(file-pdf)"
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "lix",
+        "name": "lix",
+        "fullName": "Lix",
+        "commands": [
+          {
+            "name": "convert",
+            "description": "Convert documents to Lix format."
+          }
+        ],
+        "description": "AI assistant for Lix, the Light LaTeX.",
+        "isSticky": true
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -180,22 +327,24 @@
     "test": "node ./out/test/runTest.js"
   },
   "dependencies": {
+    "@vscode/chat-extension-utils": "^0.0.0-alpha.5",
     "vscode-languageclient": "^7.0.0",
     "vscode-languageserver": "^7.0.0",
-    "vscode-languageserver-textdocument": "^1.0.1"
+    "vscode-languageserver-textdocument": "^1.0.1",
+    "vscode-uri": "^3.1.0"
   },
   "devDependencies": {
+    "@vscode/vsce": "^3.7.1",
+    "@vscode/test-electron": "^2.3.0",
+    "@typescript-eslint/eslint-plugin": "^5.56.0",
+    "@typescript-eslint/parser": "^5.56.0",
+    "eslint": "^8.36.0",
+    "typescript": "^4.9.5",
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.1",
     "@types/node": "16.x",
     "@types/vscode": "^1.77.0",
-    "@typescript-eslint/eslint-plugin": "^5.56.0",
-    "@typescript-eslint/parser": "^5.56.0",
-    "@vscode/test-electron": "^2.3.0",
-    "eslint": "^8.36.0",
     "glob": "^8.1.0",
-    "mocha": "^10.2.0",
-    "typescript": "^4.9.5",
-    "vscode-uri": "^3.1.0"
+    "mocha": "^10.2.0"
   }
 }
