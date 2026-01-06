@@ -42,4 +42,15 @@ export type VSCodeFileSystemTexts = {
 //     compilerTexts: CompilerTexts;
 // }
 
+export type UITexts = {
+    StatusBar: string;
+    StatusBarHover: string;
+    StatusViewInfomation: string;
+    StatusViewGeneratorInformation: string;
+    StateSuccessful: string;
+    StateSkippable: string;
+    StateMatched: string;
+    StateFailing: string;
+}
+
 export const extensionExceptionTexts = {} as const;

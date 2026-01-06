@@ -2,7 +2,7 @@
   "name": "lix-language",
   "displayName": "Lix Language",
   "description": "Lix is a Light Latex.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "pengfei-hao",
   "license": "MIT",
   "homepage": "https://github.com/Pengfei-Hao/Lix",
@@ -40,73 +40,71 @@
     "commands": [
       {
         "command": "lix.helloWorld",
-        "title": "Hello World",
+        "title": "%command.helloWorld.title%",
         "category": "Lix"
       },
       {
         "command": "lix.test",
-        "title": "Test Lix",
+        "title": "%command.test.title%",
         "category": "Lix"
       },
       {
         "command": "lix.previewPdf",
-        "title": "Preview PDF",
-        "shortTitle": "Preview",
+        "title": "%command.previewPdf.title%",
         "category": "Lix",
         "icon": "$(file-pdf)"
       },
       {
         "command": "lix.convertFile",
-        "title": "Convert to Lix (AI)",
+        "title": "%command.convertFile.title%",
         "category": "Lix",
         "icon": "$(file-pdf)"
       },
       {
         "command": "lix.parse",
-        "title": "Parse Result",
+        "title": "%command.parse.title%",
         "category": "Lix",
         "icon": "$(list-selection)"
       },
       {
         "command": "lix.analyse",
-        "title": "Analyse Result",
+        "title": "%command.analyse.title%",
         "category": "Lix",
         "icon": "$(list-tree)"
       },
       {
         "command": "lix.generate",
-        "title": "Generate Output",
+        "title": "%command.generate.title%",
         "category": "Lix",
         "icon": "$(file-code)"
       },
       {
         "command": "lix.compile",
-        "title": "Compile Document",
+        "title": "%command.compile.title%",
         "category": "Lix",
         "icon": "$(preview)"
       },
       {
         "command": "lix.pick",
-        "title": "Pick ...",
+        "title": "%command.pick.title%",
         "category": "Lix",
         "icon": "$(settings-gear)"
       },
       {
         "command": "lix.pickLatex",
-        "title": "Pick Latex",
+        "title": "%command.pickLatex.title%",
         "category": "Lix",
         "icon": "$(settings-gear)"
       },
       {
         "command": "lix.pickMarkdown",
-        "title": "Pick Markdown",
+        "title": "%command.pickMarkdown.title%",
         "category": "Lix",
         "icon": "$(settings-gear)"
       },
       {
         "command": "lix.debug",
-        "title": "Switch Debug Mode",
-        "shortTitle": "Debug Mode",
+        "title": "%command.debug.title%",
         "category": "Lix",
         "icon": "$(bug)"
       }
@@ -133,7 +131,7 @@
     "customEditors": [
       {
         "viewType": "lix.pdfViewer",
-        "displayName": "Lix PDF Preview",
+        "displayName": "%customEditor.pdfViewer.displayName%",
         "selector": [
           {
             "filenamePattern": "*.pdf"
@@ -255,11 +253,11 @@
       {
         "id": "lix.main",
         "icon": "./icons/lix-icon-small.svg",
-        "label": "Lix"
+        "label": "%submenu.main.label%"
       },
       {
         "id": "lix.generators",
-        "label": "Pick Generator",
+        "label": "%submenu.generators.label%",
         "icon": "$(gear)"
       }
     ],
@@ -267,7 +265,7 @@
       "activitybar": [
         {
           "id": "lix-bar",
-          "title": "Lix",
+          "title": "%viewsContainer.activitybar.title%",
           "icon": "/icons/lix-icon.svg"
         }
       ]
@@ -276,12 +274,11 @@
       "lix-bar": [
         {
           "id": "lix-status",
-          "name": "Status"
+          "name": "%view.status.name%"
         },
         {
           "id": "lix-information",
-          "name": "Information",
-          "visibility": "collapsed",
+          "name": "%view.information.name%",
           "when": "lix.isLix == true"
         }
       ]
@@ -289,11 +286,11 @@
     "viewsWelcome": [
       {
         "view": "lix-status",
-        "contents": "Open or create a Lix file to see Lix status and information here.\n[New File](command:workbench.action.files.newUntitledFile)\n[Open File](command:workbench.action.files.openFile)\nOr convert an existing file to Lix format.\n[Convert File to Lix (AI)](command:lix.convertFile)"
+        "contents": "%viewsWelcome.status.contents%"
       }
     ],
     "configuration": {
-      "title": "Lix",
+      "title": "%configuration.title%",
       "properties": {
         "lix.locale": {
           "type": "string",
@@ -302,27 +299,28 @@
             "en-US"
           ],
           "default": "en-US",
-          "description": "UI language for Lix."
+          "description": "%configuration.locale.description%",
+          "readOnly": true
         },
         "lix.latexCommand.mac": {
           "type": "string",
           "default": "xelatex -synctex=1 -interaction=nonstopmode",
-          "description": "Command used to invoke LaTeX on macOS."
+          "description": "%configuration.latexCommand.mac.description%"
         },
         "lix.latexCommand.linux": {
           "type": "string",
           "default": "xelatex -synctex=1 -interaction=nonstopmode",
-          "description": "Command used to invoke LaTeX on Linux."
+          "description": "%configuration.latexCommand.linux.description%"
         },
         "lix.latexCommand.windows": {
           "type": "string",
           "default": "xelatex.exe -synctex=1 -interaction=nonstopmode",
-          "description": "Command used to invoke LaTeX on Windows."
+          "description": "%configuration.latexCommand.windows.description%"
         },
         "lix.cacheDirectory": {
           "type": "string",
           "default": ".lix",
-          "description": "Directory for temporary build artifacts. Relative paths are resolved from the current Lix file."
+          "description": "%configuration.cacheDirectory.description%"
         }
       }
     },
@@ -334,8 +332,8 @@
           "version"
         ],
         "toolReferenceName": "lixVersion",
-        "displayName": "Lix Version",
-        "modelDescription": "Get the version of Lix",
+        "displayName": "%languageModelTool.version.displayName%",
+        "modelDescription": "%languageModelTool.version.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)",
         "inputSchema": {
@@ -361,8 +359,8 @@
           "syntax"
         ],
         "toolReferenceName": "lixSyntaxTree",
-        "displayName": "Lix Syntax Tree",
-        "modelDescription": "Get the syntax tree of Lix in current document.",
+        "displayName": "%languageModelTool.syntaxTree.displayName%",
+        "modelDescription": "%languageModelTool.syntaxTree.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)",
         "inputSchema": {
@@ -384,8 +382,8 @@
           "messages"
         ],
         "toolReferenceName": "lixParseMessages",
-        "displayName": "Lix Parse Messages",
-        "modelDescription": "Get the parse messages of Lix in current document",
+        "displayName": "%languageModelTool.parseMessages.displayName%",
+        "modelDescription": "%languageModelTool.parseMessages.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)",
         "inputSchema": {
@@ -406,8 +404,8 @@
           "markdown"
         ],
         "toolReferenceName": "lixMarkdownOutput",
-        "displayName": "Lix Markdown Output",
-        "modelDescription": "Get the markdown output of Lix in current document",
+        "displayName": "%languageModelTool.markdownOutput.displayName%",
+        "modelDescription": "%languageModelTool.markdownOutput.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)",
         "inputSchema": {
@@ -428,8 +426,8 @@
           "latex"
         ],
         "toolReferenceName": "lixLatexOutput",
-        "displayName": "Lix LaTeX Output",
-        "modelDescription": "Get the LaTeX output of Lix in current document",
+        "displayName": "%languageModelTool.latexOutput.displayName%",
+        "modelDescription": "%languageModelTool.latexOutput.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)",
         "inputSchema": {
@@ -450,8 +448,8 @@
           "output"
         ],
         "toolReferenceName": "lixOutputUri",
-        "displayName": "Lix Output URI",
-        "modelDescription": "Get the output file URI of Lix in current document. The uri is valid only if the current document is lix file.",
+        "displayName": "%languageModelTool.outputUri.displayName%",
+        "modelDescription": "%languageModelTool.outputUri.modelDescription%",
         "canBeReferencedInPrompt": true,
         "icon": "$(file-pdf)"
       }
@@ -464,10 +462,10 @@
         "commands": [
           {
             "name": "convert",
-            "description": "Convert documents to Lix format."
+            "description": "%chatParticipant.lix.commands.convert.description%"
           }
         ],
-        "description": "AI assistant for Lix, the Light LaTeX.",
+        "description": "%chatParticipant.lix.description%",
         "isSticky": true
       }
     ]

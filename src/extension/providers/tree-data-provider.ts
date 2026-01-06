@@ -4,6 +4,7 @@ import { stateToString } from "../../parser/result";
 import { Node } from "../../syntax-tree/node";
 import { DocumentManager } from "../document-manager";
 import * as vscode from 'vscode';
+import { UITexts } from "../texts";
 
 type InformationKind = "blocks" | "symbols";
 
@@ -290,7 +291,8 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
     onDidChangeTreeData;
 
     constructor(
-        private documentManager: DocumentManager
+        private documentManager: DocumentManager,
+        private texts: UITexts
     ) {
         this.onDidChangeTreeDataEmitter = new vscode.EventEmitter<StatusItem | undefined>();
         this.onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
@@ -315,7 +317,7 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
                 // this.getItem("Analyse", "lix.analyse", "list-tree"),
                 // this.getItem("Parse", "lix.parse", "list-tree"),
                 // this.getItem("Debug", "lix.debug", "bug"),
-                this.getItem(`Status: ${stateToString(this.documentManager.getParseResult(document).state)}`, "info"),
+                this.getItem(this.texts.StatusViewInfomation.format(stateToString(this.documentManager.getParseResult(document).state, this.texts)), "info"),
                 this.getGeneratorRootItem(currentGenerator)
             ];
         }
@@ -337,7 +339,7 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
     }
 
     private getGeneratorRootItem(currentGenerator: string): StatusItem {
-        const item = new StatusItem(`Generator: ${currentGenerator}`, vscode.TreeItemCollapsibleState.Expanded, "generatorRoot");
+        const item = new StatusItem(this.texts.StatusViewGeneratorInformation.format(currentGenerator), vscode.TreeItemCollapsibleState.Expanded, "generatorRoot");
         item.iconPath = new vscode.ThemeIcon("settings-gear");
         return item;
     }

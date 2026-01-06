@@ -1,7 +1,7 @@
 import "../foundation/format";
 import { ParserTexts } from "../parser/texts";
 import { GeneratorTexts } from "../generator/texts";
-import { NodePathTexts, VSCodeFileSystemTexts } from "./texts";
+import { NodePathTexts, UITexts, VSCodeFileSystemTexts } from "./texts";
 import { CompilerTexts } from "../compiler/texts";
 import { SyntaxTreeTexts } from "../syntax-tree/texts";
 
@@ -22,6 +22,9 @@ export type Texts = {
 
     // Syntax tree texts
     SyntaxTree: SyntaxTreeTexts;
+
+    // UI texts
+    UI: UITexts;
 }
 
 const locales = new Set(["en-US", "zh-CN"]);

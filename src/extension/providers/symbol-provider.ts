@@ -113,7 +113,7 @@ export class SymbolProvider implements vscode.DocumentSymbolProvider {
                 parent.children.push(new vscode.DocumentSymbol(`Author: ${getWords(node)}`, "", vscode.SymbolKind.String, range, range));
             }
             if (node.type === dateType) {
-                parent.children.push(new vscode.DocumentSymbol(`Date: ${getWords(node)}`, "", vscode.SymbolKind.TypeParameter, range, range));
+                parent.children.push(new vscode.DocumentSymbol(`Date: ${getWords(node)}`, "", vscode.SymbolKind.String, range, range));
             }
             if (node.type === tableofcontentsType) {
                 parent.children.push(new vscode.DocumentSymbol(`Table of Contents`, "", vscode.SymbolKind.Constant, range, range));

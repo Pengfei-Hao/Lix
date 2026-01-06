@@ -99,7 +99,13 @@ async function loadConfiguration(context: vscode.ExtensionContext): Promise<bool
 
 	const vscodeConfig = vscode.workspace.getConfiguration("lix");
 
-	const locale = vscodeConfig.get<string>("locale")!;
+	const lang = vscode.env.language;
+	let locale = "en-US";
+	if (lang === "zh-cn") {
+		locale = "zh-CN";
+	}
+	console.log(lang);
+	// const locale = vscodeConfig.get<string>("locale")!;
 	const latexMac = vscodeConfig.get<string>("latexCommand.mac")!;
 	const latexLinux = vscodeConfig.get<string>("latexCommand.linux")!;
 	const latexWindows = vscodeConfig.get<string>("latexCommand.windows")!;
@@ -150,10 +156,6 @@ function registerCommands(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.convertFile', convertFile)
-	);
-
-	context.subscriptions.push(
-		vscode.commands.registerCommand('lix.showInformationMenu', showInformationMenu)
 	);
 
 	context.subscriptions.push(
@@ -212,7 +214,7 @@ function registerProviders(context: vscode.ExtensionContext) {
 	vscode.languages.registerDocumentSemanticTokensProvider(DocumentManager.docSel, new SemanticProvider(documentManager, legend), legend);
 
 	// Tree data provider
-	commandProvider = new StatusProvider(documentManager);
+	commandProvider = new StatusProvider(documentManager, texts.UI);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-status", commandProvider)
 	);
@@ -265,7 +267,6 @@ function registerLanguageModel(context: vscode.ExtensionContext) {
 
 function registerStatusBar(context: vscode.ExtensionContext) {
 	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-	statusBarItem.command = "workbench.view.extension.lix-bar";
 	updateStatusBar();
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
@@ -447,120 +448,6 @@ async function pick(generator?: unknown) {
 	}
 
 	documentManager.setGenerator(document, generator);
-	updateUI(true);
-}
-
-type InformationMenuItem = vscode.QuickPickItem & {
-	type: "command" | "generatorRoot";
-	commandId?: string;
-};
-
-type GeneratorMenuItem = vscode.QuickPickItem & {
-	generator: string;
-};
-
-async function showInformationMenu() {
-	const document = documentManager.validateDocument();
-
-	const buildActionItem = (label: string, commandId: string, icon?: string): InformationMenuItem => ({
-		label: icon ? `${icon} ${label}` : label,
-		type: "command",
-		commandId
-	});
-
-	const items: InformationMenuItem[] = [];
-
-	if (!document) {
-		items.push(
-			buildActionItem("Convert to Lix (AI)", "lix.convertFile", "$(file-pdf)"),
-			buildActionItem("Debug", "lix.debug", "$(bug)")
-		);
-	} else {
-		const currentGenerator = documentManager.getGenerator(document);
-		items.push(
-			buildActionItem("Compile", "lix.compile", "$(run)"),
-			buildActionItem("Convert to Lix (AI)", "lix.convertFile", "$(file-pdf)"),
-			buildActionItem("Generate", "lix.generate", "$(file-code)"),
-			buildActionItem("Analyse", "lix.analyse", "$(list-tree)"),
-			buildActionItem("Parse", "lix.parse", "$(list-tree)"),
-			buildActionItem("Debug", "lix.debug", "$(bug)"),
-			{
-				label: "$(settings-gear) Available Generators",
-				description: `Current: ${currentGenerator}`,
-				type: "generatorRoot"
-			}
-		);
-	}
-
-	if (items.length === 0) {
-		return;
-	}
-
-	const picked = await vscode.window.showQuickPick(items, {
-		placeHolder: "Lix actions",
-		ignoreFocusOut: true
-	});
-
-	if (!picked) {
-		return;
-	}
-
-	if (picked.type === "generatorRoot" && document) {
-		await showGeneratorMenu(document);
-		return;
-	}
-
-	if (picked.commandId) {
-		await vscode.commands.executeCommand(picked.commandId);
-	}
-}
-
-async function showGeneratorMenu(document: vscode.TextDocument) {
-	const generatorNames = documentManager.getGenerators(document);
-	if (generatorNames.length === 0) {
-		return;
-	}
-
-	const currentGenerator = documentManager.getGenerator(document);
-
-	const quickPick = vscode.window.createQuickPick<GeneratorMenuItem>();
-	quickPick.title = "Select generator";
-	quickPick.canSelectMany = true;
-	quickPick.items = generatorNames.map<GeneratorMenuItem>(name => ({
-		label: name,
-		generator: name,
-		picked: name === currentGenerator
-	}));
-	quickPick.selectedItems = quickPick.items.filter(item => item.picked);
-
-	const selection = await new Promise<GeneratorMenuItem | undefined>(resolve => {
-		const disposables: vscode.Disposable[] = [];
-		disposables.push(quickPick.onDidChangeSelection(sel => {
-			if (sel.length === 0) {
-				quickPick.selectedItems = [];
-				return;
-			}
-			const last = sel[sel.length - 1];
-			quickPick.selectedItems = [last];
-		}));
-		disposables.push(quickPick.onDidAccept(() => {
-			resolve(quickPick.selectedItems[0]);
-			quickPick.hide();
-		}));
-		disposables.push(quickPick.onDidHide(() => {
-			resolve(undefined);
-			disposables.forEach(d => d.dispose());
-			quickPick.dispose();
-		}));
-
-		quickPick.show();
-	});
-
-	if (!selection) {
-		return;
-	}
-
-	documentManager.setGenerator(document, selection.generator);
 	updateUI(true);
 }
 
@@ -820,28 +707,30 @@ function updateStatusBar() {
 	if (!document) {
 		statusBarItem.text = "$(circle-large-outline) Lix";
 		statusBarItem.tooltip = "Lix";
+		statusBarItem.command = "workbench.view.extension.lix-bar";
 		return;
 	}
+	statusBarItem.command = "lix.compile";
 	let state = documentManager.getParseResult(document).state;
 	let generator = documentManager.getGenerator(document);
-	let info = stateToString(state);
+	let info = stateToString(state, texts.UI);
 	switch (state) {
 		case ResultState.successful:
 			statusBarItem.text = `$(pass) Lix (${generator})`;
-			statusBarItem.tooltip = `State: ${info}`;
+			statusBarItem.tooltip = texts.UI.StatusBarHover.format(info);
 			break;
 		case ResultState.skippable:
 			statusBarItem.text = `$(error) Lix (${generator})`;
-			statusBarItem.tooltip = `State: ${info}`;
+			statusBarItem.tooltip = texts.UI.StatusBarHover.format(info);
 			break;
 		case ResultState.matched:
 			statusBarItem.text = `$(error) Lix (${generator})`;
-			statusBarItem.tooltip = `State: ${info}`;
+			statusBarItem.tooltip = texts.UI.StatusBarHover.format(info);
 			break;
 		case ResultState.failing:
 		default:
 			statusBarItem.text = `$(error) Lix (${generator})`;
-			statusBarItem.tooltip = `State: ${info}`;
+			statusBarItem.tooltip = texts.UI.StatusBarHover.format(info);
 			break;
 	}
 }

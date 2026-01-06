@@ -82,6 +82,16 @@
       "PathParseFailed": "解析路径对象失败: \"${0}\"",
       "PathFormatFailed": "格式化路径对象失败: ${0}",
       "PathToNamespacedPathFailed": "转换为命名空间路径失败: \"${0}\""
+    },
+    "UI": {
+      "StatusBar": "",
+      "StatusBarHover": "状态: ${0}",
+      "StatusViewInfomation": "状态: ${0}",
+      "StatusViewGeneratorInformation": "生成器: ${0}",
+      "StateSuccessful": "成功",
+      "StateSkippable": "可跳过",
+      "StateMatched": "仅匹配",
+      "StateFailing": "失败"
     }
   },
   "en-US": {
@@ -167,6 +177,16 @@
       "PathParseFailed": "Failed to parse path \"${0}\"",
       "PathFormatFailed": "Failed to format path object ${0}",
       "PathToNamespacedPathFailed": "Failed to convert to namespaced path for \"${0}\""
+    },
+    "UI": {
+      "StatusBar": "",
+      "StatusBarHover": "State: ${0}",
+      "StatusViewInfomation": "State: ${0}",
+      "StatusViewGeneratorInformation": "Generator: ${0}",
+      "StateSuccessful": "Successful",
+      "StateSkippable": "Skippable",
+      "StateMatched": "Matched",
+      "StateFailing": "Failing"
     }
   }
 }

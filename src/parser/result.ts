@@ -4,6 +4,7 @@ import { Message, MessageType } from "./message";
 import { Type } from "../syntax-tree/type";
 import { parserExceptionTexts } from "./texts";
 import { FileSystemRecord } from "../compiler/file-system";
+import { UITexts } from "../extension/texts";
 
 export enum HighlightType {
     operator,
@@ -46,20 +47,20 @@ export enum ResultState {
     failing = 0
 }
 
-export function stateToString(state: ResultState): string {
+export function stateToString(state: ResultState, texts?: UITexts): string {
     let text = "";
     switch (state) {
         case ResultState.successful:
-            text = "successful";
+            text = texts?.StateSuccessful ?? "successful";
             break;
         case ResultState.skippable:
-            text = "skippable";
+            text = texts?.StateSkippable ?? "skippable";
             break;
         case ResultState.matched:
-            text = "matched";
+            text = texts?.StateMatched ?? "matched";
             break;
         case ResultState.failing:
-            text = "failing";
+            text = texts?.StateFailing ?? "failing";
             break;
     }
     return text;
