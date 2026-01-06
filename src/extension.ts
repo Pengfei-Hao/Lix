@@ -47,7 +47,7 @@ let statusBarItem: vscode.StatusBarItem;
 // Your extension is activated the very first time the command is executed
 export async function activate(context: vscode.ExtensionContext) {
 
-	vscode.window.showInformationMessage("Lix loading!");
+	// vscode.window.showInformationMessage("Lix loading!");
 
 	// Load configs & language files
 	if (!await loadConfiguration(context)) {
@@ -86,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Success
 	console.log('Lix started successfully!');
-	vscode.window.showInformationMessage("Lix started successfully!");
+	// vscode.window.showInformationMessage("Lix started successfully!");
 }
 
 async function loadConfiguration(context: vscode.ExtensionContext): Promise<boolean> {

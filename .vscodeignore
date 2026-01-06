@@ -6,4 +6,5 @@ src/
 tests/
 Lix Document.md
 Lix Grammers.md
+icons/*.pxd
 tsconfig.json

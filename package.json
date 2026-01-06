@@ -1,13 +1,39 @@
 {
-  "name": "lix",
-  "displayName": "Lix",
+  "name": "lix-language",
+  "displayName": "Lix Language",
   "description": "Lix is a Light Latex.",
-  "version": "0.0.1",
+  "version": "0.1.2",
+  "publisher": "pengfei-hao",
+  "license": "MIT",
+  "homepage": "https://github.com/Pengfei-Hao/Lix",
+  "author": {
+    "name": "Pengfei Hao",
+    "email": "pengfei.hao@outlook.com",
+    "url": "https://haopf.cc"
+  },
+  "icon": "./icons/lix.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Pengfei-Hao/Lix"
+  },
   "engines": {
     "vscode": "^1.77.0"
   },
   "categories": [
+    "Programming Languages",
+    "Chat",
+    "Formatters",
+    "Linters",
     "Other"
+  ],
+  "keywords": [
+    "lix",
+    "markup-language",
+    "generate",
+    "preview",
+    "markdown",
+    "latex",
+    "html"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -118,7 +144,7 @@
         {
           "id": "lix-navigator",
           "title": "Lix Navigator",
-          "icon": "/icons/icon-light.svg"
+          "icon": "/icons/lix-icon.svg"
         }
       ]
     },
