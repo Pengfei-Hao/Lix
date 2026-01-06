@@ -46,6 +46,25 @@ export enum ResultState {
     failing = 0
 }
 
+export function stateToString(state: ResultState): string {
+    let text = "";
+    switch (state) {
+        case ResultState.successful:
+            text = "successful";
+            break;
+        case ResultState.skippable:
+            text = "skippable";
+            break;
+        case ResultState.matched:
+            text = "matched";
+            break;
+        case ResultState.failing:
+            text = "failing";
+            break;
+    }
+    return text;
+}
+
 // **************** Result ****************
 
 export class BasicResult {

@@ -2,7 +2,7 @@
   "name": "lix-language",
   "displayName": "Lix Language",
   "description": "Lix is a Light Latex.",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "publisher": "pengfei-hao",
   "license": "MIT",
   "homepage": "https://github.com/Pengfei-Hao/Lix",
@@ -44,60 +44,71 @@
         "category": "Lix"
       },
       {
-        "command": "lix.previewPdf",
-        "title": "Preview PDF",
-        "category": "Lix",
-        "icon": "$(file-pdf)"
-      },
-      {
-        "command": "lix.convertFile",
-        "title": "Convert File to Lix",
-        "category": "Lix",
-        "icon": "$(file-pdf)"
-      },
-      {
         "command": "lix.test",
         "title": "Test Lix",
         "category": "Lix"
       },
       {
-        "command": "lix.parse",
-        "title": "Parse file and build syntax tree",
-        "shortTitle": "Parse",
+        "command": "lix.previewPdf",
+        "title": "Preview PDF",
+        "shortTitle": "Preview",
         "category": "Lix",
-        "icon": "$(list-tree)"
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "lix.convertFile",
+        "title": "Convert to Lix (AI)",
+        "category": "Lix",
+        "icon": "$(file-pdf)"
+      },
+      {
+        "command": "lix.parse",
+        "title": "Parse Result",
+        "category": "Lix",
+        "icon": "$(list-selection)"
       },
       {
         "command": "lix.analyse",
-        "title": "Analyse syntax tree",
-        "shortTitle": "Analyse",
+        "title": "Analyse Result",
         "category": "Lix",
         "icon": "$(list-tree)"
       },
       {
         "command": "lix.generate",
-        "title": "Generate target output",
-        "shortTitle": "Generate",
+        "title": "Generate Output",
         "category": "Lix",
         "icon": "$(file-code)"
       },
       {
         "command": "lix.compile",
-        "title": "Compile document",
+        "title": "Compile Document",
         "category": "Lix",
         "icon": "$(preview)"
       },
       {
         "command": "lix.pick",
-        "title": "Pick generate target",
+        "title": "Pick ...",
+        "category": "Lix",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "lix.pickLatex",
+        "title": "Pick Latex",
+        "category": "Lix",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "lix.pickMarkdown",
+        "title": "Pick Markdown",
         "category": "Lix",
         "icon": "$(settings-gear)"
       },
       {
         "command": "lix.debug",
-        "title": "Enable/Disable debug mode",
-        "shortTitle": "Debug",
-        "category": "Lix"
+        "title": "Switch Debug Mode",
+        "shortTitle": "Debug Mode",
+        "category": "Lix",
+        "icon": "$(bug)"
       }
     ],
     "languages": [
@@ -135,35 +146,152 @@
         {
           "command": "lix.compile",
           "group": "navigation",
-          "when": "editorLangId == lix && resourceScheme == file"
+          "when": "lix.isLix == true"
+        },
+        {
+          "submenu": "lix.main",
+          "group": "navigation",
+          "when": "lix.isLix == true"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "lix.compile",
+          "group": "navigation",
+          "when": "lix.isLix == true && view === lix-status"
+        },
+        {
+          "command": "lix.pick",
+          "group": "navigation",
+          "when": "lix.isLix == true && view === lix-status"
+        },
+        {
+          "command": "lix.compile",
+          "group": "1_lix@1",
+          "when": "lix.isLix == true && view === lix-status"
+        },
+        {
+          "submenu": "lix.generators",
+          "group": "1_lix@2",
+          "when": "lix.isLix == true && view === lix-status"
+        },
+        {
+          "command": "lix.convertFile",
+          "group": "2_convert",
+          "when": "view === lix-status"
+        },
+        {
+          "command": "lix.debug",
+          "group": "3_debug@1",
+          "when": "view === lix-status"
+        },
+        {
+          "command": "lix.generate",
+          "when": "lix.isLix == true && lix.debug == true && view === lix-status",
+          "group": "3_debug@2"
+        },
+        {
+          "command": "lix.analyse",
+          "when": "lix.isLix == true && lix.debug == true && view === lix-status",
+          "group": "3_debug@3"
+        },
+        {
+          "command": "lix.parse",
+          "when": "lix.isLix == true && lix.debug == true && view === lix-status",
+          "group": "3_debug@4"
+        }
+      ],
+      "lix.main": [
+        {
+          "command": "lix.compile",
+          "when": "lix.isLix == true",
+          "group": "navigation@1"
+        },
+        {
+          "submenu": "lix.generators",
+          "when": "lix.isLix == true",
+          "group": "navigation@2"
+        },
+        {
+          "command": "lix.convertFile",
+          "group": "convert"
+        },
+        {
+          "command": "lix.debug",
+          "group": "debug@1"
+        },
+        {
+          "command": "lix.generate",
+          "when": "lix.isLix == true && lix.debug == true",
+          "group": "debug@2"
+        },
+        {
+          "command": "lix.analyse",
+          "when": "lix.isLix == true && lix.debug == true",
+          "group": "debug@3"
+        },
+        {
+          "command": "lix.parse",
+          "when": "lix.isLix == true && lix.debug == true",
+          "group": "debug@4"
+        }
+      ],
+      "lix.generators": [
+        {
+          "command": "lix.pickLatex",
+          "group": "navigation"
+        },
+        {
+          "command": "lix.pickMarkdown",
+          "group": "navigation"
+        },
+        {
+          "command": "lix.pick",
+          "group": "pick"
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "lix.main",
+        "icon": "./icons/lix-icon-small.svg",
+        "label": "Lix"
+      },
+      {
+        "id": "lix.generators",
+        "label": "Pick Generator",
+        "icon": "$(gear)"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "lix-navigator",
-          "title": "Lix Navigator",
+          "id": "lix-bar",
+          "title": "Lix",
           "icon": "/icons/lix-icon.svg"
         }
       ]
     },
     "views": {
-      "lix-navigator": [
+      "lix-bar": [
         {
-          "id": "lix-command",
-          "name": "Commands"
-        },
-        {
-          "id": "lix-structure",
-          "name": "Structure"
+          "id": "lix-status",
+          "name": "Status"
         },
         {
           "id": "lix-information",
-          "name": "Information"
+          "name": "Information",
+          "visibility": "collapsed",
+          "when": "lix.isLix == true"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "lix-status",
+        "contents": "Open or create a Lix file to see Lix status and information here.\n[New File](command:workbench.action.files.newUntitledFile)\n[Open File](command:workbench.action.files.openFile)\nOr convert an existing file to Lix format.\n[Convert File to Lix (AI)](command:lix.convertFile)"
+      }
+    ],
     "configuration": {
       "title": "Lix",
       "properties": {

@@ -18,7 +18,7 @@ export class DocumentManager {
 
     private nodePath: NodePath;
 
-    static docSel: vscode.DocumentSelector = [{ scheme: "file", language: "lix" }];
+    static docSel: vscode.DocumentSelector = [{ language: "lix" }];
 
 
     constructor(

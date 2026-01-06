@@ -7,11 +7,12 @@ import * as vscode from 'vscode';
 import { VSCodeConfig } from './extension/vscode-config';
 import { CompletionProvider } from './extension/providers/completion-provider';
 import { DocumentManager } from './extension/document-manager';
-import { CommandProvider, InformationProvider, StructureProvider, StructureSymbolProvider } from './extension/providers/tree-data-provider';
+import { StatusProvider, InformationProvider, StructureProvider } from './extension/providers/tree-data-provider';
+import { SymbolProvider } from './extension/providers/symbol-provider';
 import { DocumentProvider } from './extension/providers/document-provider';
 import { SemanticProvider } from './extension/providers/semantic-provider';
 import { updateDiagnostic } from './extension/providers/diagnostic-provider';
-import { ResultState } from './parser/result';
+import { ResultState, stateToString } from './parser/result';
 import { Node } from './syntax-tree/node';
 import { FoldingRangeProvider } from './extension/providers/folding-range-provider';
 import './foundation/format';
@@ -35,10 +36,10 @@ let assistant: vscode.ChatParticipant;
 let documentProvider: DocumentProvider;
 let diagnosticCollection: vscode.DiagnosticCollection;
 let pdfViewer: PdfViewerProvider;
-let commandProvider: CommandProvider;
-let structureProvider: StructureProvider;
+let commandProvider: StatusProvider;
+// let structureProvider: StructureProvider;
 let informationProvider: InformationProvider;
-let structureSymbolProvider: StructureSymbolProvider;
+let structureSymbolProvider: SymbolProvider;
 let statusBarItem: vscode.StatusBarItem;
 
 // **************** Extension ****************
@@ -136,11 +137,23 @@ function registerCommands(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.pickMarkdown', pick.bind(undefined, "markdown"))
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.pickLatex', pick.bind(undefined, "latex"))
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.previewPdf', previewPdf)
 	);
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('lix.convertFile', convertFile)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('lix.showInformationMenu', showInformationMenu)
 	);
 
 	context.subscriptions.push(
@@ -199,21 +212,21 @@ function registerProviders(context: vscode.ExtensionContext) {
 	vscode.languages.registerDocumentSemanticTokensProvider(DocumentManager.docSel, new SemanticProvider(documentManager, legend), legend);
 
 	// Tree data provider
-	commandProvider = new CommandProvider(documentManager);
+	commandProvider = new StatusProvider(documentManager);
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-command", commandProvider)
+		vscode.window.registerTreeDataProvider("lix-status", commandProvider)
 	);
-	structureProvider = new StructureProvider(documentManager);
-	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider("lix-structure", structureProvider)
-	);
+	// structureProvider = new StructureProvider(documentManager);
+	// context.subscriptions.push(
+	// 	vscode.window.registerTreeDataProvider("lix-structure", structureProvider)
+	// );
 	informationProvider = new InformationProvider(documentManager);
 	context.subscriptions.push(
 		vscode.window.registerTreeDataProvider("lix-information", informationProvider)
 	);
 
 	// Document symbol provider
-	structureSymbolProvider = new StructureSymbolProvider(documentManager);
+	structureSymbolProvider = new SymbolProvider(documentManager);
 	context.subscriptions.push(
 		vscode.languages.registerDocumentSymbolProvider(DocumentManager.docSel, structureSymbolProvider)
 	);
@@ -251,8 +264,8 @@ function registerLanguageModel(context: vscode.ExtensionContext) {
 }
 
 function registerStatusBar(context: vscode.ExtensionContext) {
-	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-	statusBarItem.command = "workbench.view.extension.lix-navigator";
+	statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
+	statusBarItem.command = "workbench.view.extension.lix-bar";
 	updateStatusBar();
 	statusBarItem.show();
 	context.subscriptions.push(statusBarItem);
@@ -322,6 +335,9 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 	if (!document) {
 		return;
 	}
+	if (document.uri.fragment !== "") {
+		return;
+	}
 
 	let parser = documentManager.getParseResult(document);
 	let pos = change.selections[0].start;
@@ -331,18 +347,11 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 	//console.log(`index:${index};line:${pos.line},char:${pos.character}`);
 	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
 
-	vscode.workspace.openTextDocument(getPreviewUri(document.uri, "parse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: false, preserveFocus: true, selection: new vscode.Range(line, 0, line, 0) };
-		vscode.window.showTextDocument(doc, opt);
-
-	});
+	previewDocument(getPreviewUri(document.uri, "parse"), new vscode.Range(line, 0, line, 0));
 
 	let lineA = locate(index, parser.analysedTree) - 1 + 1;
-	vscode.workspace.openTextDocument(getPreviewUri(document.uri, "analyse")).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: false, preserveFocus: true, selection: new vscode.Range(lineA, 0, lineA, 0) };
-		vscode.window.showTextDocument(doc, opt);
 
-	});
+	previewDocument(getPreviewUri(document.uri, "analyse"), new vscode.Range(lineA, 0, lineA, 0));
 
 }
 
@@ -391,7 +400,7 @@ async function onDidOpenTextDocument(allDocument: vscode.TextDocument) {
 	}
 	documentManager.add(document);
 	documentManager.parseDocument(document);
-	updateData(document, true);
+	updateData(document, false);
 	updateUI(false);
 }
 
@@ -423,21 +432,135 @@ async function onDidCloseTextDocument(allDocument: vscode.TextDocument) {
 
 let compileTerminal: vscode.Terminal | undefined;
 
-async function pick(generator?: string) {
+async function pick(generator?: unknown) {
 	let document = documentManager.validateDocument();
 	if (!document) {
 		return;
 	}
 
 	let generatorNames = documentManager.getGenerators(document);
-	if (generator === undefined) {
+	if (generator === undefined || !(typeof generator === "string")) {
 		generator = await vscode.window.showQuickPick(generatorNames, { placeHolder: "Select generator" });
 	}
-	if (generator === undefined || !documentManager.getGenerators(document).includes(generator)) {
+	if (generator === undefined || (typeof generator !== "string") || !documentManager.getGenerators(document).includes(generator)) {
 		return;
 	}
 
 	documentManager.setGenerator(document, generator);
+	updateUI(true);
+}
+
+type InformationMenuItem = vscode.QuickPickItem & {
+	type: "command" | "generatorRoot";
+	commandId?: string;
+};
+
+type GeneratorMenuItem = vscode.QuickPickItem & {
+	generator: string;
+};
+
+async function showInformationMenu() {
+	const document = documentManager.validateDocument();
+
+	const buildActionItem = (label: string, commandId: string, icon?: string): InformationMenuItem => ({
+		label: icon ? `${icon} ${label}` : label,
+		type: "command",
+		commandId
+	});
+
+	const items: InformationMenuItem[] = [];
+
+	if (!document) {
+		items.push(
+			buildActionItem("Convert to Lix (AI)", "lix.convertFile", "$(file-pdf)"),
+			buildActionItem("Debug", "lix.debug", "$(bug)")
+		);
+	} else {
+		const currentGenerator = documentManager.getGenerator(document);
+		items.push(
+			buildActionItem("Compile", "lix.compile", "$(run)"),
+			buildActionItem("Convert to Lix (AI)", "lix.convertFile", "$(file-pdf)"),
+			buildActionItem("Generate", "lix.generate", "$(file-code)"),
+			buildActionItem("Analyse", "lix.analyse", "$(list-tree)"),
+			buildActionItem("Parse", "lix.parse", "$(list-tree)"),
+			buildActionItem("Debug", "lix.debug", "$(bug)"),
+			{
+				label: "$(settings-gear) Available Generators",
+				description: `Current: ${currentGenerator}`,
+				type: "generatorRoot"
+			}
+		);
+	}
+
+	if (items.length === 0) {
+		return;
+	}
+
+	const picked = await vscode.window.showQuickPick(items, {
+		placeHolder: "Lix actions",
+		ignoreFocusOut: true
+	});
+
+	if (!picked) {
+		return;
+	}
+
+	if (picked.type === "generatorRoot" && document) {
+		await showGeneratorMenu(document);
+		return;
+	}
+
+	if (picked.commandId) {
+		await vscode.commands.executeCommand(picked.commandId);
+	}
+}
+
+async function showGeneratorMenu(document: vscode.TextDocument) {
+	const generatorNames = documentManager.getGenerators(document);
+	if (generatorNames.length === 0) {
+		return;
+	}
+
+	const currentGenerator = documentManager.getGenerator(document);
+
+	const quickPick = vscode.window.createQuickPick<GeneratorMenuItem>();
+	quickPick.title = "Select generator";
+	quickPick.canSelectMany = true;
+	quickPick.items = generatorNames.map<GeneratorMenuItem>(name => ({
+		label: name,
+		generator: name,
+		picked: name === currentGenerator
+	}));
+	quickPick.selectedItems = quickPick.items.filter(item => item.picked);
+
+	const selection = await new Promise<GeneratorMenuItem | undefined>(resolve => {
+		const disposables: vscode.Disposable[] = [];
+		disposables.push(quickPick.onDidChangeSelection(sel => {
+			if (sel.length === 0) {
+				quickPick.selectedItems = [];
+				return;
+			}
+			const last = sel[sel.length - 1];
+			quickPick.selectedItems = [last];
+		}));
+		disposables.push(quickPick.onDidAccept(() => {
+			resolve(quickPick.selectedItems[0]);
+			quickPick.hide();
+		}));
+		disposables.push(quickPick.onDidHide(() => {
+			resolve(undefined);
+			disposables.forEach(d => d.dispose());
+			quickPick.dispose();
+		}));
+
+		quickPick.show();
+	});
+
+	if (!selection) {
+		return;
+	}
+
+	documentManager.setGenerator(document, selection.generator);
 	updateUI(true);
 }
 
@@ -571,6 +694,7 @@ async function debug() {
 	else {
 		compileTerminal?.hide();
 	}
+	vscode.commands.executeCommand('setContext', 'lix.debug', isDebugging);
 }
 
 async function test() {
@@ -686,40 +810,45 @@ function updateStructure(document: vscode.TextDocument) {
 function updateUI(fast: boolean) {
 	updateStatusBar();
 	updateTreeData(fast);
+
+	let isLix = documentManager.validateDocument() !== undefined;
+	vscode.commands.executeCommand('setContext', 'lix.isLix', isLix);
 }
 
 function updateStatusBar() {
 	let document = documentManager.validateDocument();
 	if (!document) {
-		statusBarItem.text = "$(dash) Lix";
+		statusBarItem.text = "$(circle-large-outline) Lix";
 		statusBarItem.tooltip = "Lix";
 		return;
 	}
 	let state = documentManager.getParseResult(document).state;
+	let generator = documentManager.getGenerator(document);
+	let info = stateToString(state);
 	switch (state) {
 		case ResultState.successful:
-			statusBarItem.text = "$(check) Lix";
-			statusBarItem.tooltip = "Lix: parse successful";
+			statusBarItem.text = `$(pass) Lix (${generator})`;
+			statusBarItem.tooltip = `State: ${info}`;
 			break;
 		case ResultState.skippable:
-			statusBarItem.text = "$(error) Lix";
-			statusBarItem.tooltip = "Lix: skippable issues";
+			statusBarItem.text = `$(error) Lix (${generator})`;
+			statusBarItem.tooltip = `State: ${info}`;
 			break;
 		case ResultState.matched:
-			statusBarItem.text = "$(error) Lix";
-			statusBarItem.tooltip = "Lix: matched with errors";
+			statusBarItem.text = `$(error) Lix (${generator})`;
+			statusBarItem.tooltip = `State: ${info}`;
 			break;
 		case ResultState.failing:
 		default:
-			statusBarItem.text = "$(error) Lix";
-			statusBarItem.tooltip = "Lix: parse failed";
+			statusBarItem.text = `$(error) Lix (${generator})`;
+			statusBarItem.tooltip = `State: ${info}`;
 			break;
 	}
 }
 
 function updateTreeData(fast: boolean = false) {
 	commandProvider.onDidChangeTreeDataEmitter.fire(undefined);
-	structureProvider.onDidChangeTreeDataEmitter.fire(undefined);
+	// structureProvider.onDidChangeTreeDataEmitter.fire(undefined);
 	if (!fast) {
 		informationProvider.onDidChangeTreeDataEmitter.fire(undefined);
 	}
@@ -727,15 +856,16 @@ function updateTreeData(fast: boolean = false) {
 
 // **************** Preview ****************
 
-function previewDocument(uri: vscode.Uri) {
+function previewDocument(uri: vscode.Uri, selection: vscode.Range | undefined = undefined) {
 	vscode.workspace.openTextDocument(uri).then(doc => {
-		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: true, preserveFocus: true, selection: undefined };
+		let opt: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.Beside, preview: true, preserveFocus: true, selection: selection };
 		vscode.window.showTextDocument(doc, opt);
 	});
 }
 
 function getPreviewUri(uri: vscode.Uri, flag: string): vscode.Uri {
-	return vscode.Uri.from({ scheme: "lix", path: uri.path, fragment: flag });
+	let name = uri.path.split("/").at(-1);
+	return vscode.Uri.from({ scheme: "lix", path: flag + ': ' + name, fragment: uri.path });
 }
 
 

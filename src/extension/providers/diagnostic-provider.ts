@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DocumentManager } from '../document-manager';
 import { MessageType } from '../../parser/message';
-import { ResultState } from '../../parser/result';
+import { ResultState, stateToString } from '../../parser/result';
 
 export function updateDiagnostic(document: vscode.TextDocument, documentManager: DocumentManager, diagnosticCollection: vscode.DiagnosticCollection) {
 
@@ -29,23 +29,7 @@ export function updateDiagnostic(document: vscode.TextDocument, documentManager:
 		diags.push(diag);
 	}
 
-	let st = "";
-	switch (state) {
-		case ResultState.successful:
-			st = "successful";
-			break;
-		case ResultState.skippable:
-			st = "skippable";
-			break;
-		case ResultState.matched:
-			st = "matched";
-			break;
-		case ResultState.failing:
-			st = "failing";
-			break;
-	}
-
-	let diag = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "State: " + st, vscode.DiagnosticSeverity.Information);
+	let diag = new vscode.Diagnostic(new vscode.Range(0, 0, 0, 1), "State: " + stateToString(state), vscode.DiagnosticSeverity.Information);
 	// diags.push(diag);
 
 	diagnosticCollection.set(document.uri, diags);
