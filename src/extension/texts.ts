@@ -32,6 +32,7 @@ export type VSCodeFileSystemTexts = {
     FileNotFound: string;
     NoPermissions: string;
     Unavailable: string;
+    Unknown: string;
 };
 
 // export interface ExtensionTextBundle {

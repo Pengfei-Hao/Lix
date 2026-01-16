@@ -433,11 +433,13 @@ export class Core extends Module {
         let result = this.parser.formatLikeBlockHandler("image", this.imageType, args);
         result.discarded = false;
         let path = this.parser.getArgument(args, "path");
+        let sourceUri = this.fileSystem.pathToUri(path);
+        let targetUri = this.fileSystem.cacheDirectoryUri.joinPath(sourceUri.basename);
         if (this.fileSystem.path.extname(path) === ".tikz") {
-            result.addFileRecord({ kind: 'readFile', uri: this.fileSystem.pathToUri(path) });
+            result.addFileRecord({ kind: 'readFile', uri: sourceUri });
         }
         else {
-            result.addFileRecord({ kind: 'copy', source: this.fileSystem.pathToUri(path), target: this.fileSystem.cacheDirectoryUri });
+            result.addFileRecord({ kind: 'copy', source: sourceUri, target: targetUri });
         }
         return result;
     }

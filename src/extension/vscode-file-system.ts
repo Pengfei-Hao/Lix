@@ -185,7 +185,7 @@ export class VSCodeFileSystem implements FileSystem {
             if (error instanceof vscode.FileSystemError) {
                 console.log(error);
                 let addition = "";
-                switch (error.name) {
+                switch (error.code) {
                     case "FileExists":
                         addition = this.texts.FileExists;
                         break;
@@ -203,6 +203,9 @@ export class VSCodeFileSystem implements FileSystem {
                         break;
                     case "Unavailable":
                         addition = this.texts.Unavailable;
+                        break;
+                    case "Unknown":
+                        addition = this.texts.Unknown;
                         break;
                 }
                 vscode.window.showErrorMessage(message.format({ addition: addition }));

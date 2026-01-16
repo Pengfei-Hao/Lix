@@ -754,7 +754,8 @@ function previewDocument(uri: vscode.Uri, selection: vscode.Range | undefined = 
 
 function getPreviewUri(uri: vscode.Uri, flag: string): vscode.Uri {
 	let name = uri.path.split("/").at(-1);
-	return vscode.Uri.from({ scheme: "lix", path: flag + ': ' + name, fragment: uri.path });
+	name = name?.replace(".lix", "");
+	return vscode.Uri.from({ scheme: "lix", path: 'Lix ' + flag + ': ' + name, fragment: uri.path });
 }
 
 

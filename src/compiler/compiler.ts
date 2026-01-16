@@ -111,7 +111,6 @@ export class Compiler {
 
     async compile() {
         await this.generate();
-        await this.fileSystem.createDirectory(this.fileSystem.cacheDirectoryUri);
         let outputUri = this.getOutputUri();
         await this.fileSystem.writeTextFile(outputUri, this.getCurrentGenerator().output);
     }

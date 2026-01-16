@@ -68,7 +68,8 @@
       "FileNotADirectory": "（目标不是目录）",
       "FileNotFound": "（未找到文件或目录）",
       "NoPermissions": "（权限不足）",
-      "Unavailable": "（文件系统不可用）"
+      "Unavailable": "（文件系统不可用）",
+      "Unknown": "（未知错误）"
     },
     "NodePath": {
       "PathNormalizeFailed": "规范化路径 \"${0}\" 失败。",
@@ -163,7 +164,8 @@
       "FileNotADirectory": " (Target is not a directory)",
       "FileNotFound": " (File or directory not found)",
       "NoPermissions": " (Insufficient permissions)",
-      "Unavailable": " (File system unavailable)"
+      "Unavailable": " (File system unavailable)",
+      "Unknown": " (Unknown error)"
     },
     "NodePath": {
       "PathNormalizeFailed": "Failed to normalize path \"${0}\".",
