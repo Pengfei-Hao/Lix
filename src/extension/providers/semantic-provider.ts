@@ -43,8 +43,8 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
                     type = "comment";
                     break;
             }
-            let lp = parser.getLineAndCharacter(hlt.begin);
-            let lpe = parser.getLineAndCharacter(hlt.end);
+            let lp = parser.sourceText.indexToLineAndCharacter(hlt.begin);
+            let lpe = parser.sourceText.indexToLineAndCharacter(hlt.end);
 
             if (lp.line != lpe.line) {
                 console.log(`${lp.line},${lp.character}:${lpe.line},${lpe.character}`);

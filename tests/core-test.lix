@@ -8,14 +8,14 @@
 
 图片使用 `[figure ...]` 插入, 例如
  
-[code``
+[code `^`
 [figure [image(path: `./fig1.jpg`, size: 0.45) 这是第一张图]
 [image(path: `./fig2.jpg`, size: 0.45) 这是第二张图]
 [caption 多张图片]
 ]
 [figure [image(path: `./fig3.jpg`, size: 0.2) 单张图片]
 [caption 单张图片]]
-``]
+`^`]
 
 [figure [image(path: `./fig1.jpg`, size: 0.45) 这是第一张图]
 [image(path: `./fig2.jpg`, size: 0.45) 这是第二张图]
@@ -26,9 +26,9 @@
 
 图片可以被引用, 添加 `@ref-name` 参数即可, 例如
 
-[code ``
+[code `^`
 [figure(@fig-1) [caption 引用图片] [image (path: `./fig3.jpg`, size: 0.5)]]
-``]
+`^`]
 
 [figure(@fig-1) [caption 引用图片] [image (path: `./fig3.jpg`, size: 0.5)]]
 
@@ -36,10 +36,10 @@
 
 [section 代码]
 
-代码可以在行内或行间插入. 在行内插入代码使用反引号, 例如 `` `examle code` ``. 在行间插入代码使用 `[code ...]`, 如
+代码可以在行内或行间插入. 在行内插入代码使用反引号, 例如 `^``examle code``^`. 在行间插入代码使用 `[code ...]`, 如
 
-[code ````
-[code ``
+[code `^^`
+[code `^`
 some codes here.
 ``]
 
@@ -52,11 +52,11 @@ Latex Code.
 Lix Code.
 /[1⁄2] = 0.5/
 `]
-````]
+`^^`]
 
-[code ``
+[code `^`
 some codes here.
-``]
+`^`]
  
 [code `
 Latex Code.
@@ -68,17 +68,17 @@ Lix Code.
 /[1⁄2] = 0.5/
 `]
 
-注意反引号`` ` ``的个数可以是任意多个, 只要前后匹配即可. 代码的引用方式与图片相同.
+注意反引号`^```^`的个数可以是多个, 中间可以插入多个 `^`^`^`, 只要前后匹配即可. 代码的引用方式与图片相同.
 
 [section 列表]
 
 列表使用 `[list ...]` 插入, 例如
 
-[code ``
+[code `^`
 [list
 [item ]
 ]
-``]
+`^`]
 
 [list
 [item] 第一项

@@ -24,7 +24,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         let parser = this.documentManager.getParseResult(document);
 
         if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
-            //if (this.inMath(parser, parser.getIndex(position.line, position.character-1)!)) {
+            //if (this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(position.line, position.character-1)!)) {
 
             let range = document.getWordRangeAtPosition(position);
             if (!range) {
@@ -32,7 +32,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
                 return [];
             }
 
-            if (this.inMath(parser, parser.getIndex(range.start.line, range.start.character)!)) {
+            if (this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(range.start.line, range.start.character)!)) {
                 while (range.start.character > 0) {
                     range = new vscode.Range(range.start.translate(0, -1), range.end);
                     if (document.getText(range).substring(0, 1) != " ") {
@@ -43,7 +43,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
 
 
                 parser.mathModule.notations.forEach((nota) => {
-                    let name = parser.mathModule.notationsToUnicodeSymbols.get(nota);
+                    let name = parser.mathModule.notationsToSymbols.get(nota);
                     if (name) {
                         let comp = new vscode.CompletionItem(nota, vscode.CompletionItemKind.Keyword);
                         comp.insertText = name;
@@ -65,7 +65,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         }
 
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "[") {
-            if (!this.inMath(parser, parser.getIndex(position.line, position.character)!)) {
+            if (!this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
                 for (let item of parser.blockTable.handlers.keys()) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Function);
                     comp.insertText = item + " ";
@@ -76,7 +76,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
             }
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
-            if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.getIndex(position.line, position.character)!)) {
+            if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
                 // let list = this.documentManager.getFileList(document.uri);
                 // for (let item of list) {
                 //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
@@ -91,13 +91,13 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
             }
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && (context.triggerCharacter == "(" || context.triggerCharacter == ",")) {
-            let node = this.where(parser.blockType, parser.syntaxTree, parser.getIndex(position.line, position.character)!);
+            let node = this.where(parser.inlineModule.blockType, parser.syntaxTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!);
             if (node) {
-                if (context.triggerCharacter == "," && !this.where(parser.argumentsType, parser.syntaxTree, parser.getIndex(position.line, position.character)!)) {
+                if (context.triggerCharacter == "," && !this.where(parser.inlineModule.argumentsType, parser.syntaxTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
                     return res;
                 }
                 let argNode = node.children.at(0);
-                if (context.triggerCharacter == "(" && argNode && argNode.type === parser.argumentsType && argNode.begin != argNode.end) {
+                if (context.triggerCharacter == "(" && argNode && argNode.type === parser.inlineModule.argumentsType && argNode.begin != argNode.end) {
                     return res;
                 }
                 let spec = parser.blockTable.getOption(node.content);

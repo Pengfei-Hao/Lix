@@ -11,11 +11,12 @@
 ### Notation
 
 首先介绍本文用到的产生式的写法. 一个产生式如下所示
+
 ```
-name -> token token ...
+name → token token ...
 ```
 其中 token 可以是
-* 终结符号 : 直接将符号写出即可, 如 `formula ->  [ formula <formula-expr> ]` 中箭头右边的的 `[`, `formula`, `]`.
+* 终结符号 : 直接将符号写出即可, 如 `formula →  [ formula <formula-expr> ]` 中箭头右边的的 `[`, `formula`, `]`.
 * 其他产生式 : 使用一对尖括号将产生式的名字包住, 如上例中的`<formula-expr>`. 
 * EOF : 文件结束标记, 直接写出.
 * \[abcdefg\] : 从括号中选择一个匹配.
@@ -27,97 +28,174 @@ name -> token token ...
 * \* : 匹配退回标记, 匹配到该项后要退回该项.
 
 在本文的文法中还有两类运算, 分别是或运算和 repeat-end 运算, 注意小括号可以用来调整各个运算的优先级, 如下
-* 或运算 : 用符号 | 表示, 只要匹配到其中一个即可, 如 `element -> <notation> | <symbol>`.
-* repeat-end 运算 : 表示一直重复匹配直到结束条件满足, 如 `free-text -> repeat (<escape-char> | <reference>) end (*EOF)`.
+* 或运算 : 用符号 | 表示, 只要匹配到其中一个即可, 如 `element → <notation> | <symbol>`.
+* repeat-end 运算 : 表示一直重复匹配直到结束条件满足, 如 `free-text → repeat (<escape-char> | <reference>) end (*EOF)`.
 
 下面给出 Lix 各部分的文法.
+
+### Translate
+EOF, NULL, !
+**token**, symbol,
+|, ?, +, *, ^
+
+终结符号/非终结符号:
+```
+result.merge(skipBlank());
+---
+let res = result.merge(matchXxx());
+if (result.shouldStop) {
+  /* message, node */
+  /* promote */
+  return;
+}
+/* highlights, message, node, file, reference */
+```
+| 运算:
+```
+if (isXxx()) {
+  let res = result.merge(matchXxx());
+  if (result.shouldStop) {
+    return;
+  }
+  /* highlights, message, node, file, reference */
+}
+else if((res = matchXxx()).matched) {
+  result.merge(res);
+  if (result.shouldStop) {
+    return;
+  }
+  /* highlights, message, node, file, reference */
+}
+else {
+  /* message, node */
+  /* 注意, else 必须要写, 如果是 token | NULL 就merge successful, 否则 merge failed 并 return. */
+}
+```
+? + * ^ 运算:
+```
+token? = token | NULL
+token+ = token token*
+token* = (token token*) | NULL
+---
+/* ? 转换成 | */
+---
+/* + 转换为 * */
+---
+/* * 转换为 while 和 |; | 的 else 直接 break; ^ 转换为 is, 如果进入分支就 break; 有 ^ 时要判断 ^EOF; ^ 如果还剩 else 直接报 error */
+```
+! 标记:
+```
+/* 匹配到后直接 merge failed 报错并 return; 或 recover 恢复到 skippable */
+```
 
 ### Foundation
 
 本部分给出最基础的词法符号的产生式, 如名称, 换行, 空白, 注释等.
 
-```
-name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)
-newline -> [\r\n]
-blankchar -> [\t \v\f]
+name → [A-Za-z0-9-]+
+newline → [\r\n]
+blankchar → [\t \v\f]
+digit → [0-9]
 
-string -> ` repeat( <not-newline> )  end(`) | ' repeat( <not-newline> )  end(') | " repeat( <not-newline> )  end(" | !<newline>)
+名字和常数
 
-number -> ( + | - | NULL ) ( [0-9] repeat([0-9]) end(*<repeat-failing>) ( . [0-9] repeat([0-9]) end(*<repeat-failing>) | NULL ) )
+name → ( **A** | ... | **Z** | **a** | ... | **z** | **0** | ... | **9** | **-** )+
 
-singleline-comment -> / / repeat (<not-end>) end (*EOF | *<newline>)
+string → raw-string-1 | raw-string-2 | raw-string-3
 
-multiline-comment -> / * repeat (<multiline-comment> | <not-end>) end (!EOF | * / )
+raw-string-1 → **"** (^**"** ^EOF | !newline)* **"**
 
-singleline-blank ->  repeat (<blankchar> | <multiline-comment>) end (*EOF | <singleline-comment> | <repeat-failing>)
+raw-string-2 → **'** (^**'** ^EOF | !newline)* **'**
 
-multiline-blank -> repeat (<blankchar> | <newline> | <singleline-comment> | <multiline-comment>) end (*EOF | <repeat-failing>)
+raw-string-3 → **\`** (^**\`** ^EOF | !newline)* **\`**
 
-skip-blank -> singleline-blank | NULL
+number → ( **+** | **-** | NULL ) digit+ ( **.** digit* | NULL ) skip-blank ( **%** | **px** | **em** | **cm** | NULL )
 
-skip-multiline-blank -> multiline-blank | NULL
-```
+换行和空白
 
-等价的标准产生式（EBNF）：
-```ebnf
-nameChar           ::= "A" | ... | "Z" | "a" | ... | "z" | "0" | ... | "9" | "-" ;
-name               ::= nameChar { nameChar } ;
-newline            ::= "\r" | "\n" ;
-blankchar          ::= "\t" | " " | "\v" | "\f" ;
-digit              ::= "0" | ... | "9" ;
-nonNewlineChar     ::= ? any Unicode code point except CR or LF ? ;
-anyChar            ::= ? any Unicode code point ? ;
-nonBacktickNonEOF  ::= ? any Unicode code point except "`" and EOF ? ;
+singleline-comment → **//** (^newline ^EOF)*
 
-string             ::= "`" { nonNewlineChar } "`"
-                     | "'" { nonNewlineChar } "'"
-                     | "\"" { nonNewlineChar } "\"" ;
-number             ::= ["+" | "-"] digit { digit } ["." digit { digit }] ;
+multiline-comment → **/\*** (^**\*/** ^EOF | multiline-comment)* **\*/**
 
-singleline-comment ::= "/" "/" { nonNewlineChar } ;
-ltiline-comment  ::= "/*" { multiline-comment | anyChar } "*/" ;
+singleline-blank → (blank | multiline-comment | singleline-comment) (blank | multiline-comment)* singleline-comment?
 
-singleline-blank   ::= { blankchar | multiline-comment } [ singleline-comment ] ;
-multiline-blank    ::= { blankchar | newline | singleline-comment | multiline-comment } ;
-skip-blank         ::= singleline-blank | ε ;
-skip-multiline-blank ::= multiline-blank | ε ;
-```
+multiline-blank → (blank | newline | singleline-comment | multiline-comment)+
+
+skip-blank → singleline-blank | NULL
+
+skip-multiline-blank → multiline-blank | NULL
 
 ### Document & Setting & Block
 
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
 
-```
-document -> NULL | repeat (<setting> | <free-paragraph> | <block>) end (EOF)
+document → (command | free-paragraph | structural-block)* EOF
+
+// command
+
+command → setting /* customized */
 
 // setting
 
-setting -> # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<newline>)
+setting → # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<newline>)
 
 // block
 
-argument -> (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )
+argument → (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )
 
-arguments -> ( < !EOF | ( > | <name> repeat ( , <name> ) end (!EOF | >) ) ) | : | NULL
+arguments → ( < !EOF | ( > | <name> repeat ( , <name> ) end (!EOF | >) ) ) | : | NULL
 
-block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]
+block → [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]
 // 注意在 block 的 handler 中遇到多行换行要结束
 
-error-block -> <block> + name != other, basic, format
+error-block → <block> + name != other, basic, format
 
 // otherBlocks: paragraph
 
-structural-block -> <block> + name = paragraph
+structural-block → <block> + name = paragraph
 // paragraph-block-handler 在 paragraph & text 节中
 
 // basicBlocks: text, formula, figure, list, table, code
-basic-block -> <block> + name = text, formula, figure, list, table, code
+basic-block → <block> + name = text, formula, figure, list, table, code
 // text-block-handler 在 paragraph & text 节中
 // formula-block-handler 在 math 节中
 // figure, list, table, code-block-handler 在 core 节中
 
 // formatBlocks: emph, bold, italic
-format-block -> <block> + name = emph, bold, italic
+format-block → <block> + name = emph, bold, italic
+// emph, bold, italic-block-handler 在 core 节中
+
+```
+document → NULL | repeat (<setting> | <free-paragraph> | <block>) end (EOF)
+
+// setting
+
+setting → # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<newline>)
+
+// block
+
+argument → (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )
+
+arguments → ( < !EOF | ( > | <name> repeat ( , <name> ) end (!EOF | >) ) ) | : | NULL
+
+block → [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]
+// 注意在 block 的 handler 中遇到多行换行要结束
+
+error-block → <block> + name != other, basic, format
+
+// otherBlocks: paragraph
+
+structural-block → <block> + name = paragraph
+// paragraph-block-handler 在 paragraph & text 节中
+
+// basicBlocks: text, formula, figure, list, table, code
+basic-block → <block> + name = text, formula, figure, list, table, code
+// text-block-handler 在 paragraph & text 节中
+// formula-block-handler 在 math 节中
+// figure, list, table, code-block-handler 在 core 节中
+
+// formatBlocks: emph, bold, italic
+format-block → <block> + name = emph, bold, italic
 // emph, bold, italic-block-handler 在 core 节中
 
 = matchBlock(): Result<Node>
@@ -161,28 +239,28 @@ format-block-error     ::= format-block ;
 
 // free-paragraph 的错误处理放到 free-text 中, 因为free-text 是一个 <not-end>, 因此只会在 end 条件停下来. 此处只要 free-text 加 * 的终止条件作为全集, 其他或条件构成这个全集不交并即可.
 
-free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<structural-block> | *#)
+free-paragraph → repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<structural-block> | *#)
 
-escape-char -> \ [[]()#@/]
+escape-char → \ [[]()#@/]
 
-multiline-blank-leq-1 -> ...
-multiline-blank-gt-1 -> ...
+multiline-blank-leq-1 → ...
+multiline-blank-gt-1 → ...
 
-insertion -> <symbol> <skip-blank> <insertion-block-handler>
+insertion → <symbol> <skip-blank> <insertion-block-handler>
 
-reference -> @ <name> <skip-blank>
+reference → @ <name> <skip-blank>
 
 // inline-formula 在 math 节中
 
 // embeded formula 要放到 blank 之后, 因为注释的前缀也是 /
-free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<structural-block> | *<basic-block> | *#)
+free-text → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<structural-block> | *<basic-block> | *#)
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
-paragraph-block-handler -> repeat (<par-free-text> | <basic-block> | !<structural-block>) end (!EOF | ])
+paragraph-block-handler → repeat (<par-free-text> | <basic-block> | !<structural-block>) end (!EOF | ])
 
-par-free-text -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *] | \ \ | *<basic-block> | *<structural-block>)
+par-free-text → repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *] | \ \ | *<basic-block> | *<structural-block>)
 
-text-block-handler -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
+text-block-handler → repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
 ```
 
 等价的标准产生式（EBNF）：
@@ -239,43 +317,43 @@ text-block-handler
 本部分给出 Math 模块对应功能的产生式, 主要包括 formula 块以及行内 foumula 块的产生式.
 
 ```
-formula -> 
+formula → 
 
-elements -> repeat (<element> | [ <elements> | <multiline-blank-leq-1> | !<multiline-blank-gt-1> ) end (!EOF | ] | ` | / )
+elements → repeat (<element> | [ <elements> | <multiline-blank-leq-1> | !<multiline-blank-gt-1> ) end (!EOF | ] | ` | / )
 
-element -> ( repeat([A-Za-z0-9]) end (*<repeat-failing>) ) | <element-char> | ( ` repeat(<not-end>) end(!EOF | *` ) ` )
+element → ( repeat([A-Za-z0-9]) end (*<repeat-failing>) ) | <element-char> | ( ` repeat(<not-end>) end(!EOF | *` ) ` )
 
-formula-insertion-handler -> / <elements> + endWith /
-formula-block-handler -> <elements> + endWith ]
-
-
-elements -> repeat(<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <formula> | <defination> | <escape-element> | <inline-text> | <element> | !<not-end>) end (!EOF | EndWith...)
-defination -> ` <elements> `
-formula -> [ <elements> ]
-
-escape-element -> @ <element>
-
-element -> <notation> | <symbol>
-notation -> repeat([A-Za-z0-9]) end (*<repeat-failing>)
-symbol -> Symbol... | UnicodeSymbol...
-
-inline-text -> " repeat(<not-end>) end (!EOF | ")
+formula-insertion-handler → / <elements> + endWith /
+formula-block-handler → <elements> + endWith ]
 
 
+elements → repeat(<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <formula> | <defination> | <escape-element> | <inline-text> | <element> | !<not-end>) end (!EOF | EndWith...)
+defination → ` <elements> `
+formula → [ <elements> ]
+
+escape-element → @ <element>
+
+element → <notation> | <symbol>
+notation → repeat([A-Za-z0-9]) end (*<repeat-failing>)
+symbol → Symbol... | UnicodeSymbol...
+
+inline-text → " repeat(<not-end>) end (!EOF | ")
 
 
-element-char ->
 
-inline-text ->
-element ->
-formula ->
 
-term -> <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator
-operator -> <element> + infix-operator
+element-char →
 
-prefix -> <operator> <expression> <operator> <expression> 
-infix -> <expression> <operator> <expression> 
-expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)
+inline-text →
+element →
+formula →
+
+term → <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator
+operator → <element> + infix-operator
+
+prefix → <operator> <expression> <operator> <expression> 
+infix → <expression> <operator> <expression> 
+expression → repeat (<term> | <operator>) end (*EOF | *endTerm...)
 ```
 
 等价的标准产生式（EBNF）：
@@ -328,20 +406,20 @@ symbol            ::= unicodeSymbol | asciiSymbol ;  (* 取自 math 配置，含
 ```
 // core
 
-figure-block-handler -> <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])
-single-figure -> ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler>
+figure-block-handler → <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])
+single-figure → ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler>
 
-list-block-handler -> ...
+list-block-handler → ...
 
-table-block-handler -> ...
+table-block-handler → ...
 
-code-block-handler -> ...
+code-block-handler → ...
 
-emph-block-handler -> repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | !<format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
+emph-block-handler → repeat (<multiline-blank-leq-1> | !<multiline-blank-gt-1> | <escape-char> | <reference> | <inline-formula> | !<format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (!EOF | ])
 
-bold-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
+bold-block-handler → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
 
-italic-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
+italic-block-handler → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <not-end>) end (])
 
 ```
 
@@ -906,7 +984,7 @@ promote: m + sk = sk
 * highlights: []
 * reference: []
 
-`name -> repeat([A-Za-z0-9-]) end (*<repeat-failing>)`
+`name → repeat([A-Za-z0-9-]) end (*<repeat-failing>)`
 * state: f, s
 * messages: []
 * highlights: []
@@ -916,32 +994,32 @@ promote: m + sk = sk
   * children: []
 * analysedContent: undefined
 
-`newline -> [\r\n]`
-`blankchar -> [\t \v\f]`
+`newline → [\r\n]`
+`blankchar → [\t \v\f]`
 对应 is
 
-`singleline-comment -> / / repeat (<not-end>) end (*EOF | *<newline>)`
+`singleline-comment → / / repeat (<not-end>) end (*EOF | *<newline>)`
 * state: f, s
 * messages: []
 * highlights: []
 * content: null
 * analysedContent: undefined
 
-`multiline-comment -> / * repeat (<multiline-comment> | <not-end>) end (!EOF | * / )`
+`multiline-comment → / * repeat (<multiline-comment> | <not-end>) end (!EOF | * / )`
 * state: f, sk, s
 * messages: ["multiline comment ended..."]
 * highlights: []
 * content: null
 * analysedContent: undefined
 
-`singleline-blank ->  repeat (<blankchar> | <multiline-comment>) end (<singleline-comment> | <repeat-failing>)`
+`singleline-blank →  repeat (<blankchar> | <multiline-comment>) end (<singleline-comment> | <repeat-failing>)`
 * state: f, sk, s
 * messages: [Inherited]
 * highlights: []
 * content: null
 * analysedContent: undefined
 
-`multiline-blank -> repeat (<blankchar> | <newline> | <singleline-comment> | <multiline-comment>) end (*EOF | <repeat-failing>)`
+`multiline-blank → repeat (<blankchar> | <newline> | <singleline-comment> | <multiline-comment>) end (*EOF | <repeat-failing>)`
 * state: f, sk, s
 * messages: [Inherited]
 * highlights: []
@@ -949,17 +1027,17 @@ promote: m + sk = sk
 * analysedContent: undefined
 
 // 下面是 multiline-blank 的带参数形式, 对应于同名的 is 函数, 其 Result 结构与上文相同, 不再重复
-`multiline-blank-leq-1 -> <multiline-blank> + blank <= 1`
-`multiline-blank-gt-1 -> <multiline-blank> + blank > 1`
+`multiline-blank-leq-1 → <multiline-blank> + blank <= 1`
+`multiline-blank-gt-1 → <multiline-blank> + blank > 1`
 
-`skip-blank -> singleline-blank | NULL`
+`skip-blank → singleline-blank | NULL`
 * state: sk, s
 * messages: [Inherited]
 * highlights: []
 * content: null
 * analysedContent: undefined
 
-`skip-multiline-blank -> multiline-blank | NULL`
+`skip-multiline-blank → multiline-blank | NULL`
 * state: sk, s
 * messages: [Inherited]
 * highlights: []
@@ -970,7 +1048,7 @@ promote: m + sk = sk
 
 本部分给出 Lix 基础功能的产生式, 包括 document, setting, block 的基本处理.
 
-`document -> repeat (<setting> | <free-paragraph> | <block>) end (EOF)`
+`document → repeat (<setting> | <free-paragraph> | <block>) end (EOF)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
@@ -983,7 +1061,7 @@ promote: m + sk = sk
 
 // setting
 
-`setting -> # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<newline>)`
+`setting → # <skip-blank> <name> <skip-blank> : repeat(<not-end>) end (*EOF | *<newline>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [New]
@@ -993,7 +1071,7 @@ promote: m + sk = sk
 
 // block
 
-`argument -> (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )`
+`argument → (@ <name>) | ( <name> (<skip-blank> : <skipblank> ( <name> | <string> )) | NULL )`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [New]
@@ -1005,7 +1083,7 @@ promote: m + sk = sk
     string: "value"
 
 
-`arguments -> ( \( <skip-blank> (!EOF | \) | <name> <skip-blank> repeat ( , <skip-blank> <name> <skip-blank> ) end (!EOF | \)) ) ) | : | NULL`
+`arguments → ( \( <skip-blank> (!EOF | \) | <name> <skip-blank> repeat ( , <skip-blank> <name> <skip-blank> ) end (!EOF | \)) ) ) | : | NULL`
 * state: sk, s
 * messages: [Inherited, New]
 * highlights: [New]
@@ -1019,7 +1097,7 @@ promote: m + sk = sk
     reference: "[[checked reference name]]"...
 
 
-`block -> [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]`
+`block → [ <skip-blank> <name> <skip-blank> <arguments> <name-block-handler> ]`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1035,18 +1113,18 @@ promote: m + sk = sk
 // 下面是带参数的 block, 其分别对应 同名 is 函数, 其 Result 的结构与 block 相同, 不再重复.
 
 // otherBlocks: paragraph, section ...
-`structural-block -> <block> + name = paragraph`
+`structural-block → <block> + name = paragraph`
 // paragraph-block-handler 在 paragraph & text 节中
 // section-block-handler, ... 在 Aritcle 节中
 
 // basicBlocks: text, formula, figure, list, table, code
-`basic-block -> <block> + name = text, formula, figure, list, table, code`
+`basic-block → <block> + name = text, formula, figure, list, table, code`
 // text-block-handler 在 Paragraph & Text 节中
 // formula-block-handler 在 Math 节中
 // figure, list, table, code-block-handler 在 Core 节中
 
 // formatBlocks: emph, bold, italic
-`format-block -> <block> + name = emph, bold, italic`
+`format-block → <block> + name = emph, bold, italic`
 // emph, bold, italic-block-handler 在 Core 节中
 
 #### Paragraph & Text
@@ -1055,7 +1133,7 @@ promote: m + sk = sk
 
 // free-paragraph 的错误处理放到 free-text 中, 因为free-text 是一个 <not-end>, 因此只会在 end 条件停下来. 此处只要 free-text 加 * 的终止条件作为全集, 其他或条件构成这个全集不交并即可.
 
-`free-paragraph -> repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<non-basic-format-block> | *<setting>)`
+`free-paragraph → repeat (<free-text> | <basic-block>) end (*EOF | <multiline-blank-gt-1> | *<non-basic-format-block> | *<setting>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited]
@@ -1068,14 +1146,14 @@ promote: m + sk = sk
     [[cleaned text]]...
     [[cleaned basic block]]...
 
-`escape-char -> \ [[]()#@/]`
+`escape-char → \ [[]()#@/]`
 * state: f, s
 * messages: [New]
 * highlights: [New]
 * content, analysedContent:
   reference: "[[escape char]]"
 
-`insertion -> <symbol> <skip-blank> <insertion-block-handler>`
+`insertion → <symbol> <skip-blank> <insertion-block-handler>`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1086,7 +1164,7 @@ promote: m + sk = sk
   [[insertion type, optional, default is insertion]]: "[[insertion added]]"
     [[insertion added]]...
 
-`reference -> @ <name> <skip-blank>`
+`reference → @ <name> <skip-blank>`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1096,7 +1174,7 @@ promote: m + sk = sk
 // inline-formula 在 math 节中
 
 // embeded formula 要放到 blank 之后, 因为注释的前缀也是 /
-`free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<non-format-block> | *<setting>)`
+`free-text → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | \ \ | *<non-format-block> | *<setting>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1112,7 +1190,7 @@ promote: m + sk = sk
     [[cleaned format block: emph, bold]]...
 
 // 同 paragraph, 一部分错误处理要放到 par free text 中
-`paragraph-block-handler -> NULL | repeat (<par-free-text> | <basic-block> | !<non-basic-format-block>) end (*EOF | *<multiline-blank-gt-1> | *])`
+`paragraph-block-handler → NULL | repeat (<par-free-text> | <basic-block> | !<non-basic-format-block>) end (*EOF | *<multiline-blank-gt-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1125,7 +1203,7 @@ promote: m + sk = sk
     [[cleaned text]]...
     [[cleaned basic block]]...
 
-`par-free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | *] | \ \ | *<basic-block> | *<structural-block>)`
+`par-free-text → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end (*EOF | *<multiline-blank-gt-1> | *] | \ \ | *<basic-block> | *<structural-block>)`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1140,7 +1218,7 @@ promote: m + sk = sk
     [[cleaned insertion: reference, formula]]...
     [[cleaned format block: emph, bold]]...
 
-`text-block-handler -> 0-repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (*EOF | !<multiline-blank-gt-1> | *])`
+`text-block-handler → 0-repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | !<basic-block> | !<structural-block> | !<error-block> | !(\ \) | <not-end>) end (*EOF | !<multiline-blank-gt-1> | *])`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1159,7 +1237,7 @@ promote: m + sk = sk
 
 本部分给出 Math 模块对应功能的产生式, 主要包括 formula 块以及行内 foumula 块的产生式.
 
-`formula-insertion-handler -> / <elements> /`
+`formula-insertion-handler → / <elements> /`
 * state: sk, s, matchElements 中对上述模式匹配中有默认的处理机制 (跳过该字符), 所以不会出现 f, 直到遇到结束条件之一.
 * messages: []
 * highlights: []
@@ -1168,7 +1246,7 @@ promote: m + sk = sk
   * content: "escape element"
   * children: []
 
-`formula-block-handler -> <elements> + withDefnation`
+`formula-block-handler → <elements> + withDefnation`
 * state: f, sk, s
 * messages: [Inherited]
 * highlights: [Inherited]
@@ -1178,9 +1256,9 @@ promote: m + sk = sk
   * children: []
 
 
-`elements -> 0-repeat(<multiline-blank-leq-1> | <escape-element> | <formula> | <defination> | <inline-text> | <element>) end (!EOF | !<multiline-blank-gt-1> | *EndWith...)`
-`` defination -> ` <elements> ` ``
-`formula -> [ <elements> ]`
+`elements → 0-repeat(<multiline-blank-leq-1> | <escape-element> | <formula> | <defination> | <inline-text> | <element>) end (!EOF | !<multiline-blank-gt-1> | *EndWith...)`
+`` defination → ` <elements> ` ``
+`formula → [ <elements> ]`
 * state: sk, s, matchElements 中对上述模式匹配中有默认的处理机制 (跳过该字符), 所以不会出现 f, 直到遇到结束条件之一.
 * messages: []
 * highlights: []
@@ -1189,7 +1267,7 @@ promote: m + sk = sk
   * content: "escape element"
   * children: []
 
-`escape-element -> @ <element> | \ <element>`
+`escape-element → @ <element> | \ <element>`
 * state: f, sk, s
 * messages: []
 * highlights: []
@@ -1198,9 +1276,9 @@ promote: m + sk = sk
   * content: "escape element"
   * children: []
 
-`element -> <notation> | <symbol>`
-`notation -> repeat([A-Za-z0-9]) end (*<repeat-failing>)`
-`symbol -> Symbol... | UnicodeSymbol...`
+`element → <notation> | <symbol>`
+`notation → repeat([A-Za-z0-9]) end (*<repeat-failing>)`
+`symbol → Symbol... | UnicodeSymbol...`
 * state: f, s
 * messages: []
 * highlights: []
@@ -1210,7 +1288,7 @@ promote: m + sk = sk
   * children: []
 
 
-`inline-text -> " repeat(<not-end>) end (!EOF | ")`
+`inline-text → " repeat(<not-end>) end (!EOF | ")`
 * state: f, sk, s
 * messages: [New]
 * highlights: []
@@ -1221,13 +1299,13 @@ promote: m + sk = sk
 
 
 
-element-char ->
+element-char →
 
-inline-text ->
-element ->
-formula ->
+inline-text →
+element →
+formula →
 
-`term -> <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator`
+`term → <formula> | <defination> | <inline-text> | <element> + not operator | <escape-element> | <element> + prefix-operator`
 * state: f, sk, s
 * messages: [New, Inherited]
 * highlights: [Inherited]
@@ -1236,12 +1314,12 @@ formula ->
   * content: "depends"
   * children: [tree of operator]
 
-operator -> <element> + infix-operator
+operator → <element> + infix-operator
 
-prefix -> <operator> <expression> <operator> <expression> 
-infix -> <expression> <operator> <expression> 
+prefix → <operator> <expression> <operator> <expression> 
+infix → <expression> <operator> <expression> 
 
-`expression -> repeat (<term> | <operator>) end (*EOF | *endTerm...)`
+`expression → repeat (<term> | <operator>) end (*EOF | *endTerm...)`
 * state: f, sk, s
 * messages: [New, Inherited]
 * highlights: [Inherited]
@@ -1257,8 +1335,8 @@ infix -> <expression> <operator> <expression>
 
 // core
 
-`figure-block-handler -> <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])`
-`` single-figure -> ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler> ``
+`figure-block-handler → <multiline-blank-leq-1> repeat (<single-figure> <multiline-blank-leq-1>) end (])`
+`` single-figure → ` repeat (<not-end>) end (`) <skip-blank> [ <text-block-handler> ``
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1267,17 +1345,17 @@ infix -> <expression> <operator> <expression>
   * content: ""
   * children: [ a figureCaption Node (same as Text Node) in front, others are 0 or more figureItem Node, its content is path, has a optional child figureCaption Node.]
 
-`list-block-handler -> repeat (<item> | <list-free-item>) end (*EOF | *] | *<multiline-blank-gt-1>)`
+`list-block-handler → repeat (<item> | <list-free-item>) end (*EOF | *] | *<multiline-blank-gt-1>)`
 
-`item -> <paragraph-like-block-handlers>`
+`item → <paragraph-like-block-handlers>`
 
-`list-free-item -> ( \* | \*\* | \*\*\* ) repeat (<list-free-text> | <basic-block>) end ( *\* | *\*\* | *\*\*\* | *EOF | *<multiline-blank-gt-1> | *] | *<non-basic-format-block> )`
+`list-free-item → ( \* | \*\* | \*\*\* ) repeat (<list-free-text> | <basic-block>) end ( *\* | *\*\* | *\*\*\* | *EOF | *<multiline-blank-gt-1> | *] | *<non-basic-format-block> )`
 
-`list-free-text -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end ( *\* | *\*\* | *\*\*\* | *EOF | *<multiline-blank-gt-1> | *] | \ \ | *<non-format-block>)`
+`list-free-text → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | <format-block> | <not-end>) end ( *\* | *\*\* | *\*\*\* | *EOF | *<multiline-blank-gt-1> | *] | \ \ | *<non-format-block>)`
 
-table-block-handler -> ...
+table-block-handler → ...
 
-`code-block-handler -> ...`
+`code-block-handler → ...`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1287,9 +1365,9 @@ table-block-handler -> ...
   * children: []
 
 
-`emph-block-handler -> repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | !<block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-gt-1> | *])`
-`bold-block-handler -> ...`
-`italic-block-handler -> ...`
+`emph-block-handler → repeat (<multiline-blank-leq-1> | <escape-char> | <reference> | <inline-formula> | !<block> | !(\ \) | <not-end>) end (!EOF | !<multiline-blank-gt-1> | *])`
+`bold-block-handler → ...`
+`italic-block-handler → ...`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1299,9 +1377,9 @@ table-block-handler -> ...
   * children: [word, insertion]
 
 // 还有问题, 暂时不用
-`inline-emph-handler -> * ... *`
-`inline-bold-handler -> ~ ... ~`
-`italic-block-handler -> ...`
+`inline-emph-handler → * ... *`
+`inline-bold-handler → ~ ... ~`
+`italic-block-handler → ...`
 * state: f, sk, s
 * messages: [Inherited, New]
 * highlights: [Inherited, New]
@@ -1313,9 +1391,9 @@ table-block-handler -> ...
 #### Article
 
 // 这些等同于 matchText
-`section -> ...`
-`subsection -> ...`
-`subsubsection -> ...`
-`title -> ...`
-`author -> ...`
-`date -> ...`
+`section → ...`
+`subsection → ...`
+`subsubsection → ...`
+`title → ...`
+`author → ...`
+`date → ...`

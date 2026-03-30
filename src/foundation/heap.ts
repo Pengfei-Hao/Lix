@@ -1,4 +1,5 @@
 export class Heap<T> {
+
     protected items: Array<T>;
 
     constructor() {
@@ -17,10 +18,7 @@ export class Heap<T> {
         return this.items.at(-1);
     }
 
-    
-    public get length() : number {
+    public get length(): number {
         return this.items.length;
     }
-    
-    
 }

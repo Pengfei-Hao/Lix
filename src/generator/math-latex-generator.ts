@@ -113,7 +113,7 @@ export class MathLatexGenerator extends Generator {
                 }
                 let nCode: string[] = [];
                 node.children.forEach(subNode => nCode.push(this.generateTermOrOperator(subNode)));
-                return code.formatWithAutoBlank(...nCode);
+                return code.formatWithBlank(...nCode);
 
             case this.infixType:
                 code = this.latexOperator.get(node.content);
@@ -124,7 +124,7 @@ export class MathLatexGenerator extends Generator {
                 if (node.content === "") {
                     let res = code;
                     for (let subNode of node.children) {
-                        res = res.formatWithAutoBlank(this.generateTermOrOperator(subNode) + code);
+                        res = res.formatWithBlank(this.generateTermOrOperator(subNode) + code);
                     }
                     res = res.format("");
                     return res;
@@ -132,7 +132,7 @@ export class MathLatexGenerator extends Generator {
                 else {
                     let nCode: string[] = [];
                     node.children.forEach(subNode => nCode.push(this.generateTermOrOperator(subNode)));
-                    return code.formatWithAutoBlank(...nCode);
+                    return code.formatWithBlank(...nCode);
                 }
         }
         return this.json.Default;

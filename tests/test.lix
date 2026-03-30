@@ -1,5 +1,5 @@
 # name : argu
-
+/dot [[a+b]* ^ a]? [a*]* /
 [text (center,large)  
 ]
 /sin𝛼 + beta, lim x→0:√ ≈ approx/
@@ -10,5 +10,5 @@ math formula.
 /∫f(x)"d"x =F(b)-F(a) /
 /𝛼𝛽𝔸 /
 / [𝛼^𝛽_𝛾] [a b ⁄ c d] [∑a^n to [i=0] @: :]/
-
+/a b cd ! () !( !) a⃗ a⃗ b⃗.    ⃗ /
 [formula `a ↦ a + b + c` a ∑ x to i : t ]

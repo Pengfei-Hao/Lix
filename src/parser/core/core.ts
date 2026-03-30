@@ -5,29 +5,29 @@ import { Parser } from "../parser";
 import { BasicResult, HighlightType, NodeResult, Result, ResultState } from "../result";
 import { MessageType } from "../message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
-import { LixError } from "../../foundation/error";
+import { error } from "../../foundation/error";
 import { parserExceptionTexts } from "../texts";
 
 export class Core extends Module {
 
     // types of syntax tree node
 
-    figureType: Type;
-    imageType: Type;
+    private figureType: Type;
+    private imageType: Type;
 
-    codeType: Type;
+    private codeType: Type;
 
-    listType: Type;
-    itemType: Type;
+    private listType: Type;
+    private itemType: Type;
 
-    tableType: Type;
-    cellType: Type;
+    private tableType: Type;
+    private cellType: Type;
 
-    captionType: Type;
+    private captionType: Type;
 
-    emphType: Type;
-    boldType: Type;
-    italicType: Type;
+    private emphType: Type;
+    private boldType: Type;
+    private italicType: Type;
 
     constructor(parser: Parser) {
         super(parser);
@@ -154,73 +154,120 @@ export class Core extends Module {
 
     // **************** Format Blocks ****************
 
-    emphBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("emph", this.emphType, args);
+    private emphBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("emph", this.emphType, args);
     }
 
-    boldBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("bold", this.boldType, args);
+    private boldBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("bold", this.boldType, args);
     }
 
-    italicBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("italic", this.italicType, args);
+    private italicBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("italic", this.italicType, args);
     }
 
     // **************** Insertions ****************
 
-    codeInsertionHandler(): NodeResult {
+    private codeInsertionHandler(): NodeResult {
         return this.parser.prepareMatch(this.codeType, "inline-code-handler", this.myCodeInsertionHandler, this, this.parser.defaultAnalysis);
     }
 
     private myCodeInsertionHandler(result: NodeResult) {
-        let node = result.node;
 
-        let symRes: BasicResult;
+        let res: BasicResult;
+        let valRes: Result<string>;
 
-        let beginIndex = this.parser.index;
-        let count = 0;
-        while ((symRes = this.parser.match("`")).matched) {
-            result.merge(symRes);
-            count++;
-        }
-        if (count !== 0) {
-            result.addHighlight(HighlightType.operator, beginIndex, 0, count);
+        let beginIndex = this.sourceText.getIndex();
+
+        res = result.merge(this.parser.match("`"));
+        if (res.shouldStop) {
+            error(parserExceptionTexts.LogicalUnexpectedStop);
         }
 
-        let occur = 0;
-        while (true) {
-            if (this.parser.isEOF()) {
-                result.mergeState(ResultState.skippable);
-                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
-                return;
-            }
-
-            else if (this.parser.isMultilineBlankGtOne()) {
-                result.mergeState(ResultState.skippable);
-                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
-                return;
-            }
-
-            else if ((symRes = this.parser.match("`")).matched) {
-                result.merge(symRes);
-                occur++;
-                node.content += "`";
-                if (occur == count) {
-                    if (count !== 0) {
-                        node.content = node.content.slice(0, -count);
-                        result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
+        if (this.sourceText.isText("^")) {
+            let pattern = "`";
+            while (true) {
+                if ((res = this.parser.match("^")).matched) {
+                    result.merge(res);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
                     }
+                    pattern += "^";
+                }
+                else if (this.parser.sourceText.isText("`")) {
+                    break;
+                }
+                else {
+                    result.mergeFailedState();
                     return;
                 }
             }
 
-            else {
-                result.mergeState(ResultState.successful);
-                occur = 0;
-                node.content += this.parser.curChar();
-                this.parser.move();
+            result.merge(this.parser.match("`"));
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            pattern += "`";
+            result.addHighlight(HighlightType.operator, beginIndex, 0, pattern.length);
+
+            while (true) {
+                if (this.sourceText.isEOF()) {
+                    break;
+                }
+                else if (this.parser.isMultilineBlankGtOne()) {
+                    break;
+                }
+
+                else if (this.sourceText.isText(pattern)) {
+                    break;
+                }
+                else if ((valRes = this.parser.matchChar()).matched) {
+                    result.merge(valRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.appendNodeContent(valRes.value);
+                }
             }
 
+            result.merge(this.parser.match(pattern));
+            if (result.shouldStop) {
+                result.recoverToSkippable();
+                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.sourceText.getIndex() - beginIndex);
+                return;
+            }
+            result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -pattern.length, 0);
+        }
+        else {
+            result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
+
+            while (true) {
+                if (this.sourceText.isEOF()) {
+                    break;
+                }
+                else if (this.parser.isMultilineBlankGtOne()) {
+                    break;
+                }
+
+                else if (this.sourceText.isText("`")) {
+                    break;
+                }
+                else if ((valRes = this.parser.matchChar()).matched) {
+                    result.merge(valRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.appendNodeContent(valRes.value);
+                }
+            }
+
+            result.merge(this.parser.match("`"));
+            if (result.shouldStop) {
+                result.recoverToSkippable();
+                result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.sourceText.getIndex() - beginIndex);
+                return;
+            }
+            result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -1, 0);
         }
     }
 
@@ -274,7 +321,7 @@ export class Core extends Module {
         result.highlights.push(this.parser.getHighlight(HighlightType.operator, -1, 0));
 
         while (true) {
-            if (this.parser.isEOF()) {
+            if (this.parser.sourceText.isEOF()) {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                 }
@@ -283,7 +330,7 @@ export class Core extends Module {
                 return;
             }
 
-            else if (this.parser.is(endWith)) {
+            else if (this.parser.sourceText.isText(endWith)) {
                 if (text !== "") {
                     node.children.push(new Node(this.parser.wordsType, text, [], preIndex, this.parser.index));
                     text = "";
@@ -373,66 +420,61 @@ export class Core extends Module {
 
     // **************** Figure ****************
 
-    checkAndStandardizeFigure(result: NodeResult) {
-        result.discarded = false;
+    private checkAndStandardizeFigure(result: NodeResult) {
+        result.setDiscarded(false);
     }
 
     // FigureBlockHandler: failing | skippable | successful
 
-    figureBlockHandler(args: Node): NodeResult {
+    private figureBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.figureType, "figure-block-handler", this.myFigureBlockHandler.bind(this, args), this, this.checkAndStandardizeFigure);
     }
 
     private myFigureBlockHandler(args: Node, result: NodeResult) {
+
+        let res: BasicResult
         let nodeRes: NodeResult;
-        let blkRes: Result<number>;
+
         let preIndex: number;
-
-        result.mergeState(ResultState.successful);
-
         while (true) {
-            preIndex = this.parser.index;
+            preIndex = this.sourceText.getIndex();
 
-            if (this.parser.isEOF()) {
-                return;
+            if ((res = this.parser.matchMultilineBlankLeqOne()).matched) {
+                result.merge(res);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
             }
-            if (this.parser.isMultilineBlankGtOne()) {
-                return;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.isNonSomeBlock("image", "caption")) {
-                result.mergeState(ResultState.skippable);
+
+            else if (this.parser.inlineModule.isNoneOfBlocks("image", "caption")) {
+                result.mergeFailedState();
+
+                result.recoverToSkippable();
                 let length = this.parser.skipByBrackets();
                 result.addMessage(this.texts.FigureDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
-            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
-                result.merge(blkRes);
-            }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
+            else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 // 只能是 image 或 caption
                 result.merge(nodeRes);
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.mergeBothNodesWithChild(nodeRes);
             }
 
             else {
-                result.addMessage(this.texts.FigureDisallowsText, MessageType.error, preIndex, 0, 1);
-                result.mergeState(ResultState.skippable);
-                this.parser.move();
+                break;
             }
         }
     }
 
     // ImageBlockHandler: failing | skippable | successful
 
-    imageBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("image", this.imageType, args);
-        result.discarded = false;
-        let path = this.parser.getArgument(args, "path");
+    private imageBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("image", this.imageType, args);
+        result.setDiscarded(false);
+        let path = this.parser.inlineModule.getArgument(args, "path");
         let sourceUri = this.fileSystem.pathToUri(path);
         let targetUri = this.fileSystem.cacheDirectoryUri.joinPath(sourceUri.basename);
         if (this.fileSystem.path.extname(path) === ".tikz") {
@@ -446,210 +488,280 @@ export class Core extends Module {
 
     // CaptionHandler: failing | skippable | successful
 
-    captionBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("caption", this.captionType, args);
+    private captionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("caption", this.captionType, args);
     }
 
     // **************** Code ****************
+    //
 
-    codeBlockHandler(args: Node): NodeResult {
-        return this.parser.prepareMatch(this.codeType, "code-block-handler", this.myCodeBlockHandler, this, this.parser.defaultAnalysis);
+    private codeBlockHandler(args: Node): NodeResult {
+        return this.parser.prepareMatch(this.codeType, "code-block-handler", this.myCodeBlockHandler.bind(this, args), this, this.parser.defaultAnalysis);
     }
 
-    private myCodeBlockHandler(result: NodeResult, args: Node = new Node(this.parser.argumentsType)) {
-        let node = result.node;
+    private myCodeBlockHandler(args: Node, result: NodeResult) {
 
-        result.merge(this.parser.skipBlank());
+        let res: BasicResult;
+        let valRes: Result<string>;
 
-        let symRes: BasicResult;
-
-        let beginIndex = this.parser.index;
-        let count = 0;
-        while ((symRes = this.parser.match("`")).matched) {
-            result.merge(symRes);
-            count++;
+        // This is an 'is' function
+        let hasMarker = false;
+        let preIndex = this.sourceText.getIndex();
+        this.parser.skipMutilineBlank();
+        if (this.sourceText.isText("`")) {
+            hasMarker = true;
         }
-        if (count !== 0) {
-            result.addHighlight(HighlightType.operator, beginIndex, 0, count);
-        }
+        this.sourceText.setIndex(preIndex);
 
-        result.merge(this.parser.skipBlank());
-
-        result.merge(this.parser.match("\n"));
-        if (result.shouldTerminate) {
-            result.addMessage(this.texts.CodeBlockHeaderRequiresNewline, MessageType.error, this.parser.index, 0, 1);
-            return;
-        }
-
-        let occur = 0;
-        while (true) {
-            if (this.parser.isEOF()) {
-                result.mergeState(ResultState.skippable);
-                result.addMessage(this.texts.CodeBlockEndedUnexpectedly, MessageType.error, beginIndex, 0, this.parser.index - beginIndex);
-                return;
-            }
-            else if (this.parser.is("]")) {
-                if (occur >= count) {
-                    if (count !== 0) {
-                        node.content = node.content.slice(0, -count);
-                        result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
+        if (!hasMarker) {
+            while (true) {
+                if (this.sourceText.isEOF()) {
+                    break;
+                }
+                else if (this.sourceText.isText("]")) {
+                    break;
+                }
+                else if ((valRes = this.parser.matchChar()).matched) {
+                    result.merge(valRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
                     }
+                    result.appendNodeContent(valRes.value);
+                }
+            }
+        }
+        else {
+            result.merge(this.parser.skipMutilineBlank());
+
+            let beginIndex = this.sourceText.getIndex();
+            res = result.merge(this.parser.match("`"));
+            if (res.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+
+            if (this.sourceText.isText("^")) {
+                let pattern = "`";
+                while (true) {
+                    if ((res = this.parser.match("^")).matched) {
+                        result.merge(res);
+                        if (result.shouldStop) {
+                            error(parserExceptionTexts.LogicalUnexpectedStop);
+                        }
+                        pattern += "^";
+                    }
+                    else if (this.parser.sourceText.isText("`")) {
+                        break;
+                    }
+                    else {
+                        result.mergeFailedState();
+                        return;
+                    }
+                }
+
+                result.merge(this.parser.match("`"));
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                pattern += "`";
+                result.addHighlight(HighlightType.operator, beginIndex, 0, pattern.length);
+
+                while (true) {
+                    if (this.sourceText.isEOF()) {
+                        break;
+                    }
+                    else if (this.sourceText.isText(pattern)) {
+                        break;
+                    }
+                    else if ((valRes = this.parser.matchChar()).matched) {
+                        result.merge(valRes);
+                        if (result.shouldStop) {
+                            error(parserExceptionTexts.LogicalUnexpectedStop);
+                        }
+                        result.appendNodeContent(valRes.value);
+                    }
+                }
+
+                result.merge(this.parser.match(pattern));
+                if (result.shouldStop) {
+                    result.recoverToSkippable();
+                    result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.sourceText.getIndex() - beginIndex);
                     return;
                 }
-                occur = 0;
-                node.content += "]";
-                result.merge(this.parser.match("]"));
+                result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -pattern.length, 0);
             }
-
-            else if ((symRes = this.parser.match("`")).matched) {
-                result.merge(symRes);
-                occur++;
-                node.content += "`";
-            }
-
             else {
-                result.mergeState(ResultState.successful);
-                occur = 0;
-                node.content += this.parser.curChar();
-                this.parser.move();
+                result.addHighlight(HighlightType.operator, beginIndex, 0, 1);
+
+                while (true) {
+                    if (this.sourceText.isEOF()) {
+                        break;
+                    }
+                    else if (this.sourceText.isText("`")) {
+                        break;
+                    }
+                    else if ((valRes = this.parser.matchChar()).matched) {
+                        result.merge(valRes);
+                        if (result.shouldStop) {
+                            error(parserExceptionTexts.LogicalUnexpectedStop);
+                        }
+                        result.appendNodeContent(valRes.value);
+                    }
+                }
+
+                result.merge(this.parser.match("`"));
+                if (result.shouldStop) {
+                    result.recoverToSkippable();
+                    result.addMessage(this.texts.InlineCodeEndedUnexpectedly, MessageType.error, beginIndex, 0, this.sourceText.getIndex() - beginIndex);
+                    return;
+                }
+                result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -1, 0);
             }
 
+            result.merge(this.parser.skipMutilineBlank());
         }
     }
 
     // **************** List ****************
 
-    listBlockHandler(args: Node): NodeResult {
+    private listBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.listType, "list-block-handler", this.myListBlockHandler.bind(this, args), this);
     }
 
     private myListBlockHandler(args: Node, result: NodeResult) {
+
         let nodeRes: NodeResult;
+
         let preIndex: number;
-
-        result.mergeState(ResultState.successful);
-
         while (true) {
-            preIndex = this.parser.index;
+            preIndex = this.sourceText.getIndex();
 
-            if (this.parser.isEOF()) {
-                return;
-            }
-            if (this.parser.isMultilineBlankGtOne()) {
-                return;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "item")) {
-                result.mergeState(ResultState.skippable);
+            if (this.parser.inlineModule.isNoneOfBlocks(BlockType.basic, BlockType.format, "item")) {
+                result.mergeFailedState();
+
+                result.recoverToSkippable();
                 let length = this.parser.skipByBrackets();
                 result.addMessage(this.texts.ListDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
             else if ((nodeRes = this.matchFreeItem()).matched) {
                 result.merge(nodeRes);
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.mergeBothNodesWithChild(nodeRes);
             }
 
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
+            else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 // 只能是 item block, format 和 basic 前面处理了
                 result.merge(nodeRes);
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.mergeBothNodesWithChild(nodeRes);
             }
 
             else {
-                // 理论上不会出现
-                throw new LixError(parserExceptionTexts.LogicalMatchListItemFailed);
+                break;
             }
         }
     }
 
-    cleanupItem(result: NodeResult) {
-        result.discarded = (result.analysedNode.content === "" && result.analysedNode.children.length === 0);
-    }
-
     // MatchFreeItem: failing | skippable | successful
 
-    matchFreeItem(): NodeResult {
+    private cleanupItem(result: NodeResult) {
+        result.setDiscarded(result.analysedNode.content === "" && result.analysedNode.children.length === 0);
+    }
+
+    private matchFreeItem(): NodeResult {
         let result = this.parser.prepareMatch(this.itemType, "free-item", this.myMatchFreeItem, this, this.cleanupItem);
         return result;
     }
 
     private myMatchFreeItem(result: NodeResult) {
-        let nodeRes: NodeResult;
-        let res: BasicResult;
 
-        // result.content.children.push(new Node(this.argumentsType));
-        // result.analysedContent.children.push(new Node(this.argumentsType));
+        let res: BasicResult;
+        let nodeRes: NodeResult;
 
         let count = 0;
-        while (this.parser.is("*")) {
-            result.GuaranteeMatched();
-            result.merge(this.parser.match("*"));
-            result.node.content += "*";
-            result.analysedNode.content += "*";
-            count++;
+        while (true) {
+            if ((res = this.parser.match("*")).matched) {
+                result.merge(res);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.appendNodeContent("*");
+                result.appendAnalysedNodeContent("*");
+                count++;
+            }
+            else {
+                break;
+            }
         }
+
         if (count > 0) {
-            result.addHighlight(HighlightType.operator, this.parser.index, -count, 0);
+            result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -count, 0);
+        }
+
+        if ((nodeRes = this.matchListFreeText()).matched) {
+            result.merge(nodeRes);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.mergeBothNodesWithChild(nodeRes);
+        }
+        else if (this.parser.inlineModule.isOneOfBlocks(BlockType.basic) && (nodeRes = this.parser.inlineModule.matchBlock()).matched) {
+            result.merge(nodeRes);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.mergeBothNodesWithChild(nodeRes);
+        }
+        else {
+            if (count > 0) {
+                result.mergeSuccessfulState();
+            }
+            else {
+                result.mergeFailedState();
+                return;
+            }
         }
 
         while (true) {
-            if (this.parser.isEOF()) {
-                break;
-            }
-            else if (this.parser.isMultilineBlankGtOne()) {
-                break;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.is("*")) { // includes *, **, ***, ****
-                break;
-            }
-            else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format)) {
-                break;
-            }
-
-            else if ((nodeRes = this.matchListFreeText()).matched) {
+            if ((nodeRes = this.matchListFreeText()).matched) {
                 result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.mergeBothNodesWithChild(nodeRes);
             }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
-                // 只能是 basic block, format block 在 list free text 中处理了
+            else if (this.parser.inlineModule.isOneOfBlocks(BlockType.basic) && (nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // match block 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.mergeBothNodesWithChild(nodeRes);
             }
             else {
-                throw new LixError(parserExceptionTexts.LogicalFreeListBranch);
+                break;
             }
         }
     }
 
     // MatchListFreeText: failing | skippable | successful
 
-    matchListFreeText(): NodeResult {
-        return this.parser.prepareMatch(this.parser.textType, "list-free-text", this.myMatchListFreeText, this, this.parser.cleanupText, this.parser);
+    private matchListFreeText(): NodeResult {
+        return this.parser.prepareMatch(this.parser.inlineModule.textType, "list-free-text", this.myMatchListFreeText, this, this.parser.inlineModule.cleanupText, this.parser);
     }
 
     private myMatchListFreeText(result: NodeResult) {
-        let node = result.node;
-        let analysedNode = result.analysedNode;
-
-        // node.children.push(new Node(this.argumentsType));
-        // analysedNode.children.push(new Node(this.argumentsType));
 
         let text = "";
-        let symRes: BasicResult;
-        let blkRes: Result<number>;
+        let res: BasicResult;
         let valRes: Result<string>;
         let nodeRes: NodeResult;
 
@@ -657,8 +769,8 @@ export class Core extends Module {
 
         const mergeWordsNode = () => {
             if (text !== "") {
-                node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-                analysedNode.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                result.addChild(this.parser.inlineModule.wordsType, text, [], preIndex, 0, curIndex - preIndex);
+                result.addAnalysedChild(this.parser.inlineModule.wordsType, text, [], preIndex, 0, curIndex - preIndex);
                 text = "";
             }
         }
@@ -669,84 +781,147 @@ export class Core extends Module {
             }
         }
 
-        while (true) {
-            curIndex = this.parser.index;
-
-            if (this.parser.isEOF()) {
+        if ((res = this.parser.match("\\\\")).matched) {
+            mergeWordsNode();
+            result.merge(res);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -2, 0);
+        }
+        else {
+            if (this.sourceText.isEOF()) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
             else if (this.parser.isMultilineBlankGtOne()) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.is("]")) {
+            if (this.sourceText.isText("\\\\")) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.is("*")) { // includes *, **, ***, ****
+            else if (this.parser.inlineModule.isNoneOfBlocks(BlockType.format)) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if ((symRes = this.parser.match("\\\\")).matched) {
+            else if (this.parser.sourceText.isText("*")) {
                 mergeWordsNode();
-                result.merge(symRes);
-                result.GuaranteeMatched();
-                result.addHighlight(HighlightType.operator, curIndex, 0, 2);
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.isNonSomeBlock(BlockType.format)) {
+            else if (this.sourceText.isText("]")) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
 
-            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
-                resetIndex();
-                result.merge(blkRes);
-                result.GuaranteeMatched();
-                text += " ";
+            while (true) {
+                curIndex = this.sourceText.getIndex();
+
+                if (this.parser.sourceText.isEOF()) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.isMultilineBlankGtOne()) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.sourceText.isText("\\\\")) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.inlineModule.isNoneOfBlocks(BlockType.format)) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.sourceText.isText("*")) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.sourceText.isText("]")) {
+                    mergeWordsNode();
+                    break;
+                }
+
+                else if ((res = this.parser.matchMultilineBlankLeqOne()).matched) {
+                    resetIndex();
+                    result.merge(res);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    text += " ";
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchEscapeChar()).matched) {
+                    resetIndex();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    text += nodeRes.node.content;
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchInsertion()).matched) {
+                    mergeWordsNode();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    result.mergeBothNodesWithChild(nodeRes);
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
+                    // 只能是 format block
+                    mergeWordsNode();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    result.mergeBothNodesWithChild(nodeRes);
+                }
+
+                else {
+                    resetIndex();
+                    result.ensureMatched();
+                    valRes = result.merge(this.parser.matchChar());
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    text += valRes.value;
+                }
             }
 
-            else if ((nodeRes = this.parser.matchEscapeChar()).matched) {
-                resetIndex();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                text += nodeRes.node.content;
-            }
-
-            else if ((nodeRes = this.parser.matchInsertion()).matched) {
+            if ((res = this.parser.match("\\\\")).matched) {
                 mergeWordsNode();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                result.merge(res);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -2, 0);
             }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
-                // 只能是 format block
-                mergeWordsNode();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // match block 不会失败
-                result.mergeNodeToChildren(nodeRes);
-            }
-
             else {
-                resetIndex();
-                result.GuaranteeMatched();
-                valRes = this.parser.matchChar();
-                result.merge(valRes);
-                // 不会失败
-                text += valRes.value;
+                result.mergeSuccessfulState();
             }
         }
     }
 
     // ItemBlockHandler: failing | skippable | successful
 
-    itemBlockHandler(args: Node): NodeResult {
-        let result = this.parser.paragraphLikeBlockHandler("item", this.itemType, args);
-        result.discarded = false;
+    private itemBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.paragraphLikeBlockHandler("item", this.itemType, args);
+        result.setDiscarded(false);
         return result;
     }
 
@@ -754,35 +929,27 @@ export class Core extends Module {
 
     // TextBlockHandler: failing | skippable | successful
 
-    tableBlockHandler(args: Node): NodeResult {
+    private tableBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.tableType, "table-block-handler", this.myTableBlockHandler.bind(this, args), this);
     }
 
     private myTableBlockHandler(args: Node, result: NodeResult) {
-        let nodeRes: NodeResult;
+
         let res: BasicResult;
+        let nodeRes: NodeResult;
+
         let preIndex: number;
 
-        result.mergeState(ResultState.successful);
-
-        let row = result.addNode(this.cellType, "", [], this.parser.index, 0, 0);
-        let analysedRow = result.addAnalysedNode(this.cellType, "", [], this.parser.index, 0, 0);
+        let row = result.addChild(this.cellType, "", [], this.sourceText.getIndex(), 0, 0);
+        let analysedRow = result.addAnalysedChild(this.cellType, "", [], this.sourceText.getIndex(), 0, 0);
 
         while (true) {
-            preIndex = this.parser.index;
+            preIndex = this.sourceText.getIndex();
 
-            if (this.parser.isEOF()) {
-                return;
-            }
-            if (this.parser.isMultilineBlankGtOne()) {
-                return;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format, "cell")) {
-                result.mergeState(ResultState.skippable);
-                let length = this.parser.skipByBrackets();
+            if (this.parser.inlineModule.isNoneOfBlocks(BlockType.basic, BlockType.format, "cell")) {
+                result.mergeFailedState();
+
+                result.recoverToSkippable(); let length = this.parser.skipByBrackets();
                 result.addMessage(this.texts.TableDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
@@ -798,23 +965,27 @@ export class Core extends Module {
                 analysedRow.begin = (analysedRow.children.at(0)?.begin) ?? analysedRow.begin;
                 analysedRow.end = (analysedRow.children.at(-1)?.end) ?? analysedRow.end;
 
-                row = result.addNode(this.cellType, "", [], this.parser.index, 0, 0);
-                analysedRow = result.addAnalysedNode(this.cellType, "", [], this.parser.index, 0, 0);
+                row = result.addChild(this.cellType, "", [], this.sourceText.getIndex(), 0, 0);
+                analysedRow = result.addAnalysedChild(this.cellType, "", [], this.sourceText.getIndex(), 0, 0);
             }
 
             else if ((nodeRes = this.matchFreeCell()).matched) {
                 result.merge(nodeRes);
-                // 不会失败
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
                 row.children.push(nodeRes.node);
                 if (!nodeRes.discarded) {
                     analysedRow.children.push(nodeRes.analysedNode);
                 }
             }
 
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
+            else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 // 只能是 cell block, format 和 basic 前面处理了
                 result.merge(nodeRes);
-                // 不会失败
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
                 row.children.push(nodeRes.node);
                 if (!nodeRes.discarded) {
                     analysedRow.children.push(nodeRes.analysedNode);
@@ -822,86 +993,80 @@ export class Core extends Module {
             }
 
             else {
-                // 理论上不会出现
-                throw new LixError(parserExceptionTexts.LogicalMatchTableCellFailed);
+                break;
             }
         }
     }
 
-    cleanupCell(result: NodeResult) {
-        result.discarded = (result.analysedNode.children.length === 0);
-    }
-
     // MatchFreeCell: failing | skippable | successful
 
-    matchFreeCell(): NodeResult {
+    private cleanupCell(result: NodeResult) {
+        result.setDiscarded(result.analysedNode.children.length === 0);
+    }
+
+    private matchFreeCell(): NodeResult {
         let result = this.parser.prepareMatch(this.cellType, "free-cell", this.myMatchFreeCell, this, this.cleanupCell);
         return result;
     }
 
     private myMatchFreeCell(result: NodeResult) {
-        let nodeRes: NodeResult;
-        let res: BasicResult;
 
-        // result.content.children.push(new Node(this.argumentsType));
-        // result.analysedContent.children.push(new Node(this.argumentsType));
+        let nodeRes: NodeResult;
+
+        if ((nodeRes = this.matchTableFreeText()).matched) {
+            result.merge(nodeRes);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.mergeBothNodesWithChild(nodeRes);
+        }
+        else if (this.parser.inlineModule.isOneOfBlocks(BlockType.basic) && (nodeRes = this.parser.inlineModule.matchBlock()).matched) {
+            result.merge(nodeRes);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.mergeBothNodesWithChild(nodeRes);
+        }
+        else {
+            result.mergeFailedState();
+            return;
+        }
 
         while (true) {
-            if (this.parser.isEOF()) {
-                break;
-            }
-            else if (this.parser.isMultilineBlankGtOne()) {
-                break;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.is("&")) {
-                break;
-            }
-            else if (this.parser.is(";")) {
-                break;
-            }
-            else if (this.parser.isNonSomeBlock(BlockType.basic, BlockType.format)) {
-                break;
-            }
-
-            else if ((nodeRes = this.matchTableFreeText()).matched) {
+            if ((nodeRes = this.matchTableFreeText()).matched) {
                 result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.mergeBothNodesWithChild(nodeRes);
             }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
-                // 只能是 basic block, format block 在 table free text 中处理了
+            else if (this.parser.inlineModule.isOneOfBlocks(BlockType.basic) && (nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // match block 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.mergeBothNodesWithChild(nodeRes);
             }
             else {
-                throw new LixError(parserExceptionTexts.LogicalFreeCellBranch);
+                break;
             }
         }
     }
 
     // MatchTableFreeText: failing | skippable | successful
 
-    matchTableFreeText(): NodeResult {
-        return this.parser.prepareMatch(this.parser.textType, "table-free-text", this.myMatchTableFreeText, this, this.parser.cleanupText, this.parser);
+    private matchTableFreeText(): NodeResult {
+        return this.parser.prepareMatch(this.parser.inlineModule.textType, "table-free-text", this.myMatchTableFreeText, this, this.parser.inlineModule.cleanupText, this.parser);
     }
 
     private myMatchTableFreeText(result: NodeResult) {
-        let node = result.node;
-        let analysedNode = result.analysedNode;
-
-        // node.children.push(new Node(this.argumentsType));
-        // analysedNode.children.push(new Node(this.argumentsType));
 
         let text = "";
-        let symRes: BasicResult;
-        let blkRes: Result<number>;
+        let res: BasicResult;
         let valRes: Result<string>;
         let nodeRes: NodeResult;
 
@@ -909,8 +1074,8 @@ export class Core extends Module {
 
         const mergeWordsNode = () => {
             if (text !== "") {
-                node.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
-                analysedNode.children.push(new Node(this.parser.wordsType, text, [], preIndex, curIndex));
+                result.addChild(this.parser.inlineModule.wordsType, text, [], preIndex, 0, curIndex - preIndex);
+                result.addAnalysedChild(this.parser.inlineModule.wordsType, text, [], preIndex, 0, curIndex - preIndex);
                 text = "";
             }
         }
@@ -921,88 +1086,156 @@ export class Core extends Module {
             }
         }
 
-        while (true) {
-            curIndex = this.parser.index;
-
-            if (this.parser.isEOF()) {
+        if ((res = this.parser.match("\\\\")).matched) {
+            mergeWordsNode();
+            result.merge(res);
+            if (result.shouldStop) {
+                error(parserExceptionTexts.LogicalUnexpectedStop);
+            }
+            result.ensureMatched();
+            result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -2, 0);
+        }
+        else {
+            if (this.sourceText.isEOF()) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
             else if (this.parser.isMultilineBlankGtOne()) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.is("]")) {
+            if (this.sourceText.isText("\\\\")) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.is("&")) {
+            else if (this.parser.inlineModule.isNoneOfBlocks(BlockType.format)) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.is(";")) {
+            else if (this.parser.sourceText.isText("&")) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if ((symRes = this.parser.match("\\\\")).matched) {
+            else if (this.parser.sourceText.isText(";")) {
                 mergeWordsNode();
-                result.merge(symRes);
-                result.GuaranteeMatched();
-                result.addHighlight(HighlightType.operator, curIndex, 0, 2);
-                break;
+                result.mergeFailedState();
+                return;
             }
-            else if (this.parser.isNonSomeBlock(BlockType.format)) {
+            else if (this.sourceText.isText("]")) {
                 mergeWordsNode();
-                break;
+                result.mergeFailedState();
+                return;
             }
 
-            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
-                resetIndex();
-                result.merge(blkRes);
-                result.GuaranteeMatched();
-                text += " ";
+            while (true) {
+                curIndex = this.sourceText.getIndex();
+
+                if (this.parser.sourceText.isEOF()) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.isMultilineBlankGtOne()) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.sourceText.isText("\\\\")) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.inlineModule.isNoneOfBlocks(BlockType.format)) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.sourceText.isText("&")) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.sourceText.isText(";")) {
+                    mergeWordsNode();
+                    break;
+                }
+                else if (this.parser.sourceText.isText("]")) {
+                    mergeWordsNode();
+                    break;
+                }
+
+                else if ((res = this.parser.matchMultilineBlankLeqOne()).matched) {
+                    resetIndex();
+                    result.merge(res);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    text += " ";
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchEscapeChar()).matched) {
+                    resetIndex();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    text += nodeRes.node.content;
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchInsertion()).matched) {
+                    mergeWordsNode();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    result.mergeBothNodesWithChild(nodeRes);
+                }
+
+                else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
+                    // 只能是 format block
+                    mergeWordsNode();
+                    result.merge(nodeRes);
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    result.ensureMatched();
+                    result.mergeBothNodesWithChild(nodeRes);
+                }
+
+                else {
+                    resetIndex();
+                    result.ensureMatched();
+                    valRes = result.merge(this.parser.matchChar());
+                    if (result.shouldStop) {
+                        error(parserExceptionTexts.LogicalUnexpectedStop);
+                    }
+                    text += valRes.value;
+                }
             }
 
-            else if ((nodeRes = this.parser.matchEscapeChar()).matched) {
-                resetIndex();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                text += nodeRes.node.content;
-            }
-
-            else if ((nodeRes = this.parser.matchInsertion()).matched) {
+            if ((res = this.parser.match("\\\\")).matched) {
                 mergeWordsNode();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                result.merge(res);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.ensureMatched();
+                result.addHighlight(HighlightType.operator, this.sourceText.getIndex(), -2, 0);
             }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
-                // 只能是 format block
-                mergeWordsNode();
-                result.merge(nodeRes);
-                result.GuaranteeMatched();
-                // match block 不会失败
-                result.mergeNodeToChildren(nodeRes);
-            }
-
             else {
-                resetIndex();
-                result.GuaranteeMatched();
-                valRes = this.parser.matchChar();
-                result.merge(valRes);
-                // 不会失败
-                text += valRes.value;
+                result.mergeSuccessfulState();
             }
         }
     }
 
     // CellBlockHandler: failing | skippable | successful
 
-    cellBlockHandler(args: Node): NodeResult {
-        let result = this.parser.paragraphLikeBlockHandler("cell", this.cellType, args);
-        result.discarded = false;
+    private cellBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.paragraphLikeBlockHandler("cell", this.cellType, args);
+        result.setDiscarded(false);
         return result;
     }
 }

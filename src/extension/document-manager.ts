@@ -6,10 +6,10 @@ import { Compiler } from "../compiler/compiler";
 import { VSCodeFileSystem } from "./vscode-file-system";
 import { NodePath } from "./node-path";
 import { Texts } from "./locale";
-import { LixError } from "../foundation/error";
 import { FileSystem } from "../compiler/file-system";
 import { Uri } from "../compiler/uri";
 import { StructureItem } from "./providers/tree-data-provider";
+import { error } from "../foundation/error";
 
 export class DocumentManager {
 
@@ -36,7 +36,7 @@ export class DocumentManager {
     add(document: vscode.TextDocument) {
         let name = this.getName(document);
         if (this.compilers.has(name)) {
-            throw new LixError(`Compiler for document '${name}' already exists.`);
+            error(`Compiler for document '${name}' already exists.`);
         }
         this.compilers.set(name, new Compiler(this.config, new VSCodeFileSystem(document.uri, this.nodePath, this.texts.VSCodeFileSystem), this.texts));
     }
@@ -49,7 +49,7 @@ export class DocumentManager {
     remove(document: vscode.TextDocument) {
         let name = this.getName(document);
         if (!this.compilers.has(name)) {
-            throw new LixError(`Compiler for document '${name}' does not exist.`);
+            error(`Compiler for document '${name}' does not exist.`);
         }
         this.compilers.delete(name);
     }
@@ -62,7 +62,7 @@ export class DocumentManager {
         let name = this.getName(document);
         let res = this.compilers.get(name);
         if (!res) {
-            throw new LixError(`Compiler for document '${name}' does not exist.`);
+            error(`Compiler for document '${name}' does not exist.`);
         }
         return res;
     }
@@ -145,8 +145,8 @@ export class DocumentManager {
         //     highlights: compiler.parser.highlights,
         //     references: compiler.parser.references,
         //     fileRecords: compiler.parser.fileRecords,
-        //     getLineAndCharacter: compiler.parser.getLineAndCharacter.bind(compiler.parser),
-        //     getIndex: compiler.parser.getIndex.bind(compiler.parser)
+        //     getLineAndCharacter: compiler.parser.sourceText.indexToLineAndCharacter.bind(compiler.parser),
+        //     getIndex: compiler.parser.sourceText.lineAndCharacterToIndex.bind(compiler.parser)
         // };
         // return compiler.parser;
         // // Ranges of every line

@@ -1,7 +1,8 @@
 
 export enum OperatorType {
     Infix,
-    Prefix
+    Prefix,
+    Postfix
 }
 
 export class InfixOperator {
@@ -13,16 +14,16 @@ export class InfixOperator {
     }
 }
 
-export enum PrefixOperatorType {
+export enum OperatorPatternType {
     enumeration,
     term,
     expression,
     matrix
 }
 
-export class PrefixOperatorPattern {
+export class OperatorPattern {
     constructor(
-        public type: PrefixOperatorType,
+        public type: OperatorPatternType,
         public options: Set<string>
     ) {
     }
@@ -30,21 +31,30 @@ export class PrefixOperatorPattern {
 
 export class PrefixOperator {
     constructor(
-        public patterns: PrefixOperatorPattern[]
+        public patterns: OperatorPattern[]
     ) {
     }
 }
 
+export class PostfixOperator {
+    constructor(
+        public patterns: OperatorPattern[]
+    ) {
+    }
+}
 
 export class OperatorTable {
 
     private infixOperators: InfixOperator[] = [];
+    private max: number = 0;
+    private min: number = 0;
     private infixSymbols: Map<string, InfixOperator> = new Map();
 
     private prefixOperators: PrefixOperator[] = [];
-    private max: number = 0;
-    private min: number = 0;
     private prefixSymbols: Map<string, PrefixOperator> = new Map();
+
+    private postfixOperators: PostfixOperator[] = [];
+    private postfixSymbols: Map<string, PostfixOperator> = new Map();
 
     constructor() {
     }
@@ -70,8 +80,8 @@ export class OperatorTable {
         }
     }
 
-    addPrefixOperator(patterns: PrefixOperatorPattern[]) {
-        if (patterns.length === 0 || patterns[0].type !== PrefixOperatorType.enumeration || patterns[0].options.size === 0) {
+    addPrefixOperator(patterns: OperatorPattern[]) {
+        if (patterns.length === 0 || patterns[0].type !== OperatorPatternType.enumeration || patterns[0].options.size === 0) {
             console.log("Prefix operator pattern is wrong.");
             return;
         }
@@ -82,6 +92,21 @@ export class OperatorTable {
                 console.log("Prefix operator repeated.");
             }
             this.prefixSymbols.set(sym, op);
+        }
+    }
+
+    addPostfixOperator(patterns: OperatorPattern[]) {
+        if (patterns.length === 0 || patterns[0].type !== OperatorPatternType.enumeration || patterns[0].options.size === 0) {
+            console.log("Postfix operator pattern is wrong.");
+            return;
+        }
+        let op = new PostfixOperator(patterns);
+        this.postfixOperators.push(op);
+        for (let sym of patterns[0].options) {
+            if (this.postfixSymbols.get(sym) !== undefined) {
+                console.log("Postfix operator repeated.");
+            }
+            this.postfixSymbols.set(sym, op);
         }
     }
 
@@ -101,6 +126,10 @@ export class OperatorTable {
 
     getPrefixOperator(symbol: string): PrefixOperator | undefined {
         return this.prefixSymbols.get(symbol);
+    }
+
+    getPostfixOperator(symbol: string): PostfixOperator | undefined {
+        return this.postfixSymbols.get(symbol);
     }
 
     // Compare

@@ -2,32 +2,34 @@ import { Node } from "../../syntax-tree/node";
 import { Type } from "../../syntax-tree/type";
 import { Module } from "../module";
 import { Parser } from "../parser";
-import { NodeResult, Result, ResultState } from "../result";
+import { BasicResult, NodeResult, Result, ResultState } from "../result";
 import { MessageType } from "../message";
 import { BlockOption, ArgumentType, BlockType } from "../block-table";
+import { error } from "../../foundation/error";
+import { parserExceptionTexts } from "../texts";
 
 export class Article extends Module {
 
     // types of syntax tree node
 
-    titleType: Type;
-    authorType: Type;
-    dateType: Type;
-    sectionType: Type;
-    subsectionType: Type;
-    subsubsectionType: Type;
-    tableofcontentsType: Type;
-    newpageType: Type;
+    private titleType: Type;
+    private authorType: Type;
+    private dateType: Type;
+    private sectionType: Type;
+    private subsectionType: Type;
+    private subsubsectionType: Type;
+    private tableofcontentsType: Type;
+    private newpageType: Type;
 
-    bibliographyType: Type;
-    bibItemType: Type;
+    private bibliographyType: Type;
+    private bibItemType: Type;
 
-    definitionType: Type;
-    lemmaType: Type;
-    propositionType: Type;
-    theoremType: Type;
-    proofType: Type;
-    corollaryType: Type;
+    private definitionType: Type;
+    private lemmaType: Type;
+    private propositionType: Type;
+    private theoremType: Type;
+    private proofType: Type;
+    private corollaryType: Type;
 
 
     constructor(parser: Parser) {
@@ -113,128 +115,123 @@ export class Article extends Module {
 
     // **************** Section ****************
 
-    sectionBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("section", this.sectionType, args);
+    private sectionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("section", this.sectionType, args);
     }
 
-    subsectionBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("subsection", this.subsectionType, args);
+    private subsectionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("subsection", this.subsectionType, args);
     }
 
-    subsubsectionBlockHandler(args: Node): NodeResult {
-        return this.parser.formatLikeBlockHandler("subsubsection", this.subsubsectionType, args);
+    private subsubsectionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.formatLikeBlockHandler("subsubsection", this.subsubsectionType, args);
     }
 
     // **************** Document ****************
 
-    tableofcontentsBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("tableofcontents", this.tableofcontentsType, args);
-        result.discarded = false;
+    private tableofcontentsBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("tableofcontents", this.tableofcontentsType, args);
+        result.setDiscarded(false);
         return result;
     }
 
-    newpageBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("newpage", this.newpageType, args);
-        result.discarded = false;
+    private newpageBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("newpage", this.newpageType, args);
+        result.setDiscarded(false);
         return result;
     }
 
-    titleBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("title", this.titleType, args);
-        result.discarded = false;
+    private titleBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("title", this.titleType, args);
+        result.setDiscarded(false);
         return result;
     }
 
-    authorBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("author", this.authorType, args);
-        result.discarded = false;
+    private authorBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("author", this.authorType, args);
+        result.setDiscarded(false);
         return result;
     }
 
-    dateBlockHandler(args: Node): NodeResult {
-        let result = this.parser.formatLikeBlockHandler("date", this.dateType, args);
-        result.discarded = false;
+    private dateBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.formatLikeBlockHandler("date", this.dateType, args);
+        result.setDiscarded(false);
         return result;
     }
 
     // **************** Bibliography ****************
 
-    bibliographyBlockHandler(args: Node): NodeResult {
+    private bibliographyBlockHandler(args: Node): NodeResult {
         return this.parser.prepareMatch(this.bibliographyType, "bibliography-block-handler", this.myBibliographyBlockHandler.bind(this, args), this);
     }
 
     private myBibliographyBlockHandler(args: Node, result: NodeResult) {
+
+        let res: BasicResult;
         let nodeRes: NodeResult;
-        let blkRes: Result<number>;
+
         let preIndex: number;
-
-        result.mergeState(ResultState.successful);
-
         while (true) {
-            preIndex = this.parser.index;
+            preIndex = this.sourceText.getIndex();
 
-            if (this.parser.isEOF()) {
-                return;
+            if ((res = this.parser.matchMultilineBlankLeqOne()).matched) {
+                result.merge(res);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
             }
-            if (this.parser.isMultilineBlankGtOne()) {
-                return;
-            }
-            else if (this.parser.is("]")) {
-                break;
-            }
-            else if (this.parser.isNonSomeBlock("bib-item")) {
-                result.mergeState(ResultState.skippable);
+
+            else if (this.parser.inlineModule.isNoneOfBlocks("bib-item")) {
+                result.mergeFailedState();
+
+                result.recoverToSkippable();
                 let length = this.parser.skipByBrackets();
                 result.addMessage(this.texts.BibliographyDisallowsOtherBlocks, MessageType.error, preIndex, 0, length);
             }
 
-            else if ((blkRes = this.parser.matchMultilineBlank()).matched) {
-                result.merge(blkRes);
-            }
-
-            else if ((nodeRes = this.parser.matchBlock()).matched) {
+            else if ((nodeRes = this.parser.inlineModule.matchBlock()).matched) {
                 // 只能是 bib-item
                 result.merge(nodeRes);
-                // 不会失败
-                result.mergeNodeToChildren(nodeRes);
+                if (result.shouldStop) {
+                    error(parserExceptionTexts.LogicalUnexpectedStop);
+                }
+                result.mergeBothNodesWithChild(nodeRes);
             }
 
             else {
-                result.addMessage(this.texts.BibliographyDisallowsText, MessageType.error, preIndex, 0, 1);
-                result.mergeState(ResultState.skippable);
-                this.parser.move();
+                break;
             }
         }
     }
 
-    bibItemBlockHandler(args: Node): NodeResult {
-        let result = this.parser.textLikeBlockHandler("bib-item", this.bibItemType, args);
+    private bibItemBlockHandler(args: Node): NodeResult {
+        let result = this.parser.inlineModule.textLikeBlockHandler("bib-item", this.bibItemType, args);
         return result;
     }
 
     // **************** Math Envirionment ****************
 
-    definitionBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("definition", this.definitionType, args);
+    private definitionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("definition", this.definitionType, args);
     }
 
-    lemmaBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("lemma", this.lemmaType, args);
+    private lemmaBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("lemma", this.lemmaType, args);
     }
 
-    propositionBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("proposition", this.propositionType, args);
+    private propositionBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("proposition", this.propositionType, args);
     }
 
-    theoremBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("theorem", this.theoremType, args);
+    private theoremBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("theorem", this.theoremType, args);
     }
 
-    corollaryBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("corollary", this.corollaryType, args);
+    private corollaryBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("corollary", this.corollaryType, args);
     }
 
-    proofBlockHandler(args: Node): NodeResult {
-        return this.parser.paragraphLikeBlockHandler("proof", this.proofType, args);
+    private proofBlockHandler(args: Node): NodeResult {
+        return this.parser.inlineModule.paragraphLikeBlockHandler("proof", this.proofType, args);
     }
 }

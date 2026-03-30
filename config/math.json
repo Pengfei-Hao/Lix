@@ -83,7 +83,9 @@
 
 	["⦃", "lwcurly"], ["⟦", "lwsquare"], ["⦇", "lwparenthesis"], ["⦉", "lwangle"], ["⦄", "rwcurly"], ["⟧", "rwsquare"], ["⦈", "rwparenthesis"], ["⦊", "rwangle"], 
 
-	["⎕", "quad"], ["⌷", "blank"]
+	["⎕", "quad"], ["⌷", "blank"],
+	
+	["a⃗", "veca"], ["!(", "nleft"], ["!)", "nright"]
 ],
 
 "Notations": [
@@ -103,43 +105,57 @@
 "Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
 
 "PrefixOperator": [
-	[
-		{ "type": "enumeration", "options" : ["lim"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : [":"] },
-		{ "type": "expression", "options" : [] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂", "∫"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : ["to"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : [":"] },
-		{ "type": "expression", "options" : [] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "⦉"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "⦊"] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["|"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : ["|"] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["‖"] },
-		{ "type": "expression", "options" : [] },
-		{ "type": "enumeration", "options" : ["‖"] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["cases", "mat"] },
-		{ "type": "matrix", "options" : [] }
-	],
-	[
-		{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"] },
-		{ "type": "term", "options" : [] }
-	]
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["lim"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [":"] },
+			{ "type": "expression", "options" : [] }
+		]
+	},
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂", "∫"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["to"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [":"] },
+			{ "type": "expression", "options" : [] }
+		]
+	},
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "⦉"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "⦊"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["|"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["|"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["‖"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["‖"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["cases", "mat"] },
+			{ "type": "matrix", "options" : [] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"] },
+			{ "type": "term", "options" : [] }
+		]
+	}
 ],
 
 "InfixOperator": [
@@ -154,6 +170,21 @@
 	{
 		"symbols": ["⁄"],
 		"patterns": ["⁄"]
+	}
+],
+
+"PostfixOperator": [
+	{
+		"patterns": [
+			{ "type": "enumeration", "options" : ["?"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["*"] }
+		]
+	},
+	{
+		"patterns": [
+			{ "type": "enumeration", "options" : ["*"] }
+		]
 	}
 ]
 

@@ -2,11 +2,11 @@ import { NodeResult } from "./result";
 import { error } from "../foundation/error";
 import { parserExceptionTexts } from "./texts";
 
-export type InsertionHandler = () => NodeResult;
+export type CommandHandler = () => NodeResult;
 
-export class InsertionTable {
+export class CommandTable {
 
-    private handlers: Map<string, InsertionHandler>;
+    private handlers: Map<string, CommandHandler>;
 
     constructor() {
         this.handlers = new Map();
@@ -16,14 +16,14 @@ export class InsertionTable {
         return this.handlers.get(name) != undefined;
     }
 
-    add(name: string, handler: InsertionHandler, thisArg?: unknown) {
+    add(name: string, handler: CommandHandler, thisArg?: unknown) {
         if (this.has(name)) {
-            error(parserExceptionTexts.InsertionHandlerAlreadyExists.format(name));
+            error(parserExceptionTexts.CommandHandlerAlreadyExists.format(name));
         }
         this.handlers.set(name, handler.bind(thisArg));
     }
 
-    getHandler(name: string): InsertionHandler | undefined {
+    getHandler(name: string): CommandHandler | undefined {
         return this.handlers.get(name);
     }
 
@@ -39,7 +39,7 @@ export class InsertionTable {
         return candidate;
     }
 
-    findHandler(predicate: (name: string) => boolean): InsertionHandler | undefined {
+    findHandler(predicate: (name: string) => boolean): CommandHandler | undefined {
         let name = this.find(predicate);
         return name !== undefined ? this.getHandler(name) : undefined;
     }

@@ -26,25 +26,25 @@ export class Node {
         return Node.clone(this);
     }
 
-    // This will overwrite type, content, begin, end, and add subnodes.
-    private static moveTo(from: Node, to: Node) {
-        to.type = from.type;
-        to.content = from.content;
-        to.begin = from.begin;
-        to.end = from.end;
-        from.children.forEach(subNode => to.children.push(subNode));
-        from.content = "";
-        from.begin = -1;
-        from.end = -1;
-        from.children = [];
-    }
+    // // This will overwrite type, content, begin, end, and add subnodes.
+    // private static moveTo(from: Node, to: Node) {
+    //     to.type = from.type;
+    //     to.content = from.content;
+    //     to.begin = from.begin;
+    //     to.end = from.end;
+    //     from.children.forEach(subNode => to.children.push(subNode));
+    //     from.content = "";
+    //     from.begin = -1;
+    //     from.end = -1;
+    //     from.children = [];
+    // }
 
-    moveTo(to: Node) {
-        Node.moveTo(this, to);
-    }
+    // moveTo(to: Node) {
+    //     Node.moveTo(this, to);
+    // }
 
     // This will overwrite type, content, begin, end, and add subnodes.
-    private static copyTo(from: Node, to: Node) {
+    private static transferTo(from: Node, to: Node) {
         to.type = from.type;
         to.content = from.content;
         to.begin = from.begin;
@@ -52,8 +52,8 @@ export class Node {
         from.children.forEach(subNode => to.children.push(subNode.clone()));
     }
 
-    copyTo(to: Node) {
-        Node.copyTo(this, to);
+    transferTo(to: Node) {
+        Node.transferTo(this, to);
     }
 
     private myToString(level: string): string {

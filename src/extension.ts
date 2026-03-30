@@ -29,7 +29,15 @@ let config: VSCodeConfig;
 let documentManager: DocumentManager;
 let texts: Texts;
 
-let isDebugging = false;
+let isDebugging: boolean;
+
+enum PreviewType {
+	Parse,
+	Analyse,
+	Generate,
+	None
+}
+let previewType = PreviewType.None;
 
 let assistant: vscode.ChatParticipant;
 
@@ -59,6 +67,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Texts
 	texts = loadTexts(config.get("locale"), config.settings.locale);
+
+	// Debugging
+
+	updateDebugging(true);
 
 	// Compiler manager
 	documentManager = new DocumentManager(config, texts);
@@ -343,17 +355,19 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 	let parser = documentManager.getParseResult(document);
 	let pos = change.selections[0].start;
 
-	let index = parser.getIndex(pos.line, pos.character)!;
-	let line = locate(index, parser.syntaxTree) - 1 + 1;
-	//console.log(`index:${index};line:${pos.line},char:${pos.character}`);
-	vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
+	let index = parser.sourceText.lineAndCharacterToIndex(pos.line, pos.character)!;
+	console.log(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
+	// vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
 
-	previewDocument(getPreviewUri(document.uri, "parse"), new vscode.Range(line, 0, line, 0));
+	if (previewType === PreviewType.Parse) {
+		let line = locate(index, parser.syntaxTree) - 1 + 1;
+		previewDocument(getPreviewUri(document.uri, "parse"), new vscode.Range(line, 0, line, 0));
+	}
 
-	let lineA = locate(index, parser.analysedTree) - 1 + 1;
-
-	previewDocument(getPreviewUri(document.uri, "analyse"), new vscode.Range(lineA, 0, lineA, 0));
-
+	if (previewType === PreviewType.Analyse) {
+		let lineA = locate(index, parser.analysedTree) - 1 + 1;
+		previewDocument(getPreviewUri(document.uri, "analyse"), new vscode.Range(lineA, 0, lineA, 0));
+	}
 }
 
 async function onDidChangeActiveTextEditor(editor: vscode.TextEditor | undefined) {
@@ -417,7 +431,7 @@ async function onDidChangeTextDocument(event: vscode.TextDocumentChangeEvent) {
 		return;
 	}
 	documentManager.parseDocument(document);
-	updateData(document, true);
+	updateData(document, !isDebugging);
 	updateUI(true);
 }
 
@@ -518,6 +532,7 @@ async function generate() {
 	documentManager.generateDocument(document);
 	updateData(document, false);
 	updateUI(true);
+	previewType = PreviewType.Generate;
 	previewDocument(getPreviewUri(document.uri, "generate"));
 }
 
@@ -529,6 +544,7 @@ async function analyse() {
 	documentManager.parseDocument(document);
 	updateData(document, false);
 	updateUI(true);
+	previewType = PreviewType.Analyse;
 	previewDocument(getPreviewUri(document.uri, "analyse"));
 }
 
@@ -540,6 +556,7 @@ async function parse() {
 	documentManager.parseDocument(document);
 	updateData(document, false);
 	updateUI(true);
+	previewType = PreviewType.Parse;
 	previewDocument(getPreviewUri(document.uri, "parse"));
 }
 
@@ -574,14 +591,7 @@ async function convertFile(uri?: vscode.Uri) {
 }
 
 async function debug() {
-	isDebugging = !isDebugging;
-	if (isDebugging) {
-		compileTerminal?.show();
-	}
-	else {
-		compileTerminal?.hide();
-	}
-	vscode.commands.executeCommand('setContext', 'lix.debug', isDebugging);
+	updateDebugging(!isDebugging);
 }
 
 async function test() {
@@ -598,20 +608,21 @@ function bu(f: () => void, thisArg?: unknown) {
 }
 function helloWorld() {
 
-	console.log("${0}$${0}".formatWithAutoBlank("a${0}").formatWithAutoBlank("b"));
+	console.log("${0}$${0}".formatWithBlank("a${0}").formatWithBlank("b"));
 	// => "test abc, 123"
 
-	console.log("a${0}1".formatWithAutoBlank("b"));
+	console.log("a${0}1".formatWithBlank("b"));
 	// => "a b1"
 
-	console.log("a${0}c".formatWithAutoBlank("b"));
+	console.log("a${0}c".formatWithBlank("b"));
 	// => "a b c"
 
-	console.log("a${0}1".formatWithAutoBlank("1b"));
+	console.log("a${0}1".formatWithBlank("1b"));
 	// => "a1b1"
 	//bu(test)();
 	// ✅ 数字占位符
 	console.log("${0}+${1}".format("${1} + 1", "2"));
+	console.log("$$$${0}+${}${1}".format("${1} + 1", "2"));
 	// => "${0} + 1+2"
 
 	// ✅ 命名占位符
@@ -651,6 +662,20 @@ function helloWorld() {
 }
 
 // **************** Update ****************
+
+// Update debugging
+
+function updateDebugging(status: boolean) {
+	if (status) {
+		compileTerminal?.show();
+	}
+	else {
+		compileTerminal?.hide();
+		previewType = PreviewType.None;
+	}
+	isDebugging = status;
+	vscode.commands.executeCommand('setContext', 'lix.debug', isDebugging);
+}
 
 // Update data
 // Automatic: completion, folding range, semantic, structure symbols

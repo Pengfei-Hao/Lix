@@ -1,5 +1,6 @@
+
 export type ParserTexts = {
-    ArgumentCommaMissing: string;
+    // ArgumentCommaMissing: string;
     ArgumentEnumerationValueInvalid: string;
     ArgumentTypeMismatch: string;
     ArgumentUnknown: string;
@@ -8,14 +9,14 @@ export type ParserTexts = {
     ArgumentsEndedUnexpectedly: string;
     BlockClosingBracketMissing: string;
     BibliographyDisallowsOtherBlocks: string;
-    BibliographyDisallowsText: string;
+    // BibliographyDisallowsText: string;
     CodeBlockEndedUnexpectedly: string;
     CodeBlockHeaderRequiresNewline: string;
     DocumentRequiresStructuralBlocks: string;
     EscapeSequenceIncomplete: string;
     ExpressionMissingLastTerm: string;
     FigureDisallowsOtherBlocks: string;
-    FigureDisallowsText: string;
+    // FigureDisallowsText: string;
     FormatDisallowsLineBreakEscape: string;
     FormatDisallowsNestedBlocks: string;
     FormulaInlineTextEndedUnexpectedly: string;
@@ -58,21 +59,29 @@ export const parserExceptionTexts = {
     ArgumentHasNoValue: "Argument '${0}' has no value.",
     ArgumentNotFound: "Argument not found.",
     BlockHandlerAlreadyExists: "Block handler '${0}' is already registered.",
+    CommandHandlerAlreadyExists: "Command handler '${0}' is already registered.",
     GetIndexOutOfBounds: "getIndex: line or character out of bounds.",
     GetLineAndCharacterOutOfBounds: "getLineAndCharacter: index out of bounds.",
     IndexOutOfBoundsInclusive: "Index out of bounds [0, length].",
     IndexOutOfBoundsExclusive: "Index out of bounds [0, length).",
     InsertionHandlerAlreadyExists: "Insertion handler '${0}' is already registered.",
     LogicalAnalyseFormulaFailed: "Logical error: analysing formula.",
+    LogicalAnalyseFormulaCacheOutOfBounds: "Logical error: formula cache out of bounds.",
     LogicalAnalyseSubformulaFailed: "Logical error: analysing subformula.",
-    LogicalFreeCellBranch: "Logical error: unexpected branch while parsing free cell.",
-    LogicalFreeListBranch: "Logical error: unexpected branch while parsing free list item.",
+    // LogicalFreeCellBranch: "Logical error: unexpected branch while parsing free cell.",
+    // LogicalFreeListBranch: "Logical error: unexpected branch while parsing free list item.",
     LogicalFreeParagraphBranch: "Logical error: unexpected branch while parsing free paragraph.",
-    LogicalMatchDocumentFailed: "Logical error: failed to match paragraph, setting, or block.",
+    LogicalMatchDocumentFailed: "Logical error: failed to match paragraph, command, or block.",
     LogicalMatchListItemFailed: "Logical error: failed to match list item or free item.",
-    LogicalMatchTableCellFailed: "Logical error: failed to match table cell or free cell.",
-    LogicalParagraphBlockBranch: "Logical error: unexpected branch while parsing paragraph block.",
+    // LogicalMatchTableCellFailed: "Logical error: failed to match table cell or free cell.",
+    // LogicalParagraphBlockBranch: "Logical error: unexpected branch while parsing paragraph block.",
+    // LogicalRawStringBranch: "Logical error: unexpected branch while parsing raw string.",
+    LogicalSingleLineCommentBranch: "Logical error: unexpected branch while parsing single-line comment.",
+    LogicalMultilineCommentBranch: "Logical error: unexpected branch while parsing multiline comment.",
+    LogicalUnexpectedStop: "Logical error: unexpected stop.",
     PrefixOperatorTypeInvalid: "Invalid prefix operator type.",
+    PostfixOperatorTypeInvalid: "Invalid postfix operator type.",
+    PostfixOperatorPriorityInvalid: "Invalid postfix operator priority.",
     ResultMergeLogicError: "Logical error in Result.merge.",
     ResultPromoteLogicError: "Logical error in Result.promote.",
     ResultShouldTerminateLogicError: "Logical error in Result.shouldTerminate.",

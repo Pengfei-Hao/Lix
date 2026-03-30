@@ -11,8 +11,8 @@ export function updateDiagnostic(document: vscode.TextDocument, documentManager:
 
 	let diags: vscode.Diagnostic[] = [];
 	for (let msg of messages) {
-		let begin = parser.getLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
-		let end = parser.getLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
+		let begin = parser.sourceText.indexToLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
+		let end = parser.sourceText.indexToLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
 
 		let diag = new vscode.Diagnostic(new vscode.Range(begin.line, begin.character, end.line, end.character), msg.toString());
 		switch (msg.type) {

@@ -1,10 +1,10 @@
 import { Node } from "../syntax-tree/node";
-import { LixError } from "../foundation/error";
 import { Message, MessageType } from "./message";
 import { Type } from "../syntax-tree/type";
 import { parserExceptionTexts } from "./texts";
 import { FileSystemRecord } from "../compiler/file-system";
 import { UITexts } from "../extension/texts";
+import { error } from "../foundation/error";
 
 export enum HighlightType {
     operator,
@@ -71,124 +71,153 @@ export function stateToString(state: ResultState, texts?: UITexts): string {
 export class BasicResult {
 
     // state
-    public state: ResultState;
+    private rawState: ResultState;
 
     // promote
     private promotedToMatched: boolean;
 
-    constructor(
-        // environment
-        public messages: Message[] = [],
-        public highlights: Highlight[] = [],
-        public references: Reference[] = [],
-        public fileRecords: FileSystemRecord[] = []
-    ) {
-        this.state = ResultState.failing;
+    // environment
+    private rawMessages: Message[];
+    private rawHighlights: Highlight[];
+    private rawReferences: Reference[];
+    private rawFileRecords: FileSystemRecord[];
+
+    constructor() {
+        this.rawState = ResultState.successful;
         this.promotedToMatched = false;
+        this.rawMessages = [];
+        this.rawHighlights = [];
+        this.rawReferences = [];
+        this.rawFileRecords = [];
     }
 
     // **************** State ****************
 
-    get shouldTerminate(): boolean {
+    get state(): ResultState {
+        return this.rawState;
+    }
+
+    get shouldStop(): boolean {
         if (this.promotedToMatched) {
-            if (this.state === ResultState.failing) {
-                throw new LixError(parserExceptionTexts.ResultShouldTerminateLogicError);
+            if (this.rawState === ResultState.failing) {
+                error(parserExceptionTexts.ResultShouldTerminateLogicError);
             }
-            return this.state === ResultState.matched;
+            return this.rawState === ResultState.matched;
         }
         else {
-            if (this.state === ResultState.matched) {
-                throw new LixError(parserExceptionTexts.ResultShouldTerminateLogicError);
+            if (this.rawState === ResultState.matched) {
+                error(parserExceptionTexts.ResultShouldTerminateLogicError);
             }
-            return this.state === ResultState.failing;
+            return this.rawState === ResultState.failing;
         }
 
     }
 
     get matched(): boolean {
-        return this.state !== ResultState.failing;
+        return this.rawState !== ResultState.failing;
     }
 
     get failed(): boolean {
-        return this.state === ResultState.failing;
+        return this.rawState === ResultState.failing;
     }
 
-    get succeeded(): boolean {
-        return this.state === ResultState.successful;
-    }
-
-    promoteToSkippable() {
-        if (this.promotedToMatched) {
-            if (this.state !== ResultState.matched) {
-                throw new LixError(parserExceptionTexts.ResultPromoteLogicError);
-            }
-            this.state = ResultState.skippable;
-        }
-        else {
-            if (this.state !== ResultState.failing) {
-                throw new LixError(parserExceptionTexts.ResultPromoteLogicError);
-            }
-            this.state = ResultState.skippable;
-        }
-
-    }
-
-    GuaranteeMatched() {
+    ensureMatched() {
         this.promotedToMatched = true;
-        if (this.state === ResultState.failing) {
-            this.state = ResultState.matched;
+        if (this.rawState === ResultState.failing) {
+            this.rawState = ResultState.matched;
         }
     }
-
-    // **************** Merge ****************
 
     // state
-    mergeState(state: ResultState) {
+    private mergeState(state: ResultState) {
         // successful = 3,
         // skippable = 2,
         // matched = 1,
         // failing = 0
         if (this.promotedToMatched) {
             const table = [[-1, -1, -1, -1], [1, 1, 2, 3], [1, 1, 2, 2], [1, 1, 2, 3]]
-            let res = table[this.state][state];
+            let res = table[this.rawState][state];
             if (res === -1) {
-                throw new LixError(parserExceptionTexts.ResultMergeLogicError);
+                error(parserExceptionTexts.ResultMergeLogicError);
             }
             else {
-                this.state = res;
+                this.rawState = res;
             }
         }
         else {
             const table = [[0, 0, 2, 3], [-1, -1, -1, -1], [0, 0, 2, 2], [0, 0, 2, 3]]
-            let res = table[this.state][state];
+            let res = table[this.rawState][state];
             if (res === -1) {
-                throw new LixError(parserExceptionTexts.ResultMergeLogicError);
+                error(parserExceptionTexts.ResultMergeLogicError);
             }
             else {
-                this.state = res;
+                this.rawState = res;
             }
         }
     }
 
-    // state + environment
-    merge(result: BasicResult): void {
-        this.mergeState(result.state);
+    recoverToSkippable() {
+        if (this.promotedToMatched) {
+            if (this.rawState !== ResultState.matched) {
+                error(parserExceptionTexts.ResultPromoteLogicError);
+            }
+            this.rawState = ResultState.skippable;
+        }
+        else {
+            if (this.rawState !== ResultState.failing) {
+                error(parserExceptionTexts.ResultPromoteLogicError);
+            }
+            this.rawState = ResultState.skippable;
+        }
 
-        for (let msg of result.messages) {
-            this.messages.push(msg);
-        }
-        for (let hlt of result.highlights) {
-            this.highlights.push(hlt);
-        }
-        for (let ref of result.references) {
-            this.references.push(ref);
-        }
-        for (let file of result.fileRecords) {
-            this.fileRecords.push(file);
-        }
     }
 
-    // environment
+    mergeSuccessfulState() {
+        this.mergeState(ResultState.successful);
+    }
+
+    mergeFailedState() {
+        this.mergeState(ResultState.failing);
+    }
+
+    // **************** Merge ****************
+
+    // state + environment
+    merge<T extends BasicResult>(result: T): T {
+        this.mergeState(result.rawState);
+
+        for (let msg of result.rawMessages) {
+            this.rawMessages.push(msg);
+        }
+        for (let hlt of result.rawHighlights) {
+            this.rawHighlights.push(hlt);
+        }
+        for (let ref of result.rawReferences) {
+            this.rawReferences.push(ref);
+        }
+        for (let file of result.rawFileRecords) {
+            this.rawFileRecords.push(file);
+        }
+        return result;
+    }
+
+    // **************** Environment ****************
+
+    get messages(): Message[] {
+        return this.rawMessages;
+    }
+
+    get highlights(): Highlight[] {
+        return this.rawHighlights;
+    }
+
+    get references(): Reference[] {
+        return this.rawReferences;
+    }
+
+    get fileRecords(): FileSystemRecord[] {
+        return this.rawFileRecords;
+    }
 
     // message
     addMessage(message: string, type: MessageType, node: Node): void
@@ -196,10 +225,10 @@ export class BasicResult {
     addMessage(message: string, type: MessageType, indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1) {
         const code = 0;
         if (typeof (indexOrNode) === "number") {
-            this.messages.push(new Message(message, type, code, indexOrNode + relativeBegin, indexOrNode + relativeEnd, []));
+            this.rawMessages.push(new Message(message, type, code, indexOrNode + relativeBegin, indexOrNode + relativeEnd, []));
         }
         else {
-            this.messages.push(new Message(message, type, code, indexOrNode.begin, indexOrNode.end, []));
+            this.rawMessages.push(new Message(message, type, code, indexOrNode.begin, indexOrNode.end, []));
         }
     }
 
@@ -208,21 +237,21 @@ export class BasicResult {
     addHighlight(type: HighlightType, index: number, relativeBegin: number, relativeEnd: number): void
     addHighlight(type: HighlightType, indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): void {
         if (typeof (indexOrNode) === "number") {
-            this.highlights.push(new Highlight(indexOrNode + relativeBegin, indexOrNode + relativeEnd, type));
+            this.rawHighlights.push(new Highlight(indexOrNode + relativeBegin, indexOrNode + relativeEnd, type));
         }
         else {
-            this.highlights.push(new Highlight(indexOrNode.begin, indexOrNode.end, type));
+            this.rawHighlights.push(new Highlight(indexOrNode.begin, indexOrNode.end, type));
         }
     }
 
     // reference
     addReference(name: string, node: Node) {
-        this.references.push(new Reference(name, node));
+        this.rawReferences.push(new Reference(name, node));
     }
 
     // file operation
     addFileRecord(record: FileSystemRecord) {
-        this.fileRecords.push(record);
+        this.rawFileRecords.push(record);
     }
 }
 
@@ -231,8 +260,13 @@ export class Result<T> extends BasicResult {
     // content
     value: T;
 
-    constructor(value: T, messages: Message[] = [], highlights: Highlight[] = [], references: Reference[] = []) {
-        super(messages, highlights, references);
+    // constructor(value: T, messages: Message[] = [], highlights: Highlight[] = [], references: Reference[] = [], fileRecords: FileSystemRecord[] = []) {
+    //     super(messages, highlights, references, fileRecords);
+    //     this.value = value;
+    // }
+
+    constructor(value: T) {
+        super();
         this.value = value;
     }
 
@@ -241,27 +275,121 @@ export class Result<T> extends BasicResult {
 export class NodeResult extends BasicResult {
 
     // content
-    node: Node;
-    discarded: boolean;
-    analysedNode: Node;
+    private rawNode: Node;
+    private rawDiscarded: boolean;
+    private rawAnalysedNode: Node;
 
-    constructor(node: Node, analysedNode: Node, discarded = false, messages: Message[] = [], highlights: Highlight[] = [], references: Reference[] = []) {
-        super(messages, highlights, references);
-        this.node = node;
-        this.discarded = discarded;
-        this.analysedNode = analysedNode;
+    // constructor(node: Node, analysedNode: Node, discarded = false, messages: Message[] = [], highlights: Highlight[] = [], references: Reference[] = [], fileRecords: FileSystemRecord[] = []) {
+    //     super(messages, highlights, references, fileRecords);
+    //     this.node = node;
+    //     this.discarded = discarded;
+    //     this.analysedNode = analysedNode;
+    // }
+
+    constructor(node: Node, analysedNode: Node, discarded = false) {
+        super();
+        this.rawNode = node;
+        this.rawDiscarded = discarded;
+        this.rawAnalysedNode = analysedNode;
     }
 
-    mergeNodeToChildren(result: NodeResult) {
-        this.node.children.push(result.node);
-        if (!result.discarded) {
-            this.analysedNode.children.push(result.analysedNode);
+    get node(): Node {
+        return this.rawNode;
+    }
+
+    get discarded(): boolean {
+        return this.rawDiscarded;
+    }
+
+    get analysedNode(): Node {
+        return this.rawAnalysedNode;
+    }
+
+    mergeNodeWithChild(result: NodeResult) {
+        this.rawNode.children.push(result.rawNode);
+    }
+
+    mergeAnalysedNodeWithChild(result: NodeResult) {
+        if (!result.rawDiscarded) {
+            this.rawAnalysedNode.children.push(result.rawAnalysedNode);
         }
     }
 
-    addNode(type: Type, content: string, children: Node[], node: Node): Node
-    addNode(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
-    addNode(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
+    mergeNodeByTransferring(result: NodeResult) {
+        result.rawNode.transferTo(this.rawNode);
+    }
+
+    mergeAnalysedNodeByTransferring(result: NodeResult) {
+        result.rawAnalysedNode.transferTo(this.rawAnalysedNode);
+    }
+
+    mergeBothNodesWithChild(result: NodeResult) {
+        this.mergeNodeWithChild(result);
+        this.mergeAnalysedNodeWithChild(result);
+    }
+
+    mergeBothNodesByTransferring(result: NodeResult) {
+        this.mergeNodeByTransferring(result);
+        this.mergeAnalysedNodeByTransferring(result);
+    }
+
+    mergeNodeWithChildAndAnalysedNodeByTransferring(result: NodeResult) {
+        this.mergeNodeWithChild(result);
+        this.mergeAnalysedNodeByTransferring(result);
+    }
+
+    mergeNodeByTransferringAndAnalysedNodeWithChild(result: NodeResult) {
+        this.mergeNodeByTransferring(result);
+        this.mergeAnalysedNodeWithChild(result);
+    }
+
+    setNodeBegin(index: number) {
+        this.rawNode.begin = index;
+    }
+
+    setNodeEnd(index: number) {
+        this.rawNode.end = index;
+    }
+
+    setAnalysedNodeBegin(index: number) {
+        this.rawAnalysedNode.begin = index;
+    }
+
+    setAnalysedNodeEnd(index: number) {
+        this.rawAnalysedNode.end = index;
+    }
+
+    setNodeContent(content: string) {
+        this.rawNode.content = content;
+    }
+
+    appendNodeContent(content: string) {
+        this.rawNode.content += content;
+    }
+
+    setAnalysedNodeContent(content: string) {
+        this.rawAnalysedNode.content = content;
+    }
+
+    appendAnalysedNodeContent(content: string) {
+        this.rawAnalysedNode.content += content;
+    }
+
+    setNodeType(type: Type) {
+        this.rawNode.type = type;
+    }
+
+    setAnalysedNodeType(type: Type) {
+        this.rawAnalysedNode.type = type;
+    }
+
+    setDiscarded(discarded: boolean) {
+        this.rawDiscarded = discarded;
+    }
+
+    addChild(type: Type, content: string, children: Node[], node: Node): Node
+    addChild(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
+    addChild(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
         let nNode: Node;
         if (typeof (indexOrNode) === "number") {
             nNode = new Node(type, content, children, indexOrNode + relativeBegin, indexOrNode + relativeEnd);
@@ -269,13 +397,13 @@ export class NodeResult extends BasicResult {
         else {
             nNode = new Node(type, content, children, indexOrNode.begin, indexOrNode.end);
         }
-        this.node.children.push(nNode);
+        this.rawNode.children.push(nNode);
         return nNode;
     }
 
-    addAnalysedNode(type: Type, content: string, children: Node[], node: Node): Node
-    addAnalysedNode(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
-    addAnalysedNode(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
+    addAnalysedChild(type: Type, content: string, children: Node[], node: Node): Node
+    addAnalysedChild(type: Type, content: string, children: Node[], index: number, relativeBegin: number, relativeEnd: number): Node
+    addAnalysedChild(type: Type, content: string, children: Node[], indexOrNode: number | Node, relativeBegin: number = 0, relativeEnd: number = 1): Node {
         let nNode: Node;
         if (typeof (indexOrNode) === "number") {
             nNode = new Node(type, content, children, indexOrNode + relativeBegin, indexOrNode + relativeEnd);
@@ -283,7 +411,7 @@ export class NodeResult extends BasicResult {
         else {
             nNode = new Node(type, content, children, indexOrNode.begin, indexOrNode.end);
         }
-        this.analysedNode.children.push(nNode);
+        this.rawAnalysedNode.children.push(nNode);
         return nNode;
     }
 }

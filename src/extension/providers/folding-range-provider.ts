@@ -20,9 +20,9 @@ export class FoldingRangeProvider implements vscode.FoldingRangeProvider {
         let typeTable = this.documentManager.getTypeTable(document);
 
         for (let block of parser.syntaxTree.children) {
-            if (block.type === parser.blockType) {
-                let start = parser.getLineAndCharacter(block.begin)!;
-                let end = parser.getLineAndCharacter(block.end)!;
+            if (block.type === parser.inlineModule.blockType) {
+                let start = parser.sourceText.indexToLineAndCharacter(block.begin)!;
+                let end = parser.sourceText.indexToLineAndCharacter(block.end)!;
                 if (start.line >= end.line) {
                     continue;
                 }
@@ -41,11 +41,11 @@ export class FoldingRangeProvider implements vscode.FoldingRangeProvider {
 
         for (let block of parser.analysedTree.children) {
             if (block.type === sectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                let endLine = parser.sourceText.indexToLineAndCharacter(block.begin - 1)!.line;
                 if (secStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(secStartLine, endLine));
                 }
-                secStartLine = parser.getLineAndCharacter(block.begin)!.line;
+                secStartLine = parser.sourceText.indexToLineAndCharacter(block.begin)!.line;
                 if (subsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsecStartLine, endLine));
                 }
@@ -56,27 +56,27 @@ export class FoldingRangeProvider implements vscode.FoldingRangeProvider {
                 subsubsecStartLine = undefined;
             }
             if (block.type === subsectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                let endLine = parser.sourceText.indexToLineAndCharacter(block.begin - 1)!.line;
                 if (subsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsecStartLine, endLine));
                 }
-                subsecStartLine = parser.getLineAndCharacter(block.begin)!.line;
+                subsecStartLine = parser.sourceText.indexToLineAndCharacter(block.begin)!.line;
                 if (subsubsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
                 }
                 subsubsecStartLine = undefined;
             }
             if (block.type === subsubsectionType) {
-                let endLine = parser.getLineAndCharacter(block.begin - 1)!.line;
+                let endLine = parser.sourceText.indexToLineAndCharacter(block.begin - 1)!.line;
                 if (subsubsecStartLine !== undefined) {
                     res.push(new vscode.FoldingRange(subsubsecStartLine, endLine));
                 }
-                subsubsecStartLine = parser.getLineAndCharacter(block.begin)!.line;
+                subsubsecStartLine = parser.sourceText.indexToLineAndCharacter(block.begin)!.line;
             }
 
         }
 
-        let endLine = parser.getLineAndCharacter(parser.syntaxTree.end - 1)!.line;
+        let endLine = parser.sourceText.indexToLineAndCharacter(parser.syntaxTree.end - 1)!.line;
         if (secStartLine !== undefined) {
             res.push(new vscode.FoldingRange(secStartLine, endLine));
         }

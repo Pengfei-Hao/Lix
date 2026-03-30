@@ -50,7 +50,7 @@ export class InformationProvider implements vscode.TreeDataProvider<InformationR
             if (element.kind === "symbols") {
                 const items: vscode.TreeItem[] = [];
                 for (let notation of parser.mathModule.notations.keys()) {
-                    const symbol = parser.mathModule.notationsToUnicodeSymbols.get(notation);
+                    const symbol = parser.mathModule.notationsToSymbols.get(notation);
                     if (symbol) {
                         notation = `${notation} ${symbol}`;
                     }
@@ -172,8 +172,8 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
         };
 
         for (let node of parser.analysedTree.children) {
-            const start = parser.getLineAndCharacter(node.begin);
-            const end = parser.getLineAndCharacter(node.end);
+            const start = parser.sourceText.indexToLineAndCharacter(node.begin);
+            const end = parser.sourceText.indexToLineAndCharacter(node.end);
             const range = new vscode.Range(start.line, start.character, end.line, end.character);
             if (node.type === sectionType) {
                 secIdx++;
@@ -237,8 +237,8 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
 
             if (node.type === paragraphType) {
                 for (let parNode of node.children) {
-                    const start = parser.getLineAndCharacter(parNode.begin);
-                    const end = parser.getLineAndCharacter(parNode.end);
+                    const start = parser.sourceText.indexToLineAndCharacter(parNode.begin);
+                    const end = parser.sourceText.indexToLineAndCharacter(parNode.end);
                     const range = new vscode.Range(start.line, start.character, end.line, end.character);
 
                     if (parNode.type === figureType) {

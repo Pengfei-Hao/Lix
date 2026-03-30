@@ -478,12 +478,12 @@ export class LatexGenerator extends Generator {
         }
         switch (this.getArgument(node, "start")) {
             case "indent":
-                return this.json.TextIndent.formatWithAutoBlank(res);
+                return this.json.TextIndent.formatWithBlank(res);
             case "noindent":
-                return this.json.TextNoindent.formatWithAutoBlank(res);
+                return this.json.TextNoindent.formatWithBlank(res);
             case "auto":
             default:
-                return (count <= 1) ? this.json.TextIndent.formatWithAutoBlank(res) : this.json.TextNoindent.formatWithAutoBlank(res);
+                return (count <= 1) ? this.json.TextIndent.formatWithBlank(res) : this.json.TextNoindent.formatWithBlank(res);
         }
         return res;
     }

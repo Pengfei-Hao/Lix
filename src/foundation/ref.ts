@@ -1,7 +1,6 @@
 export class Ref<T> {
-    value: T;
-
-    constructor(val: T) {
-        this.value = val;
+    constructor(
+        public value: T
+    ) {
     }
 }

@@ -1,6 +1,6 @@
 import { Node } from "../syntax-tree/node";
 import { NodeResult } from "./result";
-import { LixError } from "../foundation/error";
+import { error } from "../foundation/error";
 import { parserExceptionTexts } from "./texts";
 
 export type BlockHandler = (args: Node) => NodeResult;
@@ -29,10 +29,12 @@ export class BlockOption {
 
 export class BlockTable {
 
-    public handlers: Map<string, BlockHandler> = new Map();
-    public blockOptions: Map<string, BlockOption> = new Map();
+    private handlers: Map<string, BlockHandler>;
+    private options: Map<string, BlockOption>;
 
     constructor() {
+        this.handlers = new Map();
+        this.options = new Map();
     }
 
     has(name: string): boolean {
@@ -41,11 +43,11 @@ export class BlockTable {
 
     add(name: string, handler: BlockHandler, thisArg?: unknown, blockOption?: BlockOption) {
         if (this.has(name)) {
-            throw new LixError(parserExceptionTexts.BlockHandlerAlreadyExists.format(name));
+            error(parserExceptionTexts.BlockHandlerAlreadyExists.format(name));
         }
         this.handlers.set(name, handler.bind(thisArg));
         let options = blockOption ?? new BlockOption();
-        this.blockOptions.set(name, options);
+        this.options.set(name, options);
     }
 
     getHandler(name: string): BlockHandler | undefined {
@@ -53,11 +55,10 @@ export class BlockTable {
     }
 
     getOption(name: string): BlockOption | undefined {
-        return this.blockOptions.get(name);
+        return this.options.get(name);
     }
 
     getType(name: string): BlockType | undefined {
         return this.getOption(name)?.type;
     }
-
 }
