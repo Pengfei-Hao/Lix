@@ -1,18 +1,20 @@
 import * as vscode from 'vscode';
 import { DocumentManager } from '../document-manager';
-import { MessageType } from '../../parser/message';
-import { ResultState, stateToString } from '../../parser/result';
+import { MessageType } from '../../common/result/message';
+import { ResultState } from '../../common/result/result';
+import { stateToString } from "../../extension";
 
 export function updateDiagnostic(document: vscode.TextDocument, documentManager: DocumentManager, diagnosticCollection: vscode.DiagnosticCollection) {
 
-	let parser = documentManager.getParseResult(document);
+	let compiler = documentManager.getCompiler(document);
+	let parser = compiler.parserResult;
 	let messages = parser.messages;
 	let state = parser.state;
 
 	let diags: vscode.Diagnostic[] = [];
 	for (let msg of messages) {
-		let begin = parser.sourceText.indexToLineAndCharacter(msg.begin) ?? { line: 0, character: 0 };
-		let end = parser.sourceText.indexToLineAndCharacter(msg.end) ?? { line: 0, character: 1 };
+		let begin = compiler.sourceText.indexToPosition(msg.range.begin) ?? { line: 0, character: 0 };
+		let end = compiler.sourceText.indexToPosition(msg.range.end) ?? { line: 0, character: 1 };
 
 		let diag = new vscode.Diagnostic(new vscode.Range(begin.line, begin.character, end.line, end.character), msg.toString());
 		switch (msg.type) {

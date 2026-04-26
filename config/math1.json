@@ -1,0 +1,191 @@
+{
+
+"SymbolsAndNotations": [
+	["𝒜", "sA"], ["ℬ", "sB"], ["𝒞", "sC"], ["𝒟", "sD"], ["ℰ", "sE"], ["ℱ", "sF"], ["𝒢", "sG"], ["ℋ", "sH"], ["ℐ", "sI"], ["𝒥", "sJ"], ["𝒦", "sK"], ["ℒ", "sL"], ["ℳ", "sM"], ["𝒩", "sN"], ["𝒪", "sO"], ["𝒫", "sP"], ["𝒬", "sQ"], ["ℛ", "sR"], ["𝒮", "sS"], ["𝒯", "sT"], ["𝒰", "sU"], ["𝒱", "sV"], ["𝒲", "sW"], ["𝒳", "sX"], ["𝒴", "sY"], ["𝒵", "sZ"], 
+
+	["𝒶", "sa"], ["𝒷", "sb"], ["𝒸", "sc"], ["𝒹", "sd"], ["ℯ", "se"], ["𝒻", "sf"], ["ℊ", "sg"], ["𝒽", "sh"], ["𝒾", "si"], ["𝒿", "sj"], ["𝓀", "sk"], ["𝓁", "sl"], ["𝓂", "sm"], ["𝓃", "sn"], ["ℴ", "so"], ["𝓅", "sp"], ["𝓆", "sq"], ["𝓇", "sr"], ["𝓈", "ss"], ["𝓉", "st"], ["𝓊", "su"], ["𝓋", "sv"], ["𝓌", "sw"], ["𝓍", "sx"], ["𝓎", "sy"], ["𝓏", "sz"], 
+
+	["𝔄", "fA"], ["𝔅", "fB"], ["ℭ", "fC"], ["𝔇", "fD"], ["𝔈", "fE"], ["𝔉", "fF"], ["𝔊", "fG"], ["ℌ", "fH"], ["ℑ", "fI"], ["𝔍", "fJ"], ["𝔎", "fK"], ["𝔏", "fL"], ["𝔐", "fM"], ["𝔑", "fN"], ["𝔒", "fO"], ["𝔓", "fP"], ["𝔔", "fQ"], ["ℜ", "fR"], ["𝔖", "fS"], ["𝔗", "fT"], ["𝔘", "fU"], ["𝔙", "fV"], ["𝔚", "fW"], ["𝔛", "fX"], ["𝔜", "fY"], ["ℨ", "fZ"], 
+
+	["𝔞", "fa"], ["𝔟", "fb"], ["𝔠", "fc"], ["𝔡", "fd"], ["𝔢", "fe"], ["𝔣", "ff"], ["𝔤", "fg"], ["𝔥", "fh"], ["𝔦", "fi"], ["𝔧", "fj"], ["𝔨", "fk"], ["𝔩", "fl"], ["𝔪", "fm"], ["𝔫", "fn"], ["𝔬", "fo"], ["𝔭", "fp"], ["𝔮", "fq"], ["𝔯", "fr"], ["𝔰", "fs"], ["𝔱", "ft"], ["𝔲", "fu"], ["𝔳", "fv"], ["𝔴", "fw"], ["𝔵", "fx"], ["𝔶", "fy"], ["𝔷", "fz"], 
+
+	["𝔸", "dA"], ["𝔹", "dB"], ["ℂ", "dC"], ["𝔻", "dD"], ["𝔼", "dE"], ["𝔽", "dF"], ["𝔾", "dG"], ["ℍ", "dH"], ["𝕀", "dI"], ["𝕁", "dJ"], ["𝕂", "dK"], ["𝕃", "dL"], ["𝕄", "dM"], ["ℕ", "dN"], ["𝕆", "dO"], ["ℙ", "dP"], ["ℚ", "dQ"], ["ℝ", "dR"], ["𝕊", "dS"], ["𝕋", "dT"], ["𝕌", "dU"], ["𝕍", "dV"], ["𝕎", "dW"], ["𝕏", "dX"], ["𝕐", "dY"], ["ℤ", "dZ"], 
+
+	["𝕒", "da"], ["𝕓", "db"], ["𝕔", "dc"], ["𝕕", "dd"], ["𝕖", "de"], ["𝕗", "df"], ["𝕘", "dg"], ["𝕙", "dh"], ["𝕚", "di"], ["𝕛", "dj"], ["𝕜", "dk"], ["𝕝", "dl"], ["𝕞", "dm"], ["𝕟", "dn"], ["𝕠", "do"], ["𝕡", "dp"], ["𝕢", "dq"], ["𝕣", "dr"], ["𝕤", "ds"], ["𝕥", "dt"], ["𝕦", "du"], ["𝕧", "dv"], ["𝕨", "dw"], ["𝕩", "dx"], ["𝕪", "dy"], ["𝕫", "dz"], 
+
+	["𝐀", "bA"], ["𝐁", "bB"], ["𝐂", "bC"], ["𝐃", "bD"], ["𝐄", "bE"], ["𝐅", "bF"], ["𝐆", "bG"], ["𝐇", "bH"], ["𝐈", "bI"], ["𝐉", "bJ"], ["𝐊", "bK"], ["𝐋", "bL"], ["𝐌", "bM"], ["𝐍", "bN"], ["𝐎", "bO"], ["𝐏", "bP"], ["𝐐", "bQ"], ["𝐑", "bR"], ["𝐒", "bS"], ["𝐓", "bT"], ["𝐔", "bU"], ["𝐕", "bV"], ["𝐖", "bW"], ["𝐗", "bX"], ["𝐘", "bY"], ["𝐙", "bZ"], 
+
+	["𝐚", "ba"], ["𝐛", "bb"], ["𝐜", "bc"], ["𝐝", "bd"], ["𝐞", "be"], ["𝐟", "bf"], ["𝐠", "bg"], ["𝐡", "bh"], ["𝐢", "bi"], ["𝐣", "bj"], ["𝐤", "bk"], ["𝐥", "bl"], ["𝐦", "bm"], ["𝐧", "bn"], ["𝐨", "bo"], ["𝐩", "bp"], ["𝐪", "bq"], ["𝐫", "br"], ["𝐬", "bs"], ["𝐭", "bt"], ["𝐮", "bu"], ["𝐯", "bv"], ["𝐰", "bw"], ["𝐱", "bx"], ["𝐲", "by"], ["𝐳", "bz"], 
+
+	["𝟘", "d0"], ["𝟙", "d1"], ["𝟚", "d2"], ["𝟛", "d3"], ["𝟜", "d4"], ["𝟝", "d5"], ["𝟞", "d6"], ["𝟟", "d7"], ["𝟠", "d8"], ["𝟡", "d9"], 
+
+	["⁰", "sup0"], ["¹", "sup1"], ["²", "sup2"], ["³", "sup3"], ["⁴", "sup4"], ["⁵", "sup5"], ["⁶", "sup6"], ["⁷", "sup7"], ["⁸", "sup8"], ["⁹", "sup9"], 
+
+	["₀", "sub0"], ["₁", "sub1"], ["₂", "sub2"], ["₃", "sub3"], ["₄", "sub4"], ["₅", "sub5"], ["₆", "sub6"], ["₇", "sub7"], ["₈", "sub8"], ["₉", "sub9"], 
+
+	["→", "to"], ["→", "rightarrow"], ["⇒", "Rightarrow"], ["⟶", "longrightarrow"], ["⟹", "Longrightarrow"], ["↪", "︎hookrightarrow"], ["⇀", "rightharpoonup"], ["⇁", "rightharpoondown"], ["⇛", "Rrightarrow"], ["↬", "looparrowright"], ["⇝", "rightsquigarrow"], ["⤏", "dashrightarrow"], ["↣", "rightarrowtail"], ["↷", "curvearrowright"], ["⥁", "circlearrowright"], ["↠", "twoheadrightarrow"], ["↛", "nrightarrow"], ["⇏", "nRightarrow"], ["⇉", "rightrightarrows"], 
+
+	["↦", "mapsto"], ["⟼", "longmapsto"], ["⊸", "multimap"], ["⇝", "leadsto"], 
+
+	["←", "leftarrow"], ["⇐", "Leftarrow"], ["⟵", "longleftarrow"], ["⟸", "Longleftarrow"], ["↩", "︎hookleftarrow"], ["↼", "leftharpoonup"], ["↽", "leftharpoondown"], ["⇚", "Lleftarrow"], ["↫", "looparrowleft"], ["⇜", "leftsquigarrow"], ["⤎", "dashleftarrow"], ["↢", "leftarrowtail"], ["↶", "curvearrowleft"], ["⥀", "circlearrowleft"], ["↞", "twoheadleftarrow"], ["↚", "nleftarrow"], ["⇍", "nLeftarrow"], ["⇇", "leftleftarrows"], 
+
+	["↔", "︎leftrightarrow"], ["⇔", "Leftrightarrow"], ["⟷", "longleftrightarrow"], ["⟺", "Longleftrightarrow"], ["⇌", "rightleftharpoons"], ["⇋", "leftrightharpoons"], ["⇆", "leftrightarrows"], ["⇄", "rightleftarrows"], ["↭", "leftrightsquigarrow"], ["↮", "nleftrightarrow"], ["⇎", "nLeftrightarrow"], 
+
+	["↑", "uparrow"], ["⇑", "Uparrow"], ["↿", "upharpoonleft"], ["↾", "upharpoonright"], ["⇈", "upuparrows"], 
+
+	["↓", "downarrow"], ["⇓", "Downarrow"], ["⇂", "downharpoonright"], ["⇃", "downharpoonleft"], ["⇊", "downdownarrows"], 
+
+	["↕", "︎updownarrow"], ["⇕", "Updownarrow"], 
+
+	["↗", "︎nearrow"], ["↘", "︎searrow"], ["↙", "︎swarrow"], ["↖", "︎nwarrow"], ["↱", "Rsh"], ["↰", "Lsh"], 
+
+	["‖", "vert"], ["⟨", "langle"], ["⟩", "rangle"], ["⌊", "lfloor"], ["⌋", "rfloor"], ["⌈", "lceil"], ["⌉", "rceil"], ["⌜", "ulcorner"], ["⌝", "urcorner"], ["⌟", "lrcorner"], ["⌞", "llcorner"], 
+
+	["∑", "sum"], ["∏", "prod"], ["∐", "coprod"], ["∫", "int"], ["∬", "iint"], ["∭", "iiint"], ["⨛", "uint"], ["⨜", "lint"], ["∮", "oint"], ["∯", "oiint"], ["∰", "oiiint"], ["⨁", "bigoplus"], ["⨂", "bigotimes"], ["⨀", "bigodot"], ["⋃", "bigcup"], ["⋂", "bigcap"], 
+
+	["∗", "ast"], ["⋆", "star"], ["·", "cdot"], ["∘", "circ"], ["∙", "bullet"], ["◯", "bigcirc"], ["◇", "diamond"], ["×", "times"], ["÷", "div"], ["⊚", "circledcirc"], ["⊛", "circleast"], ["⊝", "circleddash"], 
+
+	["±", "pm"], ["∓", "mp"], ["⊙", "odot"], ["⊖", "ominus"], ["⊕", "oplus"], ["⊗", "otimes"], ["⊘", "oslash"], 
+
+	["∩", "cap"], ["∪", "cup"], ["⊌", "uplus"], ["⊓", "sqcap"], ["⊔", "sqcup"], ["⋀", "wedge"], ["⋁", "vee"], ["†", "dagger"], ["‡", "ddagger"], ["⊥", "bot"], 
+
+	["⊤", "top"], 
+
+	["≡", "equiv"], ["≌", "cong"], ["≠", "neq"], ["∼", "sim"], ["≃", "simeq"], ["≈", "approx"], ["≍", "asymp"], ["≐", "doteq"], ["∝", "propto"], ["⊨", "models"], 
+
+	["≤", "leq"], ["≺", "prec"], ["⪯", "preceq"], ["≪", "ll"], ["⊂", "subset"], ["⊆", "subseteq"], ["⊏", "sqsubset"], ["⊑", "sqsubseteq"], ["⊣", "dashv"], ["∊", "in"], 
+
+	["≥", "geq"], ["≻", "succ"], ["⪰", "succeq"], ["≫", "gg"], ["⊃", "supset"], ["⊇", "sqsupset"], ["⊐", "sqsupset"], ["⊒", "sqsupseteq"], ["⊢", "vdash"], ["∍", "ni"], 
+
+	["∉", "notin"], 
+
+	["≊", "approxeq"], ["∽", "backsim"], 
+
+	["≦", "leqq"], ["⩽", "leqslant"], ["⪅", "lessapprox"], ["⋘", "lll"], ["≲", "lesssim"], 
+
+	["≧", "geqq"], ["⩾", "geqslant"], ["⪆", "gtrapprox"], ["⋙", "ggg"], ["≳", "gtrsim"], 
+
+	["≆", "ncong"], ["∤", "nmid"], ["∦", "nparallel"], ["≁", "nsim"], ["≰", "nleq"], ["≱", "ngeq"], ["≮", "nless"], ["≯", "ngtr"], ["⪉", "lnapprox"], ["⪊", "gnapprox"], ["⪇", "lneq"], ["⪈", "gneq"], ["≨", "lneqq"], ["≩", "gneqq"], ["⊄", "nsubset"], ["⊅", "nsupset"], ["⊊", "subsetneq"], ["⊋", "supsetneq"], ["⫋", "subsetneqq"], ["⫌", "supsetneqq"], 
+
+	["∞", "infty"], ["ð", "eth"], ["⋯", "cdots"], ["⋰", "udots"], ["⋱", "ddots"], ["⋮", "vdots"], ["…", "dots"], 
+
+	["∀", "forall"], ["∃", "exists"], ["∄", "nexists"], ["∅", "varnothing"], 
+
+	["ℏ", "hslash"], ["□", "square"], ["∠", "angle"], ["∡", "measuredangle"], ["∢", "sphericalangle"], 
+
+	["√", "sqrt"], ["⁄", "frac"], 
+
+	["𝛼", "alpha"], ["𝛽", "beta"], ["𝛾", "gamma"], ["𝛿", "delta"], ["𝜀", "varepsilon"], ["𝜖", "epsilon"], ["𝜁", "zeta"], ["𝜂", "eta"], ["𝜃", "theta"], ["𝜗", "vartheta"], ["𝜄", "iota"], ["𝜅", "kappa"], ["𝜆", "lambda"], ["𝜇", "mu"], ["𝜈", "nu"], ["𝜉", "xi"], ["𝜊", "omicron"], ["𝜋", "pi"], ["𝜌", "rho"], ["𝜚", "varrho"], ["𝜎", "sigma"], ["𝜏", "tau"], ["𝜐", "upsilon"], ["𝜙", "phi"], ["𝜑", "varphi"], ["𝜒", "chi"], ["𝜓", "psi"], ["𝜔", "omega"], ["𝜕", "partial"], 
+
+	["𝛢", "Alpha"], ["𝛣", "Beta"], ["𝛤", "Gamma"], ["𝛥", "Delta"], ["𝛦", "Epsilon"], ["𝛧", "Zeta"], ["𝛨", "Eta"], ["𝛩", "Theta"], 
+
+	["𝛪", "Iota"], ["𝛫", "Kappa"], ["𝛬", "Lambda"], ["𝛭", "Mu"], ["𝛮", "Nu"], ["𝛯", "Xi"], ["𝛰", "Omicron"], ["𝛱", "Pi"], ["𝛲", "Rho"], ["𝛴", "Sigma"], ["𝛵", "Tau"], ["𝛶", "Upsilon"], ["𝛷", "Phi"], ["𝛸", "Chi"], ["𝛹", "Psi"], ["𝛺", "Omega"], ["𝛻", "Nabla"], 
+
+	["⦃", "lwcurly"], ["⟦", "lwsquare"], ["⦇", "lwparenthesis"], ["⦉", "lwangle"], ["⦄", "rwcurly"], ["⟧", "rwsquare"], ["⦈", "rwparenthesis"], ["⦊", "rwangle"], 
+
+	["⎕", "quad"], ["⌷", "blank"],
+	
+	["a⃗", "veca"], ["!(", "nleft"], ["!)", "nright"]
+],
+
+"Notations": [
+	"exp", "ln", "lg", "log", 
+
+	"sin", "cos", "tan", "cot", "sec", "csc", "arcsin", "arccos", "arctan", "arccot", "arcsec", "arccsc", "sinh", "cosh", "tanh", "coth", 
+
+	"min", "max", "inf", "sup", "lim", "liminf", "limsup", "dim", "deg", "det", "ker", "Pr", "hom", "arg", "gcd", "Re", "Im", 
+
+	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
+
+	"sgn", "lcm", "mod", "sh", "ch", "th", "argmin", "argmax", 
+
+	"cases", "norm", "mat", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"
+],
+
+"Symbols": "~`!@#$%^&*()_+-={}[]|\\:;'\"<>,.?\/",
+
+"PrefixOperator": [
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["lim"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [":"] },
+			{ "type": "expression", "options" : [] }
+		]
+	},
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["∑", "∏", "⋃", "⋂", "∫"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["to"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [":"] },
+			{ "type": "expression", "options" : [] }
+		]
+	},
+	{	
+		"pattern": [
+			{ "type": "enumeration", "options" : ["(", "[", "{", "⟨", "⦉"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : [")", "]", "}", "⟩", "⦊"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["|"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["|"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["‖"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["‖"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["cases", "mat"] },
+			{ "type": "matrix", "options" : [] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["√", "dot", "ddot", "acute", "grave", "check", "breve", "tilde", "bar", "hat", "widehat", "vec", "overline"] },
+			{ "type": "term", "options" : [] }
+		]
+	}
+],
+
+"InfixOperator": [
+	{
+		"symbols": ["^", "_"],
+		"patterns": ["^", "_", "^_", "_^"]
+	},
+	{
+		"symbols": [""],
+		"patterns": []
+	},
+	{
+		"symbols": ["⁄"],
+		"patterns": ["⁄"]
+	}
+],
+
+"PostfixOperator": [
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["?"] },
+			{ "type": "expression", "options" : [] },
+			{ "type": "enumeration", "options" : ["*"] }
+		]
+	},
+	{
+		"pattern": [
+			{ "type": "enumeration", "options" : ["*"] }
+		]
+	}
+]
+
+}

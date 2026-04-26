@@ -1,44 +1,46 @@
 import * as vscode from "vscode";
-import { Parser } from "../parser/parser";
-import { VSCodeConfig } from "./vscode-config";
-import { Generator } from "../generator/generator";
-import { Compiler } from "../compiler/compiler";
-import { VSCodeFileSystem } from "./vscode-file-system";
-import { NodePath } from "./node-path";
-import { Texts } from "./locale";
-import { FileSystem } from "../compiler/file-system";
-import { Uri } from "../compiler/uri";
-import { StructureItem } from "./providers/tree-data-provider";
+import { Compiler, ReadonlyCompiler } from "../compiler/compiler";
 import { error } from "../foundation/error";
+import { Texts } from "./locale";
+import { NodePath } from "./file-system/node-path";
+import { StructureItem } from "./providers/tree-data-provider";
+import { VSCodeConfig } from "./vscode-config";
+import { VSCodeFileSystem } from "./file-system/vscode-file-system";
+import { VSCodeUri } from "./file-system/vscode-uri";
 
 export class DocumentManager {
 
+    public nodePath: NodePath;
+    public vscodeFileSystem: VSCodeFileSystem;
+
     private compilers: Map<string, Compiler>;
-    private compilerWithoutFile: Compiler;
+    private nonFileCompiler: Compiler;
 
-    private nodePath: NodePath;
+    private structureData: Map<string, StructureItem>;
 
-    static docSel: vscode.DocumentSelector = [{ language: "lix" }];
-
+    static readonly selector: vscode.DocumentSelector = [{ language: "lix" }];
 
     constructor(
-        public config: VSCodeConfig,
-        public texts: Texts
+        private config: VSCodeConfig,
+        private texts: Texts
     ) {
-        this.compilers = new Map();
         this.nodePath = new NodePath(this.texts.NodePath);
+        this.vscodeFileSystem = new VSCodeFileSystem(this.texts.VSCodeFileSystem);
+
+        this.compilers = new Map();
+        this.nonFileCompiler = new Compiler(this.nodePath.uri({ scheme: "file" }), this.config, this.vscodeFileSystem, this.nodePath, this.texts);
+
         this.structureData = new Map<string, StructureItem>();
-        this.compilerWithoutFile = new Compiler(this.config, new VSCodeFileSystem(vscode.Uri.file(''), this.nodePath, this.texts.VSCodeFileSystem), this.texts)
     }
 
-    // Management
+    // **************** Management ****************
 
     add(document: vscode.TextDocument) {
         let name = this.getName(document);
         if (this.compilers.has(name)) {
             error(`Compiler for document '${name}' already exists.`);
         }
-        this.compilers.set(name, new Compiler(this.config, new VSCodeFileSystem(document.uri, this.nodePath, this.texts.VSCodeFileSystem), this.texts));
+        this.compilers.set(name, new Compiler(new VSCodeUri(document.uri), this.config, this.vscodeFileSystem, this.nodePath, this.texts));
     }
 
     has(document: vscode.TextDocument): boolean {
@@ -67,106 +69,80 @@ export class DocumentManager {
         return res;
     }
 
-    // Actions
+    // Validation
+
+    validate(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document, strict = true): vscode.TextDocument | undefined {
+        if (!document) {
+            return;
+        }
+        if (vscode.languages.match(DocumentManager.selector, document) == 10 && (!strict || this.has(document))) {
+            return document;
+        }
+    }
+
+    // **************** Actions ****************
+
+    // Compilers
 
     parseDocument(document: vscode.TextDocument) {
         let compiler = this.get(document);
-        compiler.parseText(document.getText());
+        compiler.loadText(document.getText());
+        compiler.parse();
     }
 
-    parse(document: vscode.TextDocument) {
+    async parse(document: vscode.TextDocument) {
         let compiler = this.get(document);
+        await compiler.loadFile();
         compiler.parse();
     }
 
     generateDocument(document: vscode.TextDocument) {
         let compiler = this.get(document);
-        compiler.generateText(document.getText());
+        compiler.loadText(document.getText());
+        compiler.parse();
+        compiler.generate();
     }
 
     async generate(document: vscode.TextDocument) {
         let compiler = this.get(document);
-        await compiler.generate();
+        await compiler.loadFile();
+        compiler.parse();
+        await compiler.executeFileRecords();
+        compiler.generate();
     }
 
     async compile(document: vscode.TextDocument) {
         let compiler = this.get(document);
-        await compiler.compile();
+        await compiler.loadFile();
+        compiler.parse();
+        await compiler.executeFileRecords();
+        compiler.generate();
+        await compiler.writeOutput();
     }
 
-    parseWithoutDocument(text: string): Parser {
-        this.compilerWithoutFile.parseText(text);
-        return this.compilerWithoutFile.parser;
+    getCompiler(document: vscode.TextDocument): ReadonlyCompiler {
+        return this.get(document);
     }
 
-    generateWithoutDocument(text: string, generator: string): { output: string } {
-        this.compilerWithoutFile.setCurrentGenerator(generator);
-        this.compilerWithoutFile.generateText(text);
-        return { output: this.compilerWithoutFile.getCurrentGenerator().output };
+    // Non-file Compilers
+
+    parseText(text: string) {
+        this.nonFileCompiler.loadText(text);
+        this.nonFileCompiler.parse();
     }
 
-    // Environment
-
-    getFileSystem(document: vscode.TextDocument): FileSystem {
-        let compiler = this.get(document);
-        return compiler.fileSystem;
+    generateText(text: string, generator: string) {
+        this.nonFileCompiler.setCurrentGenerator(generator);
+        this.nonFileCompiler.loadText(text);
+        this.nonFileCompiler.parse();
+        this.nonFileCompiler.generate();
     }
 
-    getTypeTable(document: vscode.TextDocument) {
-        let compiler = this.get(document);
-        return compiler.typeTable;
+    getTextCompiler(): ReadonlyCompiler {
+        return this.nonFileCompiler;
     }
 
-    getGenerator(document: vscode.TextDocument): string {
-        let compiler = this.get(document);
-        return compiler.getCurrentGeneratorName();
-    }
-
-    setGenerator(document: vscode.TextDocument, name: string) {
-        let compiler = this.get(document);
-        compiler.setCurrentGenerator(name);
-    }
-
-    getGenerators(document: vscode.TextDocument): string[] {
-        let compiler = this.get(document);
-        return compiler.getGeneratorNames();
-    }
-
-    // Results
-
-    getParseResult(document: vscode.TextDocument) {
-        let compiler = this.get(document);
-        return compiler.parser;
-        // {
-        //     syntaxTree: compiler.parser.syntaxTree,
-        //     analysedTree: compiler.parser.analysedTree,
-        //     state: compiler.parser.state,
-        //     messages: compiler.parser.messages,
-        //     highlights: compiler.parser.highlights,
-        //     references: compiler.parser.references,
-        //     fileRecords: compiler.parser.fileRecords,
-        //     getLineAndCharacter: compiler.parser.sourceText.indexToLineAndCharacter.bind(compiler.parser),
-        //     getIndex: compiler.parser.sourceText.lineAndCharacterToIndex.bind(compiler.parser)
-        // };
-        // return compiler.parser;
-        // // Ranges of every line
-        // lineRanges: number[];
-
-        // // Stack of 'match' function
-        // process: string[];
-    }
-
-    getGenerateResult(document: vscode.TextDocument): { output: string } {
-        let compiler = this.get(document);
-        return { output: compiler.getCurrentGenerator().output };
-    }
-
-    getCompileResult(document: vscode.TextDocument): { outputUri: Uri } {
-        let compiler = this.get(document);
-        return { outputUri: compiler.getOutputUri() };
-    }
-
-    private structureData: Map<string, StructureItem>;
+    // **************** Structure Data ****************
 
     setStructureData(document: vscode.TextDocument, data: StructureItem) {
         let name = this.getName(document);
@@ -176,16 +152,5 @@ export class DocumentManager {
     getStructureData(document: vscode.TextDocument): StructureItem | undefined {
         let name = this.getName(document);
         return this.structureData.get(name);
-    }
-
-    // Validation
-
-    validateDocument(document: vscode.TextDocument | undefined = vscode.window.activeTextEditor?.document, strict = true): vscode.TextDocument | undefined {
-        if (!document) {
-            return;
-        }
-        if (vscode.languages.match(DocumentManager.docSel, document) == 10 && (!strict || this.has(document))) {
-            return document;
-        }
     }
 }

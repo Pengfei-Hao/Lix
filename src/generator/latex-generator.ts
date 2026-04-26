@@ -1,15 +1,11 @@
-/**
- * Latex generator: translate syntax tree to latex source
- */
-
-import { Node } from "../syntax-tree/node";
-import { Type } from "../syntax-tree/type";
-import { TypeTable } from "../syntax-tree/type-table";
+import { Config } from "../common/config";
+import { Path } from "../common/file-system/path";
+import { Reference } from "../common/result/reference";
+import { SourceText } from "../common/source-text";
+import { Node } from "../common/syntax-tree/node";
+import { Type, TypeTable } from "../common/syntax-tree/type-table";
 import { Generator } from "./generator";
-import { Compiler } from "../compiler/compiler";
-import { FileSystem } from "../compiler/file-system";
-import { Config } from "../compiler/config";
-import { Reference } from "../parser/result";
+import { GeneratorTexts } from "./texts";
 
 // latex generate
 
@@ -147,8 +143,8 @@ export class LatexGenerator extends Generator {
         Proof: string,
     }
 
-    constructor(compiler: Compiler, mathGenerator: Generator) {
-        super(compiler);
+    constructor(config: Config, path: Path, texts: GeneratorTexts, typeTable: TypeTable, sourceText: SourceText, mathGenerator: Generator) {
+        super(config, path, texts, typeTable, sourceText);
         this.mathGenerator = mathGenerator;
 
         this.introduction = "";

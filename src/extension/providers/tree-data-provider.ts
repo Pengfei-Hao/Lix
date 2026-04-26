@@ -1,7 +1,7 @@
 import { Heap } from "../../foundation/heap";
 import { visit } from "../../foundation/visit";
-import { stateToString } from "../../parser/result";
-import { Node } from "../../syntax-tree/node";
+import { stateToString } from "../../extension";
+import { Node, ReadonlyNode } from "../../common/syntax-tree/node";
 import { DocumentManager } from "../document-manager";
 import * as vscode from 'vscode';
 import { UITexts } from "../texts";
@@ -31,33 +31,33 @@ export class InformationProvider implements vscode.TreeDataProvider<InformationR
             return [new InformationRootItem("blocks"), new InformationRootItem("symbols")];
         }
 
-        const document = this.documentManager.validateDocument();
+        const document = this.documentManager.validate();
         if (!document) {
             return [];
         }
 
         if (element instanceof InformationRootItem) {
-            const parser = this.documentManager.getParseResult(document);
+            const parser = this.documentManager.getCompiler(document).parserResult;
 
             if (element.kind === "blocks") {
                 const items: vscode.TreeItem[] = [];
-                for (const blockName of parser.blockTable.handlers.keys()) {
+                for (const blockName of parser.blockTable) {
                     items.push(new vscode.TreeItem(blockName, vscode.TreeItemCollapsibleState.None));
                 }
                 return items;
             }
 
-            if (element.kind === "symbols") {
-                const items: vscode.TreeItem[] = [];
-                for (let notation of parser.mathModule.notations.keys()) {
-                    const symbol = parser.mathModule.notationsToSymbols.get(notation);
-                    if (symbol) {
-                        notation = `${notation} ${symbol}`;
-                    }
-                    items.push(new vscode.TreeItem(notation, vscode.TreeItemCollapsibleState.None));
-                }
-                return items;
-            }
+            // if (element.kind === "symbols") {
+            //     const items: vscode.TreeItem[] = [];
+            //     for (let notation of parser.mathModule.notations.keys()) {
+            //         const symbol = parser.mathModule.notationsToSymbols.get(notation);
+            //         if (symbol) {
+            //             notation = `${notation} ${symbol}`;
+            //         }
+            //         items.push(new vscode.TreeItem(notation, vscode.TreeItemCollapsibleState.None));
+            //     }
+            //     return items;
+            // }
         }
 
         return [];
@@ -104,7 +104,7 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
     }
 
     getChildren(element?: StructureItem | undefined): vscode.ProviderResult<StructureItem[]> {
-        let document = this.documentManager.validateDocument();
+        let document = this.documentManager.validate();
         if (!document) {
             return [];
         }
@@ -118,8 +118,11 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
 
     static cacheTreeData(document: vscode.TextDocument, documentManager: DocumentManager): StructureItem {
 
-        const parser = documentManager.getParseResult(document);
-        const typeTable = documentManager.getTypeTable(document);
+        return new StructureItem("Document", document.uri, new vscode.Range(0, 0, 0, 0), "symbol-array");
+
+        const compiler = documentManager.getCompiler(document);
+        const parser = compiler.parserResult;
+        const typeTable = compiler.typeTable;
 
         const sectionType = typeTable.get("section");
         const subsectionType = typeTable.get("subsection");
@@ -164,16 +167,16 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
         let subsubParent = symbols;
         let parent = symbols;
 
-        const getWords = (node: Node) => node.children.filter(child => child.type === wordsType).map(child => child.content).join(" ");
+        const getWords = (node: ReadonlyNode) => node.children.filter(child => child.type === wordsType).map(child => child.content).join(" ");
 
-        const getCaption = (node: Node) => {
+        const getCaption = (node: ReadonlyNode) => {
             let captionNode = node.children.find(child => child.type === captionType);
             return captionNode ? getWords(captionNode) : "";
         };
 
         for (let node of parser.analysedTree.children) {
-            const start = parser.sourceText.indexToLineAndCharacter(node.begin);
-            const end = parser.sourceText.indexToLineAndCharacter(node.end);
+            const start = compiler.sourceText.indexToPosition(node.range.begin);
+            const end = compiler.sourceText.indexToPosition(node.range.end);
             const range = new vscode.Range(start.line, start.character, end.line, end.character);
             if (node.type === sectionType) {
                 secIdx++;
@@ -237,8 +240,8 @@ export class StructureProvider implements vscode.TreeDataProvider<StructureItem>
 
             if (node.type === paragraphType) {
                 for (let parNode of node.children) {
-                    const start = parser.sourceText.indexToLineAndCharacter(parNode.begin);
-                    const end = parser.sourceText.indexToLineAndCharacter(parNode.end);
+                    const start = compiler.sourceText.indexToPosition(parNode.range.begin);
+                    const end = compiler.sourceText.indexToPosition(parNode.range.end);
                     const range = new vscode.Range(start.line, start.character, end.line, end.character);
 
                     if (parNode.type === figureType) {
@@ -303,12 +306,14 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
     }
 
     getChildren(element?: StatusItem | undefined): vscode.ProviderResult<StatusItem[]> {
-        let document = this.documentManager.validateDocument();
+        let document = this.documentManager.validate();
         if (!document) {
             return [
             ];
         }
-        let currentGenerator = this.documentManager.getGenerator(document);
+        const compiler = this.documentManager.getCompiler(document);
+        const parser = compiler.parserResult;
+        let currentGenerator = this.documentManager.getCurrentGenerator(document);
         if (!element) {
             return [
                 // this.getItem("Compile", "lix.compile", "run"),
@@ -317,7 +322,7 @@ export class StatusProvider implements vscode.TreeDataProvider<StatusItem> {
                 // this.getItem("Analyse", "lix.analyse", "list-tree"),
                 // this.getItem("Parse", "lix.parse", "list-tree"),
                 // this.getItem("Debug", "lix.debug", "bug"),
-                this.getItem(this.texts.StatusViewInfomation.format(stateToString(this.documentManager.getParseResult(document).state, this.texts)), "info"),
+                this.getItem(this.texts.StatusViewInfomation.format(stateToString(parser.state, this.texts)), "info"),
                 this.getGeneratorRootItem(currentGenerator)
             ];
         }

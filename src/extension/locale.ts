@@ -3,7 +3,7 @@ import { ParserTexts } from "../parser/texts";
 import { GeneratorTexts } from "../generator/texts";
 import { NodePathTexts, UITexts, VSCodeFileSystemTexts } from "./texts";
 import { CompilerTexts } from "../compiler/texts";
-import { SyntaxTreeTexts } from "../syntax-tree/texts";
+import { CommonTexts } from "../common/texts";
 
 export type Texts = {
 
@@ -21,7 +21,7 @@ export type Texts = {
     Compiler: CompilerTexts;
 
     // Syntax tree texts
-    SyntaxTree: SyntaxTreeTexts;
+    SyntaxTree: CommonTexts;
 
     // UI texts
     UI: UITexts;

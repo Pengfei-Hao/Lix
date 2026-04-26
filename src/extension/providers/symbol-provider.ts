@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { DocumentManager } from '../document-manager';
-import { Node } from '../../syntax-tree/node'
+import { Node } from '../../common/syntax-tree/node'
 
 export class SymbolProvider implements vscode.DocumentSymbolProvider {
 
@@ -10,7 +10,7 @@ export class SymbolProvider implements vscode.DocumentSymbolProvider {
     }
 
     provideDocumentSymbols(allDocument: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.DocumentSymbol[]> {
-        const document = this.documentManager.validateDocument(allDocument);
+        const document = this.documentManager.validate(allDocument);
         if (!document) {
             return [];
         }
@@ -68,8 +68,8 @@ export class SymbolProvider implements vscode.DocumentSymbolProvider {
             return captionNode ? getWords(captionNode) : "";
         };
         for (let node of parser.analysedTree.children) {
-            const start = parser.sourceText.indexToLineAndCharacter(node.begin);
-            const end = parser.sourceText.indexToLineAndCharacter(node.end);
+            const start = parser.sourceText.indexToPosition(node.begin);
+            const end = parser.sourceText.indexToPosition(node.end);
             const range = new vscode.Range(start.line, start.character, end.line, end.character);
             if (node.type === sectionType) {
                 secIdx++;
@@ -133,8 +133,8 @@ export class SymbolProvider implements vscode.DocumentSymbolProvider {
 
             if (node.type === paragraphType) {
                 for (let parNode of node.children) {
-                    const start = parser.sourceText.indexToLineAndCharacter(parNode.begin);
-                    const end = parser.sourceText.indexToLineAndCharacter(parNode.end);
+                    const start = parser.sourceText.indexToPosition(parNode.begin);
+                    const end = parser.sourceText.indexToPosition(parNode.end);
                     const range = new vscode.Range(start.line, start.character, end.line, end.character);
 
                     if (parNode.type === figureType) {

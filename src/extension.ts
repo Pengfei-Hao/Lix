@@ -4,25 +4,25 @@
  *--------------------------------------------------------------------------------------------*/
 
 import * as vscode from 'vscode';
-import { VSCodeConfig } from './extension/vscode-config';
-import { CompletionProvider } from './extension/providers/completion-provider';
+import { Uri } from './common/file-system/uri';
+import { ResultState } from './common/result/result';
+import { Position, SourceText } from './common/source-text';
+import { Node, ReadonlyNode } from './common/syntax-tree/node';
 import { DocumentManager } from './extension/document-manager';
-import { StatusProvider, InformationProvider, StructureProvider } from './extension/providers/tree-data-provider';
-import { SymbolProvider } from './extension/providers/symbol-provider';
-import { DocumentProvider } from './extension/providers/document-provider';
-import { SemanticProvider } from './extension/providers/semantic-provider';
-import { updateDiagnostic } from './extension/providers/diagnostic-provider';
-import { ResultState, stateToString } from './parser/result';
-import { Node } from './syntax-tree/node';
-import { FoldingRangeProvider } from './extension/providers/folding-range-provider';
-import './foundation/format';
-import { loadTexts } from './extension/locale';
-import { Texts } from './extension/locale';
-import { Uri } from './compiler/uri';
-import { PdfViewerProvider } from './extension/providers/pdf-viewer-provider';
-import { on } from 'events';
-import { LatexOutputTool, MarkdownOutputTool, OutputUriTool, ParseMessagesTool, SyntaxTreeTool, VersionTool } from './extension/language-model/tool';
 import { assistantHandler } from './extension/language-model/assistant';
+import { LatexOutputTool, MarkdownOutputTool, OutputUriTool, ParseMessagesTool, SyntaxTreeTool, VersionTool } from './extension/language-model/tool';
+import { loadTexts, Texts } from './extension/locale';
+import { CompletionProvider } from './extension/providers/completion-provider';
+import { updateDiagnostic } from './extension/providers/diagnostic-provider';
+import { DocumentProvider } from './extension/providers/document-provider';
+import { FoldingRangeProvider } from './extension/providers/folding-range-provider';
+import { PdfViewerProvider } from './extension/providers/pdf-viewer-provider';
+import { SemanticProvider } from './extension/providers/semantic-provider';
+import { SymbolProvider } from './extension/providers/symbol-provider';
+import { InformationProvider, StatusProvider, StructureProvider } from './extension/providers/tree-data-provider';
+import { UITexts } from './extension/texts';
+import { VSCodeConfig } from './extension/vscode-config';
+import './foundation/format';
 
 
 let config: VSCodeConfig;
@@ -211,19 +211,19 @@ function registerProviders(context: vscode.ExtensionContext) {
 
 	// Completion provider
 	context.subscriptions.push(
-		vscode.languages.registerCompletionItemProvider(DocumentManager.docSel, new CompletionProvider(documentManager), "[", "`", "(", "@", ",")
+		vscode.languages.registerCompletionItemProvider(DocumentManager.selector, new CompletionProvider(documentManager), "[", "`", "(", "@", ",")
 	);
 
 	// Folding range provider
 	context.subscriptions.push(
-		vscode.languages.registerFoldingRangeProvider(DocumentManager.docSel, new FoldingRangeProvider(documentManager))
+		vscode.languages.registerFoldingRangeProvider(DocumentManager.selector, new FoldingRangeProvider(documentManager))
 	);
 
 	// Semantic token provider
 	let tokenTypes = ['keyword', 'operator', 'string', 'function', 'variable', 'comment', 'class', 'type'];
 	let tokenModifiers = ['declaration', 'documentation'];
 	let legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
-	vscode.languages.registerDocumentSemanticTokensProvider(DocumentManager.docSel, new SemanticProvider(documentManager, legend), legend);
+	vscode.languages.registerDocumentSemanticTokensProvider(DocumentManager.selector, new SemanticProvider(documentManager, legend), legend);
 
 	// Tree data provider
 	commandProvider = new StatusProvider(documentManager, texts.UI);
@@ -242,7 +242,7 @@ function registerProviders(context: vscode.ExtensionContext) {
 	// Document symbol provider
 	structureSymbolProvider = new SymbolProvider(documentManager);
 	context.subscriptions.push(
-		vscode.languages.registerDocumentSymbolProvider(DocumentManager.docSel, structureSymbolProvider)
+		vscode.languages.registerDocumentSymbolProvider(DocumentManager.selector, structureSymbolProvider)
 	);
 }
 
@@ -344,7 +344,7 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 	if (!isDebugging) {
 		return;
 	}
-	let document = documentManager.validateDocument(change.textEditor.document);
+	let document = documentManager.validate(change.textEditor.document);
 	if (!document) {
 		return;
 	}
@@ -352,20 +352,20 @@ async function onDidChangeTextEditorSelection(change: vscode.TextEditorSelection
 		return;
 	}
 
-	let parser = documentManager.getParseResult(document);
+	let compiler = documentManager.getCompiler(document);
 	let pos = change.selections[0].start;
 
-	let index = parser.sourceText.lineAndCharacterToIndex(pos.line, pos.character)!;
-	console.log(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
-	// vscode.window.showInformationMessage(`index: ${index}; line: ${pos.line}, character: ${pos.character}`);
+	let index = compiler.sourceText.positionToIndex(new Position(pos.line, pos.character))!;
+	console.log(`index: ${index.value}; line: ${pos.line}, character: ${pos.character}`);
+	// vscode.window.showInformationMessage(`index: ${index.value}; line: ${pos.line}, character: ${pos.character}`);
 
 	if (previewType === PreviewType.Parse) {
-		let line = locate(index, parser.syntaxTree) - 1 + 1;
+		let line = locate(index.value, compiler.parserResult.syntaxTree) - 1 + 1;
 		previewDocument(getPreviewUri(document.uri, "parse"), new vscode.Range(line, 0, line, 0));
 	}
 
 	if (previewType === PreviewType.Analyse) {
-		let lineA = locate(index, parser.analysedTree) - 1 + 1;
+		let lineA = locate(index.value, compiler.parserResult.analysedTree) - 1 + 1;
 		previewDocument(getPreviewUri(document.uri, "analyse"), new vscode.Range(lineA, 0, lineA, 0));
 	}
 }
@@ -374,16 +374,16 @@ async function onDidChangeActiveTextEditor(editor: vscode.TextEditor | undefined
 	updateUI(false);
 }
 
-function locate(pos: number, node: Node, skip = false): number {
+function locate(pos: number, node: ReadonlyNode, skip = false): number {
 	let line = 1;
 
 	for (let i = 0; i < node.children.length; i++) {
 		if (!skip) {
-			if (node.children[i].begin <= pos && pos < node.children[i].end) {
+			if (node.children[i].range.begin.value <= pos && pos < node.children[i].range.end.value) {
 				line += locate(pos, node.children[i], false);
 				return line;
 			}
-			else if (node.children[i].end <= pos) {
+			else if (node.children[i].range.end.value <= pos) {
 				line += locate(pos, node.children[i], true);
 			}
 			else {
@@ -409,7 +409,7 @@ function onTerminalClosed(terminal: vscode.Terminal) {
 // Document events
 
 async function onDidOpenTextDocument(allDocument: vscode.TextDocument) {
-	let document = documentManager.validateDocument(allDocument, false);
+	let document = documentManager.validate(allDocument, false);
 	if (!document) {
 		return;
 	}
@@ -426,7 +426,7 @@ async function onDidSaveTextDocument(document: vscode.TextDocument) {
 }
 
 async function onDidChangeTextDocument(event: vscode.TextDocumentChangeEvent) {
-	let document = documentManager.validateDocument(event.document);
+	let document = documentManager.validate(event.document);
 	if (!document) {
 		return;
 	}
@@ -436,7 +436,7 @@ async function onDidChangeTextDocument(event: vscode.TextDocumentChangeEvent) {
 }
 
 async function onDidCloseTextDocument(allDocument: vscode.TextDocument) {
-	let document = documentManager.validateDocument(allDocument);
+	let document = documentManager.validate(allDocument);
 	if (!document) {
 		return;
 	}
@@ -448,20 +448,21 @@ async function onDidCloseTextDocument(allDocument: vscode.TextDocument) {
 let compileTerminal: vscode.Terminal | undefined;
 
 async function pick(generator?: unknown) {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		return;
 	}
 
-	let generatorNames = documentManager.getGenerators(document);
+	let compiler = documentManager.getCompiler(document);
+	let generatorNames = compiler.getGenerators();
 	if (generator === undefined || !(typeof generator === "string")) {
 		generator = await vscode.window.showQuickPick(generatorNames, { placeHolder: "Select generator" });
 	}
-	if (generator === undefined || (typeof generator !== "string") || !documentManager.getGenerators(document).includes(generator)) {
+	if (generator === undefined || (typeof generator !== "string") || !compiler.getGenerators().includes(generator)) {
 		return;
 	}
 
-	documentManager.setGenerator(document, generator);
+	compiler.setCurrentGenerator(generator);
 	updateUI(true);
 }
 
@@ -477,7 +478,7 @@ function getLatexCommand(): string {
 }
 
 async function compile() {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		return;
 	}
@@ -487,22 +488,22 @@ async function compile() {
 	updateData(document, true);
 	updateUI(true);
 
-	let { outputUri } = documentManager.getCompileResult(document);
+	let compiler = documentManager.getCompiler(document);
+	let { outputUri, workingDirectoryUri } = compiler.config;
 	let outputName = outputUri.basename;
-	let fileSystem = documentManager.getFileSystem(document);
-	let workingDirUri = fileSystem.workingDirectoryUri;
+	let fileSystem = documentManager.vscodeFileSystem;
 
 	if (compileTerminal === undefined) {
 		compileTerminal = vscode.window.createTerminal({ name: "Lix Compiler", hideFromUser: true });
 		//compileTerminal.hide();
 	}
 
-	let generatorName = documentManager.getGenerator(document);
+	let generatorName = compiler.getCurrentGenerator();
 	if (generatorName === "latex") {
-		let cacheDirUri = fileSystem.cacheDirectoryUri;
+		let cacheDirUri = compiler.config.cacheDirectoryUri;
 		let pdfName = outputUri.stem + ".pdf";
 		let pdfUri = cacheDirUri.joinPath(pdfName);
-		let newPdfUri = workingDirUri.joinPath(pdfName);
+		let newPdfUri = workingDirectoryUri.joinPath(pdfName);
 
 		compileTerminal.sendText(`cd "${cacheDirUri.fsPath}"`);
 		compileTerminal.sendText(`${getLatexCommand()} "${outputUri.fsPath}"`);
@@ -511,13 +512,13 @@ async function compile() {
 		previewPDFDocument(convertUri(newPdfUri));
 	}
 	else if (generatorName === "markdown" || generatorName === "blog") {
-		let targetUri = workingDirUri.joinPath(outputName);
+		let targetUri = workingDirectoryUri.joinPath(outputName);
 		await fileSystem.copy(outputUri, targetUri);
 
 		previewMarkdownDocument(convertUri(targetUri));
 	}
 	else {
-		let targetUri = workingDirUri.joinPath(outputName);
+		let targetUri = workingDirectoryUri.joinPath(outputName);
 		await fileSystem.copy(outputUri, targetUri);
 
 		previewTextDocument(convertUri(targetUri));
@@ -525,7 +526,7 @@ async function compile() {
 }
 
 async function generate() {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		return;
 	}
@@ -537,7 +538,7 @@ async function generate() {
 }
 
 async function analyse() {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		return;
 	}
@@ -549,7 +550,7 @@ async function analyse() {
 }
 
 async function parse() {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		return;
 	}
@@ -690,7 +691,9 @@ function updateData(document: vscode.TextDocument, fast: boolean) {
 }
 
 function updateDocument(document: vscode.TextDocument) {
-	let parser = documentManager.getParseResult(document);
+	let compiler = documentManager.getCompiler(document);
+	let parser = compiler.parserResult;
+	let generator = compiler.generateResult;
 	let state = "";
 	switch (parser.state) {
 		case ResultState.successful:
@@ -708,7 +711,7 @@ function updateDocument(document: vscode.TextDocument) {
 	}
 	documentProvider.updateContent(getPreviewUri(document.uri, "parse"), `[[Parsing Result]]\n` + parser.syntaxTree.toString() + `\n[[State: ${state}]]`);
 	documentProvider.updateContent(getPreviewUri(document.uri, "analyse"), `[[Analysing Result]]\n` + parser.analysedTree.toString() + `\n[[State: ${state}]]`);
-	documentProvider.updateContent(getPreviewUri(document.uri, "generate"), `[[Generating Result]]\n` + documentManager.getGenerateResult(document).output);
+	// documentProvider.updateContent(getPreviewUri(document.uri, "generate"), `[[Generating Result]]\n` + generator.output);
 
 }
 
@@ -723,12 +726,12 @@ function updateUI(fast: boolean) {
 	updateStatusBar();
 	updateTreeData(fast);
 
-	let isLix = documentManager.validateDocument() !== undefined;
+	let isLix = documentManager.validate() !== undefined;
 	vscode.commands.executeCommand('setContext', 'lix.isLix', isLix);
 }
 
 function updateStatusBar() {
-	let document = documentManager.validateDocument();
+	let document = documentManager.validate();
 	if (!document) {
 		statusBarItem.text = "$(circle-large-outline) Lix";
 		statusBarItem.tooltip = "Lix";
@@ -736,8 +739,10 @@ function updateStatusBar() {
 		return;
 	}
 	statusBarItem.command = "lix.compile";
-	let state = documentManager.getParseResult(document).state;
-	let generator = documentManager.getGenerator(document);
+	let compiler = documentManager.getCompiler(document);
+	let parser = compiler.parserResult;
+	let generator = compiler.generateResult;
+	let state = parser.state;
 	let info = stateToString(state, texts.UI);
 	switch (state) {
 		case ResultState.successful:
@@ -813,4 +818,22 @@ async function previewPDFDocument(uri: vscode.Uri) {
 
 function convertUri(uri: Uri): vscode.Uri {
 	return vscode.Uri.from({ scheme: uri.scheme, authority: uri.authority, path: uri.path, query: uri.query, fragment: uri.fragment });
+}
+export function stateToString(state: ResultState, texts?: UITexts): string {
+	let text = "";
+	switch (state) {
+		case ResultState.successful:
+			text = texts?.StateSuccessful ?? "successful";
+			break;
+		case ResultState.skippable:
+			text = texts?.StateSkippable ?? "skippable";
+			break;
+		case ResultState.matched:
+			text = texts?.StateMatched ?? "matched";
+			break;
+		case ResultState.failing:
+			text = texts?.StateFailing ?? "failing";
+			break;
+	}
+	return text;
 }

@@ -1,72 +1,92 @@
-import { Config } from "../compiler/config";
-import { FileSystem } from "../compiler/file-system";
-import { Reference } from "../parser/result";
-import { Node } from "../syntax-tree/node";
-import { Type } from "../syntax-tree/type";
-import { TypeTable } from "../syntax-tree/type-table";
+import { Config } from "../common/config";
+import { Path } from "../common/file-system/path";
+import { ReadonlyFileRecordList } from "../common/result/file-record";
+import { Message } from "../common/result/message";
+import { Reference } from "../common/result/reference";
+import { SourceText } from "../common/source-text";
+import { Node, ReadonlyNode } from "../common/syntax-tree/node";
+import { Type, TypeTable } from "../common/syntax-tree/type-table";
 import "../foundation/format";
 import { GeneratorTexts } from "./texts";
-import { Compiler } from "../compiler/compiler";
 
 export abstract class Generator {
 
-    // Compiler
-    compiler: Compiler;
-    protected typeTable: TypeTable;
-    protected config: Config;
-    protected fileSystem: FileSystem;
-    protected texts: GeneratorTexts;
-
     // **************** Types ****************
 
-    documentType: Type;
-    settingType: Type;
-    settingParameterType: Type;
-    paragraphType: Type;
-    textType: Type;
-    wordsType: Type;
-    argumentsType: Type;
-    argumentType: Type;
-    nameType: Type;
-    stringType: Type;
-    numberType: Type;
-    referenceType: Type;
+    protected documentType: Type;
 
-    constructor(compiler: Compiler) {
+    protected commandType: Type;
+    protected insertionType: Type;
+    protected embedmentType: Type;
 
-        this.compiler = compiler;
-        this.typeTable = compiler.typeTable;
-        this.config = compiler.config;
-        this.fileSystem = compiler.fileSystem;
-        this.texts = compiler.texts.Generator;
+    protected paragraphType: Type;
+    protected textType: Type;
+    protected wordsType: Type;
+    protected escapeCharType: Type;
 
-        this.output = "";
+    protected blockType: Type;
+    protected argumentsType: Type;
+    protected argumentType: Type;
+    protected nameType: Type;
+    protected stringType: Type;
+    protected numberType: Type;
+
+    protected settingType: Type;
+    protected settingParameterType: Type;
+    protected referenceType: Type;
+
+    // **************** Output ****************
+
+    protected rawOutput: string;
+
+    constructor(
+        protected config: Config,
+        protected path: Path,
+        protected texts: GeneratorTexts,
+
+        protected typeTable: TypeTable,
+        protected sourceText: SourceText
+    ) {
+
+        this.rawOutput = "";
 
         // parser
 
         this.documentType = this.typeTable.get("document");
-        this.settingType = this.typeTable.get("setting");
-        this.settingParameterType = this.typeTable.get("setting-parameter");
+
+        this.commandType = this.typeTable.get("command");
+        this.insertionType = this.typeTable.get("insertion");
+        this.embedmentType = this.typeTable.get("embedment");
+
         this.paragraphType = this.typeTable.get("paragraph");
         this.textType = this.typeTable.get("text");
         this.wordsType = this.typeTable.get("words");
+        this.escapeCharType = this.typeTable.get("escape-char");
+
+        this.blockType = this.typeTable.get("block");
         this.argumentsType = this.typeTable.get("arguments");
         this.argumentType = this.typeTable.get("argument");
         this.nameType = this.typeTable.get("name");
         this.stringType = this.typeTable.get("string");
         this.numberType = this.typeTable.get("number");
+
+        this.settingType = this.typeTable.get("setting");
+        this.settingParameterType = this.typeTable.get("setting-parameter");
         this.referenceType = this.typeTable.get("reference");
     }
 
-    output: string;
+    public abstract get output(): string;
 
-    abstract init(): void;
+    public abstract get messages(): readonly Message[];
 
-    abstract generate(syntaxTree: Node, references: Reference[]): void;
+
+    protected abstract init(): void;
+
+    abstract generate(syntaxTree: ReadonlyNode, references: readonly Reference[], fileRecordList: ReadonlyFileRecordList): void;
 
     // **************** Assistant Function ****************
 
-    getArgument(node: Node, name: string): string | undefined {
+    protected getArgument(node: Node, name: string): string | undefined {
         if (node.children.length === 0) {
             return undefined;
         }
@@ -84,14 +104,14 @@ export abstract class Generator {
         return found;
     }
 
-    removeArguments(node: Node): Node[] {
+    protected removeArguments(node: Node): Node[] {
         if (node.children.length === 0 || node.children[0].type !== this.argumentsType) {
             return node.children;
         }
         return node.children.slice(1);
     }
 
-    getReferences(node: Node): string[] {
+    protected getReferences(node: Node): string[] {
         if (node.children.length === 0) {
             return [];
         }

@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { Parser } from '../../parser/parser';
 import { DocumentManager } from '../document-manager';
-import { Node } from '../../syntax-tree/node';
-import { Type } from '../../syntax-tree/type';
-import { ArgumentType } from '../../parser/block-table';
+import { Node, ReadonlyNode } from '../../common/syntax-tree/node';
+import { Type } from "../../common/syntax-tree/type-table";
+import { ArgumentType } from '../../parser/table/block-table';
+import { ParserResult } from '../../compiler/compiler';
+import { Position } from '../../common/source-text';
 
 export class CompletionProvider implements vscode.CompletionItemProvider {
 
@@ -15,24 +17,25 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
     public provideCompletionItems(allDocument: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList<vscode.CompletionItem>> {
         //console.log(`${context.triggerCharacter},${context.triggerKind}`);
         //console.log(`${context.triggerCharacter},${position.line},${position.character}`);
-        let document = this.documentManager.validateDocument(allDocument);
+        let document = this.documentManager.validate(allDocument);
         if (!document) {
             return;
         }
 
         let res: vscode.CompletionItem[] = [];
-        let parser = this.documentManager.getParseResult(document);
+        let compiler = this.documentManager.getCompiler(document);
+        let parser = compiler.parserResult;
 
-        if (context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
-            //if (this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(position.line, position.character-1)!)) {
-
+        if (compiler.typeTable.has("formula") && context.triggerKind === vscode.CompletionTriggerKind.Invoke) {
+            //if (this.inMath(parser, compiler.sourceText.lineAndCharacterToIndex(position.line, position.character-1)!)) {
+            const formulaType = compiler.typeTable.get("formula");
             let range = document.getWordRangeAtPosition(position);
             if (!range) {
                 console.log("err");
                 return [];
             }
 
-            if (this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(range.start.line, range.start.character)!)) {
+            if (this.inMath(formulaType, parser.syntaxTree, compiler.sourceText.positionToIndex(new Position(range.start.line, range.start.character))!.value)) {
                 while (range.start.character > 0) {
                     range = new vscode.Range(range.start.translate(0, -1), range.end);
                     if (document.getText(range).substring(0, 1) != " ") {
@@ -42,8 +45,8 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
                 range = new vscode.Range(range.start.translate(0, 1), position)
 
 
-                parser.mathModule.notations.forEach((nota) => {
-                    let name = parser.mathModule.notationsToSymbols.get(nota);
+                parser.mathTable.notations.forEach((nota) => {
+                    let name = parser.mathTable.notationToSymbols.get(nota);
                     if (name) {
                         let comp = new vscode.CompletionItem(nota, vscode.CompletionItemKind.Keyword);
                         comp.insertText = name;
@@ -65,8 +68,8 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         }
 
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "[") {
-            if (!this.inMath(parser, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
-                for (let item of parser.blockTable.handlers.keys()) {
+            if (!compiler.typeTable.has("formula") || !this.inMath(compiler.typeTable.get("formula"), parser.syntaxTree, compiler.sourceText.positionToIndex(new Position(position.line, position.character))!.value)) {
+                for (let item of parser.blockTable.items) {
                     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.Function);
                     comp.insertText = item + " ";
                     comp.kind = vscode.CompletionItemKind.Keyword;
@@ -75,8 +78,10 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
                 }
             }
         }
-        else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
-            if (this.where(parser.coreModule.figureType, parser.analysedTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
+        else if (compiler.typeTable.has("figure") && context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && context.triggerCharacter == "`") {
+            const figureType = compiler.typeTable.get("figure");
+
+            if (this.where(figureType, parser.analysedTree, compiler.sourceText.positionToIndex(new Position(position.line, position.character))!.value)) {
                 // let list = this.documentManager.getFileList(document.uri);
                 // for (let item of list) {
                 //     let comp = new vscode.CompletionItem(item, vscode.CompletionItemKind.File);
@@ -91,13 +96,15 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
             }
         }
         else if (context.triggerKind === vscode.CompletionTriggerKind.TriggerCharacter && (context.triggerCharacter == "(" || context.triggerCharacter == ",")) {
-            let node = this.where(parser.inlineModule.blockType, parser.syntaxTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!);
+            const blockType = compiler.typeTable.get("block");
+            const argumentsType = compiler.typeTable.get("arguments");
+            let node = this.where(blockType, parser.syntaxTree, compiler.sourceText.positionToIndex(new Position(position.line, position.character))!.value);
             if (node) {
-                if (context.triggerCharacter == "," && !this.where(parser.inlineModule.argumentsType, parser.syntaxTree, parser.sourceText.lineAndCharacterToIndex(position.line, position.character)!)) {
+                if (context.triggerCharacter == "," && !this.where(argumentsType, parser.syntaxTree, compiler.sourceText.positionToIndex(new Position(position.line, position.character))!.value)) {
                     return res;
                 }
                 let argNode = node.children.at(0);
-                if (context.triggerCharacter == "(" && argNode && argNode.type === parser.inlineModule.argumentsType && argNode.begin != argNode.end) {
+                if (context.triggerCharacter == "(" && argNode && argNode.type === argumentsType && argNode.range.begin.value != argNode.range.end.value) {
                     return res;
                 }
                 let spec = parser.blockTable.getOption(node.content);
@@ -124,14 +131,14 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         return res;
     }
 
-    inMath(parser: Parser, pos: number): boolean {
-        let node = parser.syntaxTree;
+    inMath(formulaType: Type, syntaxTree: ReadonlyNode, pos: number): boolean {
+        let node = syntaxTree;
         outer: while (true) {
-            if (node.type === parser.mathModule.formulaType) {
+            if (node.type === formulaType) {
                 return true;
             }
             for (let sub of node.children) {
-                if (sub.begin <= pos && pos < sub.end) {
+                if (sub.range.begin.value <= pos && pos < sub.range.end.value) {
                     node = sub;
                     continue outer;
                 }
@@ -139,13 +146,13 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
             break;
         }
         // 这两种情况是不同的, 上边是指针位于formula内部,下边是formula位于foumula结尾位置.
-        node = parser.syntaxTree;
+        node = syntaxTree;
         outer: while (true) {
-            if (node.type === parser.mathModule.formulaType) {
+            if (node.type === formulaType) {
                 return true;
             }
             for (let sub of node.children) {
-                if (sub.begin <= pos && pos <= sub.end) {
+                if (sub.range.begin.value <= pos && pos <= sub.range.end.value) {
                     node = sub;
                     continue outer;
                 }
@@ -154,14 +161,14 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
         }
     }
 
-    where(type: Type, oriNode: Node, pos: number): Node | undefined {
+    where(type: Type, oriNode: ReadonlyNode, pos: number): ReadonlyNode | undefined {
         let node = oriNode;
         outer: while (true) {
             if (node.type === type) {
                 return node;
             }
             for (let sub of node.children) {
-                if (sub.begin <= pos && pos < sub.end) {
+                if (sub.range.begin.value <= pos && pos < sub.range.end.value) {
                     node = sub;
                     continue outer;
                 }
@@ -175,7 +182,7 @@ export class CompletionProvider implements vscode.CompletionItemProvider {
                 return node;
             }
             for (let sub of node.children) {
-                if (sub.begin <= pos && pos <= sub.end) {
+                if (sub.range.begin.value <= pos && pos <= sub.range.end.value) {
                     node = sub;
                     continue outer;
                 }

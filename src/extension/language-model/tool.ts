@@ -47,10 +47,10 @@ export class SyntaxTreeTool implements vscode.LanguageModelTool<TextParameters> 
         let result = "";
         console.log(`SyntaxTreeTool: ${params.text}`);
         if (params.text) {
-            result = this.documentManager.parseWithoutDocument(params.text).analysedTree.toString();
+            result = this.documentManager.parseText(params.text).analysedTree.toString();
         }
         else {
-            let document = this.documentManager.validateDocument();
+            let document = this.documentManager.validate();
             if (document) {
                 this.documentManager.parseDocument(document);
                 result = this.documentManager.getParseResult(document).analysedTree.toString();
@@ -78,10 +78,10 @@ export class ParseMessagesTool implements vscode.LanguageModelTool<TextParameter
         console.log(`ParseMessagesTool: ${params.text}`);
         let result = "";
         if (params.text) {
-            result = this.documentManager.parseWithoutDocument(params.text).messages.map(msg => msg.toString()).join("\n");
+            result = this.documentManager.parseText(params.text).messages.map(msg => msg.toString()).join("\n");
         }
         else {
-            let document = this.documentManager.validateDocument();
+            let document = this.documentManager.validate();
             if (document) {
                 this.documentManager.parseDocument(document);
                 result = this.documentManager.getParseResult(document).messages.map(msg => msg.toString()).join("\n");
@@ -109,10 +109,10 @@ export class MarkdownOutputTool implements vscode.LanguageModelTool<TextParamete
         console.log(`MarkdownOutputTool: ${params.text}`);
         let result = "";
         if (params.text) {
-            result = this.documentManager.generateWithoutDocument(params.text, 'markdown').output;
+            result = this.documentManager.generateText(params.text, 'markdown').output;
         }
         else {
-            let document = this.documentManager.validateDocument();
+            let document = this.documentManager.validate();
             if (document) {
                 let lastGenerator = this.documentManager.getGenerator(document);
                 this.documentManager.setGenerator(document, 'markdown');
@@ -143,10 +143,10 @@ export class LatexOutputTool implements vscode.LanguageModelTool<TextParameters>
         console.log(`LatexOutputTool: ${params.text}`);
         let result = "";
         if (params.text) {
-            result = this.documentManager.generateWithoutDocument(params.text, 'latex').output;
+            result = this.documentManager.generateText(params.text, 'latex').output;
         }
         else {
-            let document = this.documentManager.validateDocument();
+            let document = this.documentManager.validate();
             if (document) {
                 let lastGenerator = this.documentManager.getGenerator(document);
                 this.documentManager.setGenerator(document, 'latex');
@@ -173,7 +173,7 @@ export class OutputUriTool implements vscode.LanguageModelTool<null> {
     }
 
     invoke(options: vscode.LanguageModelToolInvocationOptions<null>, token: vscode.CancellationToken): vscode.ProviderResult<vscode.LanguageModelToolResult> {
-        let document = this.documentManager.validateDocument();
+        let document = this.documentManager.validate();
         console.log(`OutputUriTool`);
         let result = "";
         if (document) {

@@ -8,6 +8,7 @@ export type ParserTexts = {
     ArgumentValueMissing: string;
     ArgumentsEndedUnexpectedly: string;
     BlockClosingBracketMissing: string;
+    BlockUnrecognized: string;
     BibliographyDisallowsOtherBlocks: string;
     // BibliographyDisallowsText: string;
     CodeBlockEndedUnexpectedly: string;
@@ -17,8 +18,9 @@ export type ParserTexts = {
     ExpressionMissingLastTerm: string;
     FigureDisallowsOtherBlocks: string;
     // FigureDisallowsText: string;
-    FormatDisallowsLineBreakEscape: string;
+    // FormatDisallowsLineBreakEscape: string;
     FormatDisallowsNestedBlocks: string;
+    FormatDisallowsNestedTextInsertions: string;
     FormulaInlineTextEndedUnexpectedly: string;
     FormulaMissingBacktick: string;
     FormulaMissingRightBracket: string;
@@ -44,46 +46,39 @@ export type ParserTexts = {
     StringEndedUnexpectedly: string;
     StringNewlineForbidden: string;
     TableDisallowsOtherBlocks: string;
-    TextDisallowsLineBreakEscape: string;
+    // TextDisallowsLineBreakEscape: string;
     TextDisallowsNonFormatBlocks: string;
     UnknownArgumentImplicitValue: string;
     UnknownArgumentImplicitValueNotUnique: string;
     InlineFormatCannotContainBlock: string;
 };
 
-// export interface ParserTextBundle {
-//     parserTexts: ParserTexts;
-// }
-
 export const parserExceptionTexts = {
-    ArgumentHasNoValue: "Argument '${0}' has no value.",
+    // ArgumentHasNoValue: "Argument '${0}' has no value.",
     ArgumentNotFound: "Argument not found.",
     BlockHandlerAlreadyExists: "Block handler '${0}' is already registered.",
     CommandHandlerAlreadyExists: "Command handler '${0}' is already registered.",
-    GetIndexOutOfBounds: "getIndex: line or character out of bounds.",
-    GetLineAndCharacterOutOfBounds: "getLineAndCharacter: index out of bounds.",
-    IndexOutOfBoundsInclusive: "Index out of bounds [0, length].",
-    IndexOutOfBoundsExclusive: "Index out of bounds [0, length).",
+    EmbedmentHandlerAlreadyExists: "Embedment handler '${0}' is already registered.",
     InsertionHandlerAlreadyExists: "Insertion handler '${0}' is already registered.",
     LogicalAnalyseFormulaFailed: "Logical error: analysing formula.",
     LogicalAnalyseFormulaCacheOutOfBounds: "Logical error: formula cache out of bounds.",
     LogicalAnalyseSubformulaFailed: "Logical error: analysing subformula.",
     // LogicalFreeCellBranch: "Logical error: unexpected branch while parsing free cell.",
     // LogicalFreeListBranch: "Logical error: unexpected branch while parsing free list item.",
-    LogicalFreeParagraphBranch: "Logical error: unexpected branch while parsing free paragraph.",
+    // LogicalFreeParagraphBranch: "Logical error: unexpected branch while parsing free paragraph.",
     LogicalMatchDocumentFailed: "Logical error: failed to match paragraph, command, or block.",
-    LogicalMatchListItemFailed: "Logical error: failed to match list item or free item.",
+    // LogicalMatchListItemFailed: "Logical error: failed to match list item or free item.",
     // LogicalMatchTableCellFailed: "Logical error: failed to match table cell or free cell.",
     // LogicalParagraphBlockBranch: "Logical error: unexpected branch while parsing paragraph block.",
     // LogicalRawStringBranch: "Logical error: unexpected branch while parsing raw string.",
-    LogicalSingleLineCommentBranch: "Logical error: unexpected branch while parsing single-line comment.",
-    LogicalMultilineCommentBranch: "Logical error: unexpected branch while parsing multiline comment.",
+    // LogicalSingleLineCommentBranch: "Logical error: unexpected branch while parsing single-line comment.",
+    // LogicalMultilineCommentBranch: "Logical error: unexpected branch while parsing multiline comment.",
     LogicalUnexpectedStop: "Logical error: unexpected stop.",
+    LogicalUnexpectedBranch: "Logical error: unexpected branch.",
+    LogicalUnexpectedNodeStruture: "Logical error: unexpected node structure.",
+    LogicalMatchFormulaNameCharFailed: "Logical error: failed to match formula name character.",
     PrefixOperatorTypeInvalid: "Invalid prefix operator type.",
     PostfixOperatorTypeInvalid: "Invalid postfix operator type.",
     PostfixOperatorPriorityInvalid: "Invalid postfix operator priority.",
-    ResultMergeLogicError: "Logical error in Result.merge.",
-    ResultPromoteLogicError: "Logical error in Result.promote.",
-    ResultShouldTerminateLogicError: "Logical error in Result.shouldTerminate.",
 
 } as const;

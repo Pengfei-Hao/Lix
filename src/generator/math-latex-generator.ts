@@ -1,11 +1,11 @@
-import { Compiler } from "../compiler/compiler";
-import { Config } from "../compiler/config";
-import { FileSystem } from "../compiler/file-system";
-import { Reference } from "../parser/result";
-import { Node } from "../syntax-tree/node";
-import { Type } from "../syntax-tree/type";
-import { TypeTable } from "../syntax-tree/type-table";
+import { Config } from "../common/config";
+import { Path } from "../common/file-system/path";
+import { Reference } from "../common/result/reference";
+import { SourceText } from "../common/source-text";
+import { Node } from "../common/syntax-tree/node";
+import { Type, TypeTable } from "../common/syntax-tree/type-table";
 import { Generator } from "./generator";
+import { GeneratorTexts } from "./texts";
 
 export class MathLatexGenerator extends Generator {
 
@@ -23,8 +23,8 @@ export class MathLatexGenerator extends Generator {
     latexOperator: Map<string, string>;
 
     json: {
-        SymbolsAndNotations: [string, string],
-        Operators: [string, string],
+        SymbolsAndNotations: [string, string][],
+        Operators: [string, string][],
         Newline: string,
         InlineText: string,
         DefaultElement: string,
@@ -35,8 +35,8 @@ export class MathLatexGenerator extends Generator {
         Default: string
     }
 
-    constructor(compiler: Compiler) {
-        super(compiler);
+    constructor(config: Config, path: Path, texts: GeneratorTexts, typeTable: TypeTable, sourceText: SourceText) {
+        super(config, path, texts, typeTable, sourceText);
 
         this.formulaType = this.typeTable.get("formula");
         this.elementType = this.typeTable.get("element");

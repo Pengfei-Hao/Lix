@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { DocumentManager } from '../document-manager';
-import { HighlightType } from '../../parser/result';
+import { HighlightType } from "../../common/result/highlight";
 
 export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
@@ -13,7 +13,7 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
 
         // analyze the document and return semantic tokens
 
-        let document = this.documentManager.validateDocument(allDocument);
+        let document = this.documentManager.validate(allDocument);
         if (!document) {
             return;
         }
@@ -21,7 +21,8 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
         const tokensBuilder = new vscode.SemanticTokensBuilder(this.legend);
         // on line 1, characters 1-5 are a class declaration
 
-        let parser = this.documentManager.getParseResult(document);
+        let compiler = this.documentManager.getCompiler(document);
+        let parser = compiler.parserResult;
         let highlights = parser.highlights;
         for (let hlt of highlights) {
             let type = "";
@@ -43,13 +44,13 @@ export class SemanticProvider implements vscode.DocumentSemanticTokensProvider {
                     type = "comment";
                     break;
             }
-            let lp = parser.sourceText.indexToLineAndCharacter(hlt.begin);
-            let lpe = parser.sourceText.indexToLineAndCharacter(hlt.end);
+            let lp = compiler.sourceText.indexToPosition(hlt.range.begin);
+            let lpe = compiler.sourceText.indexToPosition(hlt.range.end);
 
             if (lp.line != lpe.line) {
                 console.log(`${lp.line},${lp.character}:${lpe.line},${lpe.character}`);
             }
-            if (lp.line == -1 || lpe.line == -1) {
+            if (lp.line == lpe.line && lp.character == lpe.character) {
                 console.log(`${lp.line},${lpe.line}`);
             }
 

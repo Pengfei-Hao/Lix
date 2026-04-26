@@ -93,7 +93,7 @@ newline → [\r\n]
 blankchar → [\t \v\f]
 digit → [0-9]
 
-名字和常数
+### 名字和常数
 
 nameWithHyphen → ( **A** | ... | **Z** | **a** | ... | **z** | **0** | ... | **9** | **-** )+
 
@@ -107,7 +107,7 @@ raw-string-3 → **\`** (^**\`** ^EOF | !newline)* **\`**
 
 number → ( **+** | **-** | NULL ) digit+ ( **.** digit* | NULL ) skip-blank ( **%** | **px** | **em** | **cm** | NULL )
 
-换行和空白
+### 换行和空白
 
 singleline-comment → **//** (^newline ^EOF)*
 
@@ -124,7 +124,7 @@ skip-blank → singleline-blank | NULL
 
 skip-multiline-blank → multiline-blank | NULL
 
-## Document & Command & Block
+## Core (Document & Command & Block)
 
 本部分给出 Lix 基础功能的产生式, 包括 document, command, block 的基本处理.
 
@@ -136,13 +136,13 @@ skip-multiline-blank → multiline-blank | NULL
 
 // 根据 free paragraph 的讨论, 只会剩下下面的四种情况
 
-document → (command | free-paragraph | structural-block | !subblock-block)* EOF
+document → (command | free-paragraph | multiline-blank-gt-1 | structural-block | !subblock-block)* EOF
 
-command 部分
+### Command 部分
 
 command → setting-command /* customized */
 
-block 部分
+### Block 部分
 
 argument → (**@** skip-blank nameWithHyphen) | ( nameWithHyphen (skip-blank **:** skip-blank (nameWithHyphen | string | number))? )
 
@@ -160,32 +160,53 @@ format-block → emph-block | bold-block | italic-block
 
 subblock-block → item-block
 
+invalid-block → /* blocks except from above */
+
 ## Paragraph & Text & Other
 
 本部分给出 paragraph 块, text 块, setting 命令, reference 插入及其简略写法的产生式.
 
-paragraph & text 部分
+### Paragraph & Text 部分
 
 escape-char → **\\** (**\[** | **\]** | **\(** | **\)** | **#** | **@** | **/**)
 
+embedment → **\\\\**
+
 insertion → reference-insertion
+
+text-insertion → 
 
 // free-text 只会剩下 multiline-blank-gt-1, structural-block, basic-block, subblock-block, command, EOF 因此处理后只剩 structural-block, subblock-block, command, EOF
 
-free-paragraph → multiline-blank-gt-1 | (
-(free-text | basic-block)+ multiline-blank-gt-1?
-)
+free-paragraph → (free-text | basic-block | embedment)+
 
 // insertion 要放到 blank 之后, 因为注释和 formula 的前缀都是 /, escape char 和 \\ 会冲突
 
-free-text → **\\\\** | (
-(^multiline-blank-gt-1 ^structural-block ^basic-block ^subblock-block ^command ^**\\\\** ^EOF | multiline-blank-leq-1 | escape-char | insertion | format-block)+ **\\\\**?
-)
+free-text → (^multiline-blank-gt-1 ^structural-block ^basic-block ^subblock-block ^command ^embedment ^EOF | multiline-blank-leq-1 | escape-char | insertion | format-block | !invalid-block)+
 
-par-free-text → **\\\\** | (
-(^multiline-blank-gt-1 ^structural-block ^basic-block ^subblock-block ^**\]** ^**\\\\** ^EOF | multiline-blank-leq-1 | escape-char | insertion | format-block)+ **\\\\**?
-)
+par-free-text → (^multiline-blank-gt-1 ^structural-block ^basic-block ^subblock-block ^embedment ^**\]** ^EOF | multiline-blank-leq-1 | escape-char | insertion | format-block | !invalid-block)+
 
+### Block 部分
+
+// 在 par free text 中处理后只会剩下 
+multiline-blank-gt-1, structural-block, basic-block, subblock-block, **\]**, embedment, EOF
+
+paragraph-block-handler → (par-free-text | basic-block | embedment | !multiline-blank-gt-1 | !structural-block | !subblock-block)*
+
+text-block-handler → (^multiline-blank-gt-1 ^**\]** ^EOF | !structural-block | !basic-block | !subblock-block | multiline-blank-leq-1 | escape-char | insertion | format-block | !invalid-block)*
+
+### Custom Block 部分
+
+subblock-like-block-handler → ( multiline-blank-leq-1 | allowed-block | !disallowed-block )*
+
+format-like-block-handler → 
+(^multiline-blank-gt-1 ^**\]** ^EOF | !block | multiline-blank-leq-1 | escape-char | !text-insertion | insertion | !invalid-block)*
+
+text-like-block-handler → (^multiline-blank-gt-1 ^**\]** ^EOF | multiline-blank-leq-1 | escape-char | insertion | allowed-block | !disallowed-block | !invalid-block)*
+
+paragraph-like-block-handler → (par-free-text | embedment | !multiline-blank-gt-1 | allowed-block | !disallowed-block )*
+
+multi-paragraph-like-block-handler → ( free-paragraph | multiline-blank-gt-1 | structural-block | !subblock-block)*
 
 // 自定义 end, border
 
@@ -193,28 +214,15 @@ par-free-like-text → end | (
 (^multiline-blank-gt-1 ^structural-block ^basic-block ^subblock-block ^border ^end ^EOF | multiline-blank-leq-1 | escape-char | insertion | format-block)+ end?
 )
 
-block 部分
 
-// 在 par free text 中处理后只会剩下 
-multiline-blank-gt-1, structural-block, basic-block, subblock-block, **\]**, **\\\\**, EOF
 
-paragraph-block-handler → (par-free-text | basic-block | !multiline-blank-gt-1 | !structural-block | !subblock-block)*
 
-paragraph-like-block-handler → /* same as above */
 
-text-block-handler → 
-(^multiline-blank-gt-1 ^**\]** ^EOF | !structural-block | !basic-block | !subblock-block | !**\\\\** | multiline-blank-leq-1 | escape-char | insertion | format-block)*
-
-text-like-block-handler → /* same as above */
-
-format-like-block-handler → 
-(^multiline-blank-gt-1 ^**\]** ^EOF | !block | !**\\\\** | multiline-blank-leq-1 | escape-char | insertion)*
-
-setting 部分
+### Setting 部分
 
 setting-command-handler → **#** skip-blank nameWithHyphen skip-blank **:** (^newline ^EOF)*
 
-insertion 部分
+### Insertion 部分
 
 reference-insertion → **@** skip-blank nameWithHyphen skip-blank **;**?
 

@@ -1,7 +1,7 @@
 import { TextDecoder, TextEncoder } from 'util';
 import * as vscode from 'vscode';
 import { workspace } from 'vscode';
-import { Config } from '../compiler/config';
+import { Config } from '../common/config';
 
 const defaultSettings = {
     locale: "en-US",
@@ -13,7 +13,7 @@ const defaultSettings = {
     cacheDirectory: ".lix"
 } as const;
 
-export class VSCodeConfig implements Config {
+export class VSCodeConfig {
 
     settings: {
         locale: string,

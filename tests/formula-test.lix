@@ -9,28 +9,28 @@
 此外, 由于 `[]` 相较于其他括号 `{}`, `()` 来说使用频率最低, 因此在 Lix 中使用方括号 `[]` 作为默认的分界符以及默认的括号.
 
 [subsection 声调、变音符号]
-使用记号 `dot A`, `tilde A`, `hat A`, `vec A` 就可以输入这类符号, 如 /dot A/, /tilde A/, /hat A/, /vec A/. 如果要给多个字符加标记, 使用 `tilde [A B] widehat [A B]`, 效果是 /tilde [A B] widehat [A B]/.
+使用记号 `dot A`, `tilde A`, `hat A`, `vec A` 就可以输入这类符号, 如 /dot A Ȧ/, /tilde A/, /hat A/, /vec A/. 如果要给多个字符加标记, 使用 `tilde [A B] widehat [A B]`, 效果是 /tilde [A B] widehat [A B]/.
 Lix 中所有支持的记号与 LaTeX 中支持的宏基本一致, 完整列表可以参照 `math.json`.
 
 [subsection 函数名、希腊字母、数学符号、数学字体]
 函数名直接输入即可, 例如
-[code ``
-[formula exp, ln, log, sin, cos, tan, arcsin, arccos, sgn, max, min, Pr]``]
+[code `^`
+[formula exp, ln, log, sin, cos, tan, arcsin, arccos, sgn, max, min, Pr]`^`]
 得到
 [formula exp, ln, log, sin, cos, tan, arcsin, arccos, sgn, max, min, Pr]
 完整列表可以参照 `math.json`, 下同. 特别地, 如果有不支持的函数名, 可以用双引号包起来, 可以产生同样的效果, 例如 `"rank", "d"` 得到 /"rank", "d"/, 第二个正体的 /"d"/ 可以用作微分符号.
 
 输入数学符号时, 值得一提的是大多数数学符号都有其对应的 Unicode 版本, 在 VSCode 中输入相应的字母后按下 Tab 键就可以得到 Unicode 版本. [bold 由于 LaTeX 代码环境对 Unicode 符号支持不佳,后文中部分 Unicode 符号展示存在问题, 可以查看本文档代码.]
 数学符号的名称与 LaTeX 基本一致, 例如输入 `times`, `cdots`, `dots`, `cup`, `cap`, `in`, `infty`, `leqslant`, `forall`, `rightarrow` 后再按下 Tab 键, 就可以得到
-[code ``
-[formula ×,⋯,…,∪,∩,∊,∞,⩽,∀,→]``]
+[code `^`
+[formula ×,⋯,…,∪,∩,∊,∞,⩽,∀,→]`^`]
 效果为
 [formula ×,⋯,…,∪,∩,∊,∞,⩽,∀,→.]
 
 
 希腊字母的输入与数学符号完全一致, 例如
-[code ``
-[formula 𝛼,𝛽,𝛤,𝛥,𝜇,𝜅]``]
+[code `^`
+[formula 𝛼,𝛽,𝛤,𝛥,𝜇,𝜅]`^`]
 可以得到
 [formula 𝛼,𝛽,𝛤,𝛥,𝜇,𝜅]
 
@@ -43,63 +43,63 @@ Lix 中的上下标记号与 LaTeX 一致, 使用 `^`, `_` 来分别表示上标
 /⁰/, /¹, …/ 以及 /₀/, /₁,…/ 例如 /x¹₂/ 可写为 `x¹₂`.
 
 下面是一个较复杂的例子:
-[code ``
-[formula: (∫𝛷^k_[*, "it"](x)"d"x)^[t_k]_"kkt"]``]
+[code `^`
+[formula: (∫𝛷^k_[*, "it"](x)"d"x)^[t_k]_"kkt"]`^`]
 效果是
 [formula: (∫𝛷^k_[*, "it"](x)"d"x)^[t_k]_"kkt"]
 
 
 [subsection 括号]
 在 Lix 中括号直接输入即可, 默认会对根据括号包围住的内容调整括号大小, 如
-[code ``
-[formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]``]
+[code `^`
+[formula: ((a+b)+c), (@lim), ([lim i=1→n: a_n]), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]`^`]
 效果是
 [formula: ((a+b)+c), (@lim), (lim i=1→n: a_n), {x:x⩾0}, ⟨x,y⟩=⟨y,x⟩]
 最后一个尖括号使用 `langle, rangle`.
 
 单边的括号使用 
-[code ``
+[code `^`
 lwangle, rwangle
-``],
+`^`],
 此外, 不同的左右括号也可以自动匹配, 如区间 /(1,2]/, 效果如下
-[code ``
+[code `^`
 [formula {@∑⦊,  ([a ⁄ b]⦊,⦉mat a; b⟩,(mat a; b⟩, (lim x→∞: f(x)\]]
-``]
+`^`]
 [formula {@∑⦊,  ([a ⁄ b]⦊,⦉mat a; b⟩,(mat a; b⟩, (lim x→∞: f(x)\]]
 
 [subsection 分数和根号]
 要输入分数可以使用 `frac`, 在按 Tab 键后会变成一条斜线, (注意, 这条斜线不是键盘上的反斜线) 表示分数. 例如 `a c ⁄ b d` 表示 /a c ⁄ b d/. 分数默认会将左边的所有符号作为分子, 将右边所有符号作为分母, 这与上下标的默认行为不同. 如果想仅将式子的一部分作为分母, 用括号将其包住:
-[code ``
-[formula: 1 + [2 ⁄ 3 + [4 ⁄ 5 + ⋯]]]``]
+[code `^`
+[formula: 1 + [2 ⁄ 3 + [4 ⁄ 5 + ⋯]]]`^`]
 效果是
 [formula: 1 + [2 ⁄ 3 + [4 ⁄ 5 + ⋯]]]
 
 要输入根号使用 `sqrt`, 按 Tab 键后会变成一个根号, 后面跟一个符号, 如 `√a` 效果是 /√a/. 如果要加多个符号, 用括号括起来: 
-[code ``
-[formula: √[2 a],√[a^3],√a^b, √ lim k→∞: @∑ f(k).]``]
+[code `^`
+[formula: √[2 a],√[a^3],√a^b, √ lim k→∞: @∑ f(k).]`^`]
 效果是
 [formula: √[2 a],√[a^3],√a^b, √ lim k→∞: @∑ f(k).]
 
 [subsection 巨算符]
 巨算符的使用如下:
-[code ``
-[formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]``]
+[code `^`
+[formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]`^`]
 得到
 [formula ∑ i=1 to ∞: a_n = lim i=1: A_n = A_*]
 
 求和的写法是 `sum ... to ... : ...`, 极限的写法是 `lim ... : ...`, 如果想要单独使用 sum 符号和 lim 符号, 请使用 `@sum`, `@lim`, 其余符号同理, 如果想要在后边使用 to 以及 :, 而不是作为 sum 或者 lim 的一部分, 请使用 `@to`, `@:`.
-[code ``
-[formula lim k=1@:n : a_k = a_n]``]
+[code `^`
+[formula lim k=1@:n : a_k = a_n]`^`]
 得到
 [formula lim k=1@:n : a_k = a_n]
 
 其余巨算符如 sum, int, pi, lim, binom 等同理, 完整列表可以参照 `math.json`.
 
 [subsection 转义字符]
-Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分的符号, 比如 ``[, ], /, \, `, @``, 如果想要输入这种符号, 加 `\` 前缀; 前边这种方式输入的符号默认会参与表达式解析, 如果不想参与解析, 使用 `@` 前缀, 如下
-[code ``
+Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分的符号, 比如 `^`[, ], /, \, `, @`^`, 如果想要输入这种符号, 加 `\` 前缀; 前边这种方式输入的符号默认会参与表达式解析, 如果不想参与解析, 使用 `@` 前缀, 如下
+[code `^`
 [formula \[[ mat a b & c ; d @; & @& c⁄d ]\]]
-[formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]``]
+[formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]`^`]
 [formula \[ mat a b & c ; d @; & @& c⁄d \]]
 [formula \` \@ $ % @^ @_ @{  \[ \] @[ \\ \" \/]
 注意 `\[ ... \]`, `@[ ... @]` 是不同的, 前者是一种运算, 可以自适应里边内容的大小, 后者不可以
@@ -107,27 +107,27 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 
 [subsection 矩阵、表格与条件表达式]
 要输入矩阵可以使用 `mat`, 后边跟矩阵的元素, 例如
-[code ``
-[formula: (mat a⁄t & b^x & @∑ c ; d @; & @& e & f_\[x\])]``]
+[code `^`
+[formula: (mat a⁄t & b^x & @∑ c ; d @; & @& e & f_\[x\])]`^`]
 效果是
 [formula: (mat a⁄t & b^x & @∑ c ; d @; & @& e & f_\[x\])]
 
 条件表达式使用 `cases`, 后边和矩阵相同, 效果等同于 `lwcurly mat`:
-[code ``
-[formula: [cases a ; b], {mat a; b; c⦊]``]
+[code `^`
+[formula: [cases a ; b], {mat a; b; c⦊]`^`]
 效果是
 [formula: [cases a ; b], {mat a; b; c⦊]
 
 [subsection 多行公式]
 输入多行公式使用 `[formula(multi) ...]`, `&` 分隔一行中的元素, `;` 分隔不同的行, 与矩阵相同, 如下
 
-[code``
+[code`^`
 [formula(multi)
 "d"x_1⁄"d"t & =x_1 R(r_1 - a_1 x_1 - b_[1] x_2 - c_1 x_3);
 "d"x_2⁄"d"t & =x_2 R(r_2 - a_2 x_1 - b_[2] x_2 - c_2 x_3);
 "d"x_3⁄"d"t & =x_3 R(r_3 - a_3 x_1 - b_[2] x_2 - c_3 x_3)
 ]
-``]
+`^`]
 
 [formula(multi)
 "d"x_1⁄"d"t & =x_1 R(r_1 - a_1 x_1 - b_[1] x_2 - c_1 x_3);
@@ -138,8 +138,8 @@ Lix 中有两种前缀, `\` 与 `@`, 对于本身是 Lix 公式的组成部分�
 [subsection 空白]
 空白使用 `blank` 以及 `quad`, 例如
 //quad, qquad \ \;\,
-[code ``
-[formula: a⌷b,a⎕b]``]
+[code `^`
+[formula: a⌷b,a⎕b]`^`]
 效果是
 [formula: a⌷b,a⎕b]
 
